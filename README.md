@@ -1,2 +1,1 @@
-# mysqld_exporter
-Exporter for MySQL server metrics
+# mysqld_exporter (UNDER CONSTRUCTION)

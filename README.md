@@ -1,6 +1,7 @@
 # mysqld_exporter
 
 Exporter for MySQL server metrics http://prometheus.io/
+Supported mysql version 5.1 and up
 
 ## Building and running
 

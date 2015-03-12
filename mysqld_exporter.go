@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"strings"
 
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
@@ -20,7 +21,7 @@ const (
 )
 
 var (
-	listenAddress = flag.String("web.listen-address", ":9091", "Address to listen on for web interface and telemetry.")
+	listenAddress = flag.String("web.listen-address", ":9104", "Address to listen on for web interface and telemetry.")
 	metricPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	configFile    = flag.String("config.file", "mysqld_exporter.conf", "Path to config file.")
 )
@@ -59,12 +60,12 @@ func NewMySQLExporter(config *Config) *Exporter {
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
-			Name:      "exporter_total_scrapes",
+			Name:      "exporter_scrapes_total",
 			Help:      "Current total mysqld scrapes.",
 		}),
 		errorScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
-			Name:      "exporter_error_scrapes",
+			Name:      "exporter_scrape_errors_total",
 			Help:      "Error mysqld scrapes.",
 		}),
 		metrics: map[string]prometheus.Gauge{},
@@ -139,7 +140,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 func (e *Exporter) setMetrics(scrapes <-chan []string) {
 	for row := range scrapes {
 
-		name := row[0]
+		name := strings.ToLower(row[0])
 		value, err := strconv.ParseInt(row[1], 10, 64)
 		if err != nil {
 			// not really important

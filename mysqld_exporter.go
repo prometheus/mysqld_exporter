@@ -1,14 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
-	"sync"
 	"strings"
+	"sync"
+	"time"
 
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
@@ -23,40 +23,24 @@ const (
 var (
 	listenAddress = flag.String("web.listen-address", ":9104", "Address to listen on for web interface and telemetry.")
 	metricPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	configFile    = flag.String("config.file", "mysqld_exporter.conf", "Path to config file.")
 )
 
-type Config struct {
-	Config map[string]string `json:"config"`
-}
-
 type Exporter struct {
-	config                     Config
+	dsn                        string
 	mutex                      sync.RWMutex
-	up                         prometheus.Gauge
+	duration                   prometheus.Gauge
 	totalScrapes, errorScrapes prometheus.Counter
 	metrics                    map[string]prometheus.Gauge
 }
 
-func getConfig(file string) (*Config, error) {
-	config := &Config{}
-
-	bytes, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return config, json.Unmarshal(bytes, &config)
-}
-
 // return new empty exporter
-func NewMySQLExporter(config *Config) *Exporter {
+func NewMySQLExporter(dsn string) *Exporter {
 	return &Exporter{
-		config: *config,
-		up: prometheus.NewGauge(prometheus.GaugeOpts{
+		dsn: dsn,
+		duration: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "up",
-			Help:      "Was the last scrape of mysqld successful.",
+			Name:      "exporter_last_scrape_duration_nanoseconds",
+			Help:      "Was the last scrape  duration.",
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -77,7 +61,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 		m.Describe(ch)
 	}
 
-	ch <- e.up.Desc()
+	ch <- e.duration.Desc()
 	ch <- e.totalScrapes.Desc()
 	ch <- e.errorScrapes.Desc()
 }
@@ -90,7 +74,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	e.setMetrics(scrapes)
-	ch <- e.up
+	ch <- e.duration
 	ch <- e.totalScrapes
 	ch <- e.errorScrapes
 	e.collectMetrics(ch)
@@ -99,31 +83,34 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(scrapes chan<- []string) {
 	defer close(scrapes)
 
-	e.totalScrapes.Inc()
-	e.up.Set(0)
+	now := time.Now().UnixNano()
 
-	db, err := sql.Open("mysql", e.config.Config["mysql_connection"])
+	e.totalScrapes.Inc()
+
+	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Printf("error open connection to db using %s", e.config.Config["mysql_connection"])
+		log.Printf("error open connection to db")
+		e.errorScrapes.Inc()
+		e.duration.Set(float64(time.Now().UnixNano() - now))
 		return
 	}
 	defer db.Close()
 
 	rows, err := db.Query("SHOW STATUS")
 	if err != nil {
-		log.Printf("error running query on db %s", e.config.Config["mysql_connection"])
+		log.Printf("error running query on db")
+		e.errorScrapes.Inc()
+		e.duration.Set(float64(time.Now().UnixNano() - now))
 		return
 	}
 	defer rows.Close()
-
-	e.up.Set(1) // from this point db is ok
 
 	var key, val []byte
 	for rows.Next() {
 		// get RawBytes from data
 		err = rows.Scan(&key, &val)
 		if err != nil {
-			log.Printf("error getting result set ")
+			log.Printf("error getting result set")
 			return
 		}
 
@@ -134,6 +121,8 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 		scrapes <- res
 	}
 
+	e.duration.Set(float64(time.Now().UnixNano() - now))
+
 	return
 }
 
@@ -143,9 +132,7 @@ func (e *Exporter) setMetrics(scrapes <-chan []string) {
 		name := strings.ToLower(row[0])
 		value, err := strconv.ParseInt(row[1], 10, 64)
 		if err != nil {
-			// not really important
-			// log.Printf("Error while parsing field value %s (%s): %v", row[0], row[1], err)
-			e.errorScrapes.Inc()
+			// convert/serve text values here ?
 			continue
 		}
 
@@ -169,12 +156,12 @@ func (e *Exporter) collectMetrics(metrics chan<- prometheus.Metric) {
 func main() {
 	flag.Parse()
 
-	config, err := getConfig(*configFile)
-	if err != nil {
-		log.Fatal("couldn't read config file ", *configFile, " : ", err)
+	dsn := os.Getenv("DSN")
+	if len(dsn) == 0 {
+		log.Fatal("couldn't find environment variable DSN")
 	}
 
-	exporter := NewMySQLExporter(config)
+	exporter := NewMySQLExporter(dsn)
 	prometheus.MustRegister(exporter)
 	http.Handle(*metricPath, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

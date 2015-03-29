@@ -89,16 +89,17 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Printf("error open connection to db")
+		log.Printf("error open connection to database: ", err)
 		e.errorScrapes.Inc()
 		e.duration.Set(float64(time.Now().UnixNano() - now))
 		return
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SHOW STATUS")
+	// fetch database status
+	rows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
-		log.Printf("error running query on db")
+		log.Println("error running status query on database: ", err)
 		e.errorScrapes.Inc()
 		e.duration.Set(float64(time.Now().UnixNano() - now))
 		return
@@ -110,13 +111,52 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 		// get RawBytes from data
 		err = rows.Scan(&key, &val)
 		if err != nil {
-			log.Printf("error getting result set")
+			log.Printf("error getting result set: ", err)
 			return
 		}
 
 		var res []string = make([]string, 2)
 		res[0] = string(key)
 		res[1] = string(val)
+
+		scrapes <- res
+	}
+
+	// fetch slave status
+	rows, err = db.Query("SHOW SLAVE STATUS")
+	if err != nil {
+		log.Println("error running show slave query on database: ", err)
+		e.errorScrapes.Inc()
+		e.duration.Set(float64(time.Now().UnixNano() - now))
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		// get RawBytes from data
+		err = rows.Scan(&key, &val)
+		if err != nil {
+			log.Printf("error getting result set: ", err)
+			return
+		}
+
+		var res []string = make([]string, 2)
+		res[0] = string(key)
+		if (string(key) == "Slave_IO_State") {
+			if (strings.HasPrefix(string(val), "Waiting")) {
+				res[1] = "1"
+			} else {
+				res[1] = "0"
+			}
+		} else {
+			if (string(val) == "Yes") {
+				res[1] = "1"
+			} else if (string(val) == "No") {
+				res[1] = "0"
+			} else {
+				res[1] = string(val)
+			}
+		}
 
 		scrapes <- res
 	}

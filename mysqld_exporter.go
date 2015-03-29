@@ -122,8 +122,6 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	}
 
 	e.duration.Set(float64(time.Now().UnixNano() - now))
-
-	return
 }
 
 func (e *Exporter) setMetrics(scrapes <-chan []string) {

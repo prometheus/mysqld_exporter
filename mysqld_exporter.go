@@ -154,9 +154,9 @@ func (e *Exporter) collectMetrics(metrics chan<- prometheus.Metric) {
 func main() {
 	flag.Parse()
 
-	dsn := os.Getenv("DSN")
+	dsn := os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
-		log.Fatal("couldn't find environment variable DSN")
+		log.Fatal("couldn't find environment variable DATA_SOURCE_NAME")
 	}
 
 	exporter := NewMySQLExporter(dsn)

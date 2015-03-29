@@ -6,7 +6,7 @@ Supported mysql version 5.1 and up
 ## Building and running
 
     make
-    export DSN="login:password@host/dbname"
+    export DATA_SOURCE_NAME="login:password@host/dbname"
     ./mysqld_exporter <flags>
 
 Flags description

@@ -16,5 +16,5 @@ Name               | Description
 web.listen-address | Address to listen on for web interface and telemetry.
 web.telemetry-path | Path under which to expose metrics.
 
-Variable with database datasource must be set in DSN environment variable
+Variable with database datasource must be set in DATA_SOURCE_NAME environment variable
 Format of connection string described at https://github.com/go-sql-driver/mysql#dsn-data-source-name

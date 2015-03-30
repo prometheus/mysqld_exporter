@@ -40,7 +40,7 @@ func NewMySQLExporter(dsn string) *Exporter {
 		duration: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "exporter_last_scrape_duration_nanoseconds",
-			Help:      "Was the last scrape  duration.",
+			Help:      "The last scrape  duration.",
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -89,7 +89,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Printf("error open connection to database: ", err)
+		log.Printf("error opening connection to database: ", err)
 		e.errorScrapes.Inc()
 		e.duration.Set(float64(time.Now().UnixNano() - now))
 		return

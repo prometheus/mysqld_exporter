@@ -39,8 +39,8 @@ func NewMySQLExporter(dsn string) *Exporter {
 		dsn: dsn,
 		duration: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "exporter_last_scrape_duration_nanoseconds",
-			Help:      "The last scrape  duration.",
+			Name:      "exporter_last_scrape_duration_seconds",
+			Help:      "The last scrape duration.",
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -91,7 +91,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Printf("error opening connection to database: ", err)
 		e.errorScrapes.Inc()
-		e.duration.Set(float64(time.Now().UnixNano() - now))
+		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
 	defer db.Close()
@@ -101,7 +101,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Println("error running status query on database: ", err)
 		e.errorScrapes.Inc()
-		e.duration.Set(float64(time.Now().UnixNano() - now))
+		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
 	defer rows.Close()
@@ -127,7 +127,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Println("error running show slave query on database: ", err)
 		e.errorScrapes.Inc()
-		e.duration.Set(float64(time.Now().UnixNano() - now))
+		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
 	defer rows.Close()
@@ -161,7 +161,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 		scrapes <- res
 	}
 
-	e.duration.Set(float64(time.Now().UnixNano() - now))
+	e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 }
 
 func (e *Exporter) setMetrics(scrapes <-chan []string) {

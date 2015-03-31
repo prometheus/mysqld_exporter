@@ -90,7 +90,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Printf("error opening connection to database: ", err)
-		e.errorScrapes.Inc()
+		e.errorScrapes = 1
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -100,7 +100,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	rows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
 		log.Println("error running status query on database: ", err)
-		e.errorScrapes.Inc()
+		e.errorScrapes = 1
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -126,7 +126,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	rows, err = db.Query("SHOW SLAVE STATUS")
 	if err != nil {
 		log.Println("error running show slave query on database: ", err)
-		e.errorScrapes.Inc()
+		e.errorScrapes = 1
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -160,7 +160,8 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 		scrapes <- res
 	}
-
+	
+	e.errorScrapes = 0
 	e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 }
 

@@ -26,11 +26,11 @@ var (
 )
 
 type Exporter struct {
-	dsn                        string
-	mutex                      sync.RWMutex
-	duration                   prometheus.Gauge
-	totalScrapes, errorScrapes prometheus.Counter
-	metrics                    map[string]prometheus.Gauge
+	dsn                string
+	mutex              sync.RWMutex
+	duration,error     prometheus.Gauge
+	totalScrapes       prometheus.Counter
+	metrics            map[string]prometheus.Gauge
 }
 
 // return new empty exporter
@@ -47,10 +47,10 @@ func NewMySQLExporter(dsn string) *Exporter {
 			Name:      "exporter_scrapes_total",
 			Help:      "Current total mysqld scrapes.",
 		}),
-		errorScrapes: prometheus.NewCounter(prometheus.CounterOpts{
+		error: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "exporter_scrape_errors_total",
-			Help:      "Error mysqld scrapes.",
+			Name:      "exporter_last_scrape_error",
+			Help:      "The last scrape error status.",
 		}),
 		metrics: map[string]prometheus.Gauge{},
 	}
@@ -63,7 +63,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 	ch <- e.duration.Desc()
 	ch <- e.totalScrapes.Desc()
-	ch <- e.errorScrapes.Desc()
+	ch <- e.error.Desc()
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -76,7 +76,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.setMetrics(scrapes)
 	ch <- e.duration
 	ch <- e.totalScrapes
-	ch <- e.errorScrapes
+	ch <- e.error
 	e.collectMetrics(ch)
 }
 
@@ -90,7 +90,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Printf("error opening connection to database: ", err)
-		e.errorScrapes = 1
+		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -100,7 +100,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	rows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
 		log.Println("error running status query on database: ", err)
-		e.errorScrapes = 1
+		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -126,7 +126,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	rows, err = db.Query("SHOW SLAVE STATUS")
 	if err != nil {
 		log.Println("error running show slave query on database: ", err)
-		e.errorScrapes = 1
+		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 		return
 	}
@@ -161,7 +161,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 		scrapes <- res
 	}
 	
-	e.errorScrapes = 0
+	e.error.Set(0)
 	e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
 }
 

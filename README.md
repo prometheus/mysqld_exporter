@@ -9,12 +9,14 @@ Supported MySQL versions: 5.1 and up.
     export DATA_SOURCE_NAME="login:password@host/dbname"
     ./mysqld_exporter <flags>
 
-Flags description
+### Flags
 
 Name               | Description
 -------------------|------------
 web.listen-address | Address to listen on for web interface and telemetry.
 web.telemetry-path | Path under which to expose metrics.
+
+### Setting the MySQL server's datasource name
 
 The MySQL server's [datasource name](http://en.wikipedia.org/wiki/Data_source_name)
 must be set via the `DATA_SOURCE_NAME` environment variable.

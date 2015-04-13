@@ -1,7 +1,7 @@
-# mysqld_exporter
+# MySQL Server Exporter
 
-Exporter for MySQL server metrics http://prometheus.io/
-Supported mysql version 5.1 and up
+Prometheus exporter for MySQL server metrics.
+Supported MySQL versions: 5.1 and up.
 
 ## Building and running
 
@@ -16,5 +16,6 @@ Name               | Description
 web.listen-address | Address to listen on for web interface and telemetry.
 web.telemetry-path | Path under which to expose metrics.
 
-Variable with database datasource must be set in DATA_SOURCE_NAME environment variable
-Format of connection string described at https://github.com/go-sql-driver/mysql#dsn-data-source-name
+The MySQL server's [datasource name](http://en.wikipedia.org/wiki/Data_source_name)
+must be set via the `DATA_SOURCE_NAME` environment variable.
+The format of this variable is described at https://github.com/go-sql-driver/mysql#dsn-data-source-name.

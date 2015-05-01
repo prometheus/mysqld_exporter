@@ -6,7 +6,7 @@ Supported MySQL versions: 5.1 and up.
 ## Building and running
 
     make
-    export DATA_SOURCE_NAME="login:password@host/dbname"
+    export DATA_SOURCE_NAME="login:password@(hostname:port)/dbname"
     ./mysqld_exporter <flags>
 
 ### Flags

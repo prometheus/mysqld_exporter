@@ -11,6 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# THE AUTHORITATIVE VERSION OF THIS MAKEFILE LIVES IN:
+#
+#   https://github.com/prometheus/utils
+#
+# PLEASE MAKE ANY CHANGES THERE AND PROPAGATE THEM TO ALL PROMETHEUS
+# REPOSITORIES THAT ARE USING THIS MAKEFILE.
+#
 # This file provides common Makefile infrastructure for several Prometheus
 # components. This includes make tasks for downloading Go, setting up a
 # self-contained build environment, fetching Go dependencies, building
@@ -34,26 +41,27 @@ VERSION ?= $(error VERSION not set in including Makefile)
 TARGET  ?= $(error TARGET not set in including Makefile)
 
 SRC    ?= $(shell find . -type f -name "*.go" ! -path "./.build/*")
-GOOS   := $(shell uname | tr A-Z a-z)
-GOARCH := $(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m)))
+GOOS   ?= $(shell uname | tr A-Z a-z)
+GOARCH ?= $(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m)))
 
 ifeq ($(GOOS),darwin)
 	RELEASE_SUFFIX ?= -osx$(shell sw_vers -productVersion)
 endif
 
-GO_VERSION ?= 1.4.1
-GOURL      ?= https://golang.org/dl
-GOPKG      ?= go$(GO_VERSION).$(GOOS)-$(GOARCH)$(RELEASE_SUFFIX).tar.gz
-GOPATH     := $(CURDIR)/.build/gopath
-GOCC       ?= $(GOROOT)/bin/go
-GO         ?= GOROOT=$(GOROOT) GOPATH=$(GOPATH) $(GOCC)
-GOFMT      ?= $(GOROOT)/bin/gofmt
+GO_VERSION ?= 1.4.2
 
 ifeq ($(shell type go >/dev/null && go version | sed 's/.*go\([0-9.]*\).*/\1/'), $(GO_VERSION))
 	GOROOT := $(shell go env GOROOT)
 else
 	GOROOT := $(CURDIR)/.build/go$(GO_VERSION)
 endif
+
+GOURL      ?= https://golang.org/dl
+GOPKG      ?= go$(GO_VERSION).$(GOOS)-$(GOARCH)$(RELEASE_SUFFIX).tar.gz
+GOPATH     := $(CURDIR)/.build/gopath
+GOCC       ?= $(GOROOT)/bin/go
+GO         ?= GOROOT=$(GOROOT) GOPATH=$(GOPATH) $(GOCC)
+GOFMT      ?= $(GOROOT)/bin/gofmt
 
 # Never honor GOBIN, should it be set at all.
 unexport GOBIN
@@ -79,12 +87,15 @@ $(SELFLINK):
 	mkdir -p $(dir $@)
 	ln -s $(CURDIR) $@
 
-dependencies-stamp: $(SRC) | $(SELFLINK)
+dependencies-stamp: $(GOCC) $(SRC) | $(SELFLINK)
 	$(GO) get -d
 	touch $@
 
 $(BINARY): $(GOCC) $(SRC) dependencies-stamp Makefile Makefile.COMMON
 	$(GO) build $(GOFLAGS) -o $@
+
+.PHONY: archive
+archive: $(ARCHIVE)
 
 $(ARCHIVE): $(BINARY)
 	tar -czf $@ $<
@@ -99,7 +110,7 @@ test: $(GOCC) dependencies-stamp
 	$(GO) test ./...
 
 .PHONY: format
-format:
+format: $(GOCC)
 	find . -iname '*.go' | egrep -v "^\./\.build|./generated|\./Godeps|\.(l|y)\.go" | xargs -n1 $(GOFMT) -w -s=true
 
 .PHONY: clean

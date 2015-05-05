@@ -26,11 +26,15 @@ var (
 )
 
 type Exporter struct {
-	dsn             string
-	mutex           sync.RWMutex
-	duration, error prometheus.Gauge
-	totalScrapes    prometheus.Counter
-	metrics         map[string]prometheus.Gauge
+	dsn               string
+	mutex             sync.RWMutex
+	duration, error   prometheus.Gauge
+	totalScrapes      prometheus.Counter
+	metrics           map[string]prometheus.Gauge
+	commands          *prometheus.CounterVec
+	connectionErrors  *prometheus.CounterVec
+	innodbRows        *prometheus.CounterVec
+	performanceSchema *prometheus.CounterVec
 }
 
 // return new empty exporter
@@ -53,6 +57,26 @@ func NewMySQLExporter(dsn string) *Exporter {
 			Help:      "The last scrape error status.",
 		}),
 		metrics: map[string]prometheus.Gauge{},
+		commands: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "commands_total",
+			Help:      "Number of executed mysql commands.",
+		}, []string{"command"}),
+		connectionErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "connection_errors_total",
+			Help:      "Number of mysql connection errors.",
+		}, []string{"error"}),
+		innodbRows: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "innodb_rows_total",
+			Help:      "Mysql Innodb row operations.",
+		}, []string{"operation"}),
+		performanceSchema: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "performance_schema_total",
+			Help:      "Mysql instrumentations that could not be loaded or created due to memory constraints",
+		}, []string{"instrumentation"}),
 	}
 }
 
@@ -60,6 +84,11 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, m := range e.metrics {
 		m.Describe(ch)
 	}
+
+	e.commands.Describe(ch)
+	e.connectionErrors.Describe(ch)
+	e.innodbRows.Describe(ch)
+	e.performanceSchema.Describe(ch)
 
 	ch <- e.duration.Desc()
 	ch <- e.totalScrapes.Desc()
@@ -78,6 +107,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.totalScrapes
 	ch <- e.error
 	e.collectMetrics(ch)
+	e.commands.Collect(ch)
+	e.connectionErrors.Collect(ch)
+	e.innodbRows.Collect(ch)
+	e.performanceSchema.Collect(ch)
 }
 
 func (e *Exporter) scrape(scrapes chan<- []string) {
@@ -181,24 +214,48 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 }
 
-func (e *Exporter) setMetrics(scrapes <-chan []string) {
-	for row := range scrapes {
+func (e *Exporter) setGenericMetric(name string, value float64) {
+	if _, ok := e.metrics[name]; !ok {
+		e.metrics[name] = prometheus.NewUntyped(prometheus.UntypedOpts{
+			Namespace: namespace,
+			Name:      name,
+		})
+	}
 
+	e.metrics[name].Set(value)
+}
+
+func (e *Exporter) setMetrics(scrapes <-chan []string) {
+	var comRegex = regexp.MustCompile(`^com_(.*)$`)
+	var connectionErrorRegex = regexp.MustCompile(`^connection_errors_(.*)$`)
+	var innodbRowRegex = regexp.MustCompile(`^innodb_rows_(.*)$`)
+	var performanceSchemaRegex = regexp.MustCompile(`^performance_schema_(.*)$`)
+
+	for row := range scrapes {
 		name := strings.ToLower(row[0])
-		value, err := strconv.ParseInt(row[1], 10, 64)
+		value, err := strconv.ParseFloat(row[1], 64)
 		if err != nil {
 			// convert/serve text values here ?
 			continue
 		}
 
-		if _, ok := e.metrics[name]; !ok {
-			e.metrics[name] = prometheus.NewGauge(prometheus.GaugeOpts{
-				Namespace: namespace,
-				Name:      name,
-			})
-		}
+		command := comRegex.FindStringSubmatch(name)
+		connectionError := connectionErrorRegex.FindStringSubmatch(name)
+		innodbRow := innodbRowRegex.FindStringSubmatch(name)
+		performanceSchema := performanceSchemaRegex.FindStringSubmatch(name)
 
-		e.metrics[name].Set(float64(value))
+		switch {
+		case len(command) > 0:
+			e.commands.With(prometheus.Labels{"command": command[1]}).Set(value)
+		case len(connectionError) > 0:
+			e.connectionErrors.With(prometheus.Labels{"error": connectionError[1]}).Set(value)
+		case len(innodbRow) > 0:
+			e.innodbRows.With(prometheus.Labels{"operation": innodbRow[1]}).Set(value)
+		case len(performanceSchema) > 0:
+			e.performanceSchema.With(prometheus.Labels{"instrumentation": performanceSchema[1]}).Set(value)
+		default:
+			e.setGenericMetric(name, value)
+		}
 	}
 }
 

@@ -1,8 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
-	"log"
+	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,10 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 )
 
 const (

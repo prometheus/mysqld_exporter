@@ -26,11 +26,11 @@ var (
 )
 
 type Exporter struct {
-	dsn                string
-	mutex              sync.RWMutex
-	duration,error     prometheus.Gauge
-	totalScrapes       prometheus.Counter
-	metrics            map[string]prometheus.Gauge
+	dsn             string
+	mutex           sync.RWMutex
+	duration, error prometheus.Gauge
+	totalScrapes    prometheus.Counter
+	metrics         map[string]prometheus.Gauge
 }
 
 // return new empty exporter
@@ -91,7 +91,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Printf("error opening connection to database: ", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
+		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer db.Close()
@@ -101,7 +101,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Println("error running status query on database: ", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
+		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer rows.Close()
@@ -127,7 +127,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	if err != nil {
 		log.Println("error running show slave query on database: ", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
+		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer rows.Close()
@@ -142,16 +142,16 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 		var res []string = make([]string, 2)
 		res[0] = string(key)
-		if (string(key) == "Slave_IO_State") {
-			if (strings.HasPrefix(string(val), "Waiting")) {
+		if string(key) == "Slave_IO_State" {
+			if strings.HasPrefix(string(val), "Waiting") {
 				res[1] = "1"
 			} else {
 				res[1] = "0"
 			}
 		} else {
-			if (string(val) == "Yes") {
+			if string(val) == "Yes" {
 				res[1] = "1"
-			} else if (string(val) == "No") {
+			} else if string(val) == "No" {
 				res[1] = "0"
 			} else {
 				res[1] = string(val)
@@ -160,9 +160,9 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 		scrapes <- res
 	}
-	
+
 	e.error.Set(0)
-	e.duration.Set(float64(time.Now().UnixNano() - now) / 1000000000)
+	e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 }
 
 func (e *Exporter) setMetrics(scrapes <-chan []string) {

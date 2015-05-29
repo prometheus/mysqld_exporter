@@ -6,6 +6,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -88,7 +89,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Printf("error opening connection to database: ", err)
+		log.Println("error opening connection to database:", err)
 		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
@@ -98,7 +99,7 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	// fetch database status
 	rows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
-		log.Println("error running status query on database: ", err)
+		log.Println("error running status query on database:", err)
 		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
@@ -106,11 +107,12 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	defer rows.Close()
 
 	var key, val []byte
+
 	for rows.Next() {
 		// get RawBytes from data
 		err = rows.Scan(&key, &val)
 		if err != nil {
-			log.Printf("error getting result set: ", err)
+			log.Println("error getting result set:", err)
 			return
 		}
 
@@ -124,40 +126,55 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	// fetch slave status
 	rows, err = db.Query("SHOW SLAVE STATUS")
 	if err != nil {
-		log.Println("error running show slave query on database: ", err)
+		log.Println("error running show slave query on database:", err)
 		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer rows.Close()
 
+	var slaveCols []string
+
+	slaveCols, err = rows.Columns()
+	if err != nil {
+		log.Println("error retrieving column list:", err)
+		e.error.Set(1)
+		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
+		return
+	}
+
+	var slaveData = make([]sql.RawBytes, len(slaveCols))
+
+	// As the number of columns varies with mysqld versions,
+	// and sql.Scan requires []interface{}, we need to create a
+	// slice of pointers to the elements of slaveData.
+
+	scanArgs := make([]interface{}, len(slaveCols))
+	for i := range slaveData {
+		scanArgs[i] = &slaveData[i]
+	}
+
 	for rows.Next() {
-		// get RawBytes from data
-		err = rows.Scan(&key, &val)
+
+		err = rows.Scan(scanArgs...)
 		if err != nil {
-			log.Printf("error getting result set: ", err)
+			log.Println("error retrieving result set:", err)
+			e.error.Set(1)
+			e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 			return
 		}
 
+	}
+
+	for i, col := range slaveCols {
+
 		var res []string = make([]string, 2)
-		res[0] = string(key)
-		if string(key) == "Slave_IO_State" {
-			if strings.HasPrefix(string(val), "Waiting") {
-				res[1] = "1"
-			} else {
-				res[1] = "0"
-			}
-		} else {
-			if string(val) == "Yes" {
-				res[1] = "1"
-			} else if string(val) == "No" {
-				res[1] = "0"
-			} else {
-				res[1] = string(val)
-			}
-		}
+
+		res[0] = col
+		res[1] = parseStatus(slaveData[i])
 
 		scrapes <- res
+
 	}
 
 	e.error.Set(0)
@@ -188,6 +205,27 @@ func (e *Exporter) setMetrics(scrapes <-chan []string) {
 func (e *Exporter) collectMetrics(metrics chan<- prometheus.Metric) {
 	for _, m := range e.metrics {
 		m.Collect(metrics)
+	}
+}
+
+func parseStatus(data []byte) string {
+	logRexp := regexp.MustCompile(".([0-9]+$)")
+	logNum := logRexp.Find(data)
+
+	switch {
+
+	case string(data) == "Yes":
+		return "1"
+
+	case string(data) == "No":
+		return "0"
+
+	case len(logNum) > 1:
+		return string(logNum[1:])
+
+	default:
+		return string(data)
+
 	}
 }
 

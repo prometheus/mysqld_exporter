@@ -209,7 +209,7 @@ func (e *Exporter) collectMetrics(metrics chan<- prometheus.Metric) {
 }
 
 func parseStatus(data []byte) string {
-	logRexp := regexp.MustCompile(".([0-9]+$)")
+	logRexp := regexp.MustCompile(`\.([0-9]+$)`)
 	logNum := logRexp.Find(data)
 
 	switch {

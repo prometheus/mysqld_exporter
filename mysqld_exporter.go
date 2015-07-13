@@ -308,5 +308,6 @@ func main() {
 `))
 	})
 
+	log.Infof("Starting Server: %s", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }

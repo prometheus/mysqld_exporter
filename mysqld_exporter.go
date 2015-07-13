@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	namespace = "mysql"
+	namespace    = "mysql"
+	slaveStatus  = "slave_status"
+	globalStatus = "global_status"
 )
 
 var (
@@ -59,21 +61,25 @@ func NewMySQLExporter(dsn string) *Exporter {
 		metrics: map[string]prometheus.Gauge{},
 		commands: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
+			Subsystem: globalStatus,
 			Name:      "commands_total",
 			Help:      "Number of executed mysql commands.",
 		}, []string{"command"}),
 		connectionErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
+			Subsystem: globalStatus,
 			Name:      "connection_errors_total",
 			Help:      "Number of mysql connection errors.",
 		}, []string{"error"}),
 		innodbRows: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
+			Subsystem: globalStatus,
 			Name:      "innodb_rows_total",
 			Help:      "Mysql Innodb row operations.",
 		}, []string{"operation"}),
 		performanceSchema: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
+			Subsystem: globalStatus,
 			Name:      "performance_schema_total",
 			Help:      "Mysql instrumentations that could not be loaded or created due to memory constraints",
 		}, []string{"instrumentation"}),
@@ -96,7 +102,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	scrapes := make(chan []string)
+	scrapes := make(chan metric)
 
 	go e.scrape(scrapes)
 
@@ -113,7 +119,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.performanceSchema.Collect(ch)
 }
 
-func (e *Exporter) scrape(scrapes chan<- []string) {
+type metric struct {
+	source string
+	key    string
+	value  string
+}
+
+func (e *Exporter) scrape(scrapes chan<- metric) {
 	defer close(scrapes)
 
 	now := time.Now().UnixNano()
@@ -149,9 +161,11 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 			return
 		}
 
-		var res []string = make([]string, 2)
-		res[0] = string(key)
-		res[1] = string(val)
+		res := metric{
+			source: globalStatus,
+			key:    string(key),
+			value:  string(val),
+		}
 
 		scrapes <- res
 	}
@@ -201,10 +215,11 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 
 	for i, col := range slaveCols {
 
-		var res []string = make([]string, 2)
-
-		res[0] = col
-		res[1] = parseStatus(slaveData[i])
+		res := metric{
+			source: slaveStatus,
+			key:    col,
+			value:  parseStatus(slaveData[i]),
+		}
 
 		scrapes <- res
 
@@ -214,10 +229,11 @@ func (e *Exporter) scrape(scrapes chan<- []string) {
 	e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 }
 
-func (e *Exporter) setGenericMetric(name string, value float64) {
+func (e *Exporter) setGenericMetric(subsystem string, name string, value float64) {
 	if _, ok := e.metrics[name]; !ok {
 		e.metrics[name] = prometheus.NewUntyped(prometheus.UntypedOpts{
 			Namespace: namespace,
+			Subsystem: subsystem,
 			Name:      name,
 		})
 	}
@@ -225,36 +241,40 @@ func (e *Exporter) setGenericMetric(name string, value float64) {
 	e.metrics[name].Set(value)
 }
 
-func (e *Exporter) setMetrics(scrapes <-chan []string) {
-	var comRegex = regexp.MustCompile(`^com_(.*)$`)
-	var connectionErrorRegex = regexp.MustCompile(`^connection_errors_(.*)$`)
-	var innodbRowRegex = regexp.MustCompile(`^innodb_rows_(.*)$`)
-	var performanceSchemaRegex = regexp.MustCompile(`^performance_schema_(.*)$`)
+var globalStatusRegexp = regexp.MustCompile(`^(com|connection_errors|innodb_rows|performance_schema)_(.*)$`)
 
-	for row := range scrapes {
-		name := strings.ToLower(row[0])
-		value, err := strconv.ParseFloat(row[1], 64)
+func (e *Exporter) setGlobalStatusMetric(name string, value float64) {
+	match := globalStatusRegexp.FindStringSubmatch(name)
+	if match == nil {
+		e.setGenericMetric(globalStatus, name, value)
+		return
+	}
+	switch match[1] {
+	case "com":
+		e.commands.With(prometheus.Labels{"command": match[2]}).Set(value)
+	case "connection_errors":
+		e.connectionErrors.With(prometheus.Labels{"error": match[2]}).Set(value)
+	case "innodb_rows":
+		e.innodbRows.With(prometheus.Labels{"operation": match[2]}).Set(value)
+	case "performance_schema":
+		e.performanceSchema.With(prometheus.Labels{"instrumentation": match[2]}).Set(value)
+	}
+}
+
+func (e *Exporter) setMetrics(scrapes <-chan metric) {
+	for m := range scrapes {
+		name := strings.ToLower(m.key)
+		value, err := strconv.ParseFloat(m.value, 64)
 		if err != nil {
 			// convert/serve text values here ?
 			continue
 		}
 
-		command := comRegex.FindStringSubmatch(name)
-		connectionError := connectionErrorRegex.FindStringSubmatch(name)
-		innodbRow := innodbRowRegex.FindStringSubmatch(name)
-		performanceSchema := performanceSchemaRegex.FindStringSubmatch(name)
-
-		switch {
-		case len(command) > 0:
-			e.commands.With(prometheus.Labels{"command": command[1]}).Set(value)
-		case len(connectionError) > 0:
-			e.connectionErrors.With(prometheus.Labels{"error": connectionError[1]}).Set(value)
-		case len(innodbRow) > 0:
-			e.innodbRows.With(prometheus.Labels{"operation": innodbRow[1]}).Set(value)
-		case len(performanceSchema) > 0:
-			e.performanceSchema.With(prometheus.Labels{"instrumentation": performanceSchema[1]}).Set(value)
-		default:
-			e.setGenericMetric(name, value)
+		switch m.source {
+		case slaveStatus:
+			e.setGenericMetric(m.source, name, value)
+		case globalStatus:
+			e.setGlobalStatusMetric(name, value)
 		}
 	}
 }

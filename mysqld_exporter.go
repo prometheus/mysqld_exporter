@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"os"
@@ -17,9 +18,10 @@ import (
 )
 
 const (
-	namespace    = "mysql"
-	slaveStatus  = "slave_status"
-	globalStatus = "global_status"
+	namespace         = "mysql"
+	slaveStatus       = "slave_status"
+	globalStatus      = "global_status"
+	performanceSchema = "perf_schema"
 )
 
 var (
@@ -28,15 +30,16 @@ var (
 )
 
 type Exporter struct {
-	dsn               string
-	mutex             sync.RWMutex
-	duration, error   prometheus.Gauge
-	totalScrapes      prometheus.Counter
-	metrics           map[string]prometheus.Gauge
-	commands          *prometheus.CounterVec
-	connectionErrors  *prometheus.CounterVec
-	innodbRows        *prometheus.CounterVec
-	performanceSchema *prometheus.CounterVec
+	dsn                         string
+	mutex                       sync.RWMutex
+	duration, error             prometheus.Gauge
+	totalScrapes                prometheus.Counter
+	metrics                     map[string]prometheus.Gauge
+	commands                    *prometheus.CounterVec
+	connectionErrors            *prometheus.CounterVec
+	innodbRows                  *prometheus.CounterVec
+	globalPerformanceSchema     *prometheus.CounterVec
+	performanceSchemaTableWaits *prometheus.CounterVec
 }
 
 // return new empty exporter
@@ -77,12 +80,18 @@ func NewMySQLExporter(dsn string) *Exporter {
 			Name:      "innodb_rows_total",
 			Help:      "Mysql Innodb row operations.",
 		}, []string{"operation"}),
-		performanceSchema: prometheus.NewCounterVec(prometheus.CounterOpts{
+		globalPerformanceSchema: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: globalStatus,
 			Name:      "performance_schema_total",
-			Help:      "Mysql instrumentations that could not be loaded or created due to memory constraints",
+			Help:      "Mysql instrumentations that could not be loaded or created due to memory constraints.",
 		}, []string{"instrumentation"}),
+		performanceSchemaTableWaits: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: performanceSchema,
+			Name:      "table_io_waits",
+			Help:      "Mysql performance_schema.table_io_waits_summary_by_table",
+		}, []string{"performance_schema"}),
 	}
 }
 
@@ -94,7 +103,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	e.commands.Describe(ch)
 	e.connectionErrors.Describe(ch)
 	e.innodbRows.Describe(ch)
-	e.performanceSchema.Describe(ch)
+	e.globalPerformanceSchema.Describe(ch)
+	e.performanceSchemaTableWaits.Describe(ch)
 
 	ch <- e.duration.Desc()
 	ch <- e.totalScrapes.Desc()
@@ -116,7 +126,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.commands.Collect(ch)
 	e.connectionErrors.Collect(ch)
 	e.innodbRows.Collect(ch)
-	e.performanceSchema.Collect(ch)
+	e.globalPerformanceSchema.Collect(ch)
+	e.performanceSchemaTableWaits.Collect(ch)
 }
 
 type metric struct {
@@ -132,6 +143,7 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 
 	e.totalScrapes.Inc()
 
+	// Setup the database connection
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Println("error opening connection to database:", err)
@@ -141,21 +153,21 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 	}
 	defer db.Close()
 
-	// fetch database status
-	rows, err := db.Query("SHOW GLOBAL STATUS")
+	// fetch server global status
+	globalStatusRows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
 		log.Println("error running status query on database:", err)
 		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
-	defer rows.Close()
+	defer globalStatusRows.Close()
 
 	var key, val []byte
 
-	for rows.Next() {
+	for globalStatusRows.Next() {
 		// get RawBytes from data
-		err = rows.Scan(&key, &val)
+		err = globalStatusRows.Scan(&key, &val)
 		if err != nil {
 			log.Println("error getting result set:", err)
 			return
@@ -171,18 +183,18 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 	}
 
 	// fetch slave status
-	rows, err = db.Query("SHOW SLAVE STATUS")
+	slaveStatusRows, err := db.Query("SHOW SLAVE STATUS")
 	if err != nil {
 		log.Println("error running show slave query on database:", err)
 		e.error.Set(1)
 		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
-	defer rows.Close()
+	defer slaveStatusRows.Close()
 
 	var slaveCols []string
 
-	slaveCols, err = rows.Columns()
+	slaveCols, err = slaveStatusRows.Columns()
 	if err != nil {
 		log.Println("error retrieving column list:", err)
 		e.error.Set(1)
@@ -201,9 +213,9 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 		scanArgs[i] = &slaveData[i]
 	}
 
-	for rows.Next() {
+	for slaveStatusRows.Next() {
 
-		err = rows.Scan(scanArgs...)
+		err = slaveStatusRows.Scan(scanArgs...)
 		if err != nil {
 			log.Println("error retrieving result set:", err)
 			e.error.Set(1)
@@ -223,6 +235,73 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 
 		scrapes <- res
 
+	}
+
+	// fetch performance_schema.table_io_waits_summary_by_table
+	perfSchemaTableWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_READ, COUNT_WRITE, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
+	if err != nil {
+		log.Println("error running status query on database:", err)
+		e.error.Set(1)
+		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
+		return
+	}
+	defer perfSchemaTableWaitsRows.Close()
+
+	var (
+		objectSchema string
+		objectName   string
+		countRead    int64
+		countWrite   int64
+		countFetch   int64
+		countInsert  int64
+		countUpdate  int64
+		countDelete  int64
+	)
+
+	for perfSchemaTableWaitsRows.Next() {
+		// get RawBytes from data
+		err = perfSchemaTableWaitsRows.Scan(&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete)
+		if err != nil {
+			log.Println("error getting result set:", err)
+			return
+		}
+
+		// Set COUNT_READ
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|read", objectSchema, objectName),
+			value:  string(countRead),
+		}
+		// Set COUNT_WRITE
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|write", objectSchema, objectName),
+			value:  string(countWrite),
+		}
+		// Set COUNT_FETCH
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|fetch", objectSchema, objectName),
+			value:  string(countFetch),
+		}
+		// Set COUNT_INSERT
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|insert", objectSchema, objectName),
+			value:  string(countInsert),
+		}
+		// Set COUNT_UPDATE
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|update", objectSchema, objectName),
+			value:  string(countUpdate),
+		}
+		// Set COUNT_DELETE
+		scrapes <- metric{
+			source: performanceSchema,
+			key:    fmt.Sprintf("table_io_waits|%s.%s|delete", objectSchema, objectName),
+			value:  string(countDelete),
+		}
 	}
 
 	e.error.Set(0)
@@ -257,7 +336,24 @@ func (e *Exporter) setGlobalStatusMetric(name string, value float64) {
 	case "innodb_rows":
 		e.innodbRows.With(prometheus.Labels{"operation": match[2]}).Set(value)
 	case "performance_schema":
-		e.performanceSchema.With(prometheus.Labels{"instrumentation": match[2]}).Set(value)
+		e.globalPerformanceSchema.With(prometheus.Labels{"instrumentation": match[2]}).Set(value)
+	}
+}
+
+var performanceSchemaRegexp = regexp.MustCompile(`^(.*)|(.*)|(.*)$`)
+
+func (e *Exporter) setPerformanceSchemaMetric(name string, value float64) {
+	match := performanceSchemaRegexp.FindStringSubmatch(name)
+	if match == nil {
+		return
+	}
+	switch match[1] {
+	case "table_io_waits":
+		objectSchemaName := strings.Split(match[2], ".")
+
+		e.performanceSchemaTableWaits.With(
+			prometheus.Labels{"schema": objectSchemaName[1], "name": objectSchemaName[2], "operation": match[3]},
+		).Set(value)
 	}
 }
 
@@ -275,6 +371,8 @@ func (e *Exporter) setMetrics(scrapes <-chan metric) {
 			e.setGenericMetric(m.source, name, value)
 		case globalStatus:
 			e.setGlobalStatusMetric(name, value)
+		case performanceSchema:
+			e.setPerformanceSchemaMetric(name, value)
 		}
 	}
 }

@@ -1,10 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"flag"
-	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"net/http"
 	"os"
 	"regexp"
@@ -13,236 +12,280 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
 )
 
+var (
+	listenAddress = flag.String(
+		"web.listen-address", ":9104",
+		"Address to listen on for web interface and telemetry.",
+	)
+	metricPath = flag.String(
+		"web.telemetry-path", "/metrics",
+		"Path under which to expose metrics.",
+	)
+)
+
+// Metric name parts.
 const (
-	namespace         = "mysql"
+	// Namespace for all metrics.
+	namespace = "mysql"
+	// Subsystems.
+	exporter          = "exporter"
 	slaveStatus       = "slave_status"
 	globalStatus      = "global_status"
 	performanceSchema = "perf_schema"
 )
 
+// landingPage contains the HTML served at '/'.
+// TODO: Make this nicer and more informative.
+var landingPage = []byte(`<html>
+<head><title>MySQLd exporter</title></head>
+<body>
+<h1>MySQLd exporter</h1>
+<p><a href='` + *metricPath + `'>Metrics</a></p>
+</body>
+</html>
+`)
+
+// Metric descriptors for dynamically created metrics.
 var (
-	listenAddress = flag.String("web.listen-address", ":9104", "Address to listen on for web interface and telemetry.")
-	metricPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	globalCommandsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "commands_total"),
+		"Total number of executed MySQL commands.",
+		[]string{"command"}, nil,
+	)
+	globalConnectionErrorsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "connection_errors_total"),
+		"Total number of MySQL connection errors.",
+		[]string{"error"}, nil,
+	)
+	globalInnoDBRowOpsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "innodb_row_ops_total"),
+		"Total number of MySQL InnoDB row operations.",
+		[]string{"operation"}, nil,
+	)
+	globalPerformanceSchemaLostDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "performance_schema_lost_total"),
+		"Total number of MySQL instrumentations that could not be loaded or created due to memory constraints.",
+		[]string{"instrumentation"}, nil,
+	)
+	performanceSchemaTableWaitsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "table_io_waits_total"),
+		"The total number of table I/O wait events for each table and operation.",
+		[]string{"schema", "name", "operations"}, nil,
+	)
 )
 
+// Various regexps.
+var (
+	globalStatusRE = regexp.MustCompile(`^(com|connection_errors|innodb_rows|performance_schema)_(.*)$`)
+	logRE          = regexp.MustCompile(`.+\.(\d+)$`)
+)
+
+// Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
-	dsn                         string
-	mutex                       sync.RWMutex
-	duration, error             prometheus.Gauge
-	totalScrapes                prometheus.Counter
-	metrics                     map[string]prometheus.Gauge
-	commands                    *prometheus.CounterVec
-	connectionErrors            *prometheus.CounterVec
-	innodbRows                  *prometheus.CounterVec
-	globalPerformanceSchema     *prometheus.CounterVec
-	performanceSchemaTableWaits *prometheus.CounterVec
+	mutex           sync.Mutex
+	dsn             string
+	duration, error prometheus.Gauge
+	totalScrapes    prometheus.Counter
 }
 
-// return new empty exporter
-func NewMySQLExporter(dsn string) *Exporter {
+// NewExporter returns a new MySQL exporter for the provided DSN.
+func NewExporter(dsn string) *Exporter {
 	return &Exporter{
 		dsn: dsn,
 		duration: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "exporter_last_scrape_duration_seconds",
-			Help:      "The last scrape duration.",
+			Subsystem: exporter,
+			Name:      "last_scrape_duration_seconds",
+			Help:      "Duration of the last scrape of metrics from MySQL.",
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
-			Name:      "exporter_scrapes_total",
-			Help:      "Current total mysqld scrapes.",
+			Subsystem: exporter,
+			Name:      "scrapes_total",
+			Help:      "Total number of times MySQL was scraped for metrics.",
 		}),
 		error: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "exporter_last_scrape_error",
-			Help:      "The last scrape error status.",
+			Subsystem: exporter,
+			Name:      "last_scrape_error",
+			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
 		}),
-		metrics: map[string]prometheus.Gauge{},
-		commands: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: globalStatus,
-			Name:      "commands_total",
-			Help:      "Number of executed mysql commands.",
-		}, []string{"command"}),
-		connectionErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: globalStatus,
-			Name:      "connection_errors_total",
-			Help:      "Number of mysql connection errors.",
-		}, []string{"error"}),
-		innodbRows: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: globalStatus,
-			Name:      "innodb_rows_total",
-			Help:      "Mysql Innodb row operations.",
-		}, []string{"operation"}),
-		globalPerformanceSchema: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: globalStatus,
-			Name:      "performance_schema_total",
-			Help:      "Mysql instrumentations that could not be loaded or created due to memory constraints.",
-		}, []string{"instrumentation"}),
-		performanceSchemaTableWaits: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: performanceSchema,
-			Name:      "table_io_waits",
-			Help:      "Mysql performance_schema.table_io_waits_summary_by_table",
-		}, []string{"performance_schema"}),
 	}
 }
 
+// Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, m := range e.metrics {
-		m.Describe(ch)
-	}
+	// We cannot know in advance what metrics the exporter will generate
+	// from MySQL. So we use the poor man's describe method: Run a collect
+	// and send the descriptors of all the collected metrics. The problem
+	// here is that we need to connecte to the MySQL DB. If it is currently
+	// unavailable, the descriptors will be incomplete. Since this is a
+	// stand-alone exporter and not used as a library within other code
+	// implementing additional metrics, the worst that can happen is that we
+	// don't detect inconsistent metrics created by this exporter
+	// itself. Also, a change in the monitored MySQL instance may change the
+	// exported metrics during the runtime of the exporter.
 
-	e.commands.Describe(ch)
-	e.connectionErrors.Describe(ch)
-	e.innodbRows.Describe(ch)
-	e.globalPerformanceSchema.Describe(ch)
-	e.performanceSchemaTableWaits.Describe(ch)
+	metricCh := make(chan prometheus.Metric)
 
-	ch <- e.duration.Desc()
-	ch <- e.totalScrapes.Desc()
-	ch <- e.error.Desc()
+	go func() {
+		for m := range metricCh {
+			ch <- m.Desc()
+		}
+	}()
+
+	e.Collect(metricCh)
+	close(metricCh)
 }
 
+// Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	scrapes := make(chan metric)
+	e.scrape(ch)
 
-	go e.scrape(scrapes)
-
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	e.setMetrics(scrapes)
 	ch <- e.duration
 	ch <- e.totalScrapes
 	ch <- e.error
-	e.collectMetrics(ch)
-	e.commands.Collect(ch)
-	e.connectionErrors.Collect(ch)
-	e.innodbRows.Collect(ch)
-	e.globalPerformanceSchema.Collect(ch)
-	e.performanceSchemaTableWaits.Collect(ch)
 }
 
-type metric struct {
-	source string
-	key    string
-	value  string
+func newDesc(subsystem, name, help string) *prometheus.Desc {
+	return prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, subsystem, name),
+		help, nil, nil,
+	)
 }
 
-func (e *Exporter) scrape(scrapes chan<- metric) {
-	defer close(scrapes)
+func parseStatus(data sql.RawBytes) (float64, bool) {
+	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
+		return 1, true
+	}
+	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
+		return 0, true
+	}
+	if logNum := logRE.Find(data); logNum != nil {
+		value, err := strconv.ParseFloat(string(logNum), 64)
+		return value, err == nil
+	}
+	value, err := strconv.ParseFloat(string(data), 64)
+	return value, err == nil
+}
 
-	now := time.Now().UnixNano()
+func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+	defer func(begun time.Time) {
+		e.duration.Set(time.Since(begun).Seconds())
+	}(time.Now())
 
+	e.error.Set(0)
 	e.totalScrapes.Inc()
 
-	// Setup the database connection
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Println("error opening connection to database:", err)
+		log.Println("Error opening connection to database:", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer db.Close()
 
-	// fetch server global status
 	globalStatusRows, err := db.Query("SHOW GLOBAL STATUS")
 	if err != nil {
-		log.Println("error running status query on database:", err)
+		log.Println("Error running status query on database:", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer globalStatusRows.Close()
 
-	var key, val []byte
+	var key string
+	var val sql.RawBytes
 
 	for globalStatusRows.Next() {
-		// get RawBytes from data
-		err = globalStatusRows.Scan(&key, &val)
-		if err != nil {
-			log.Println("error getting result set:", err)
+		if err := globalStatusRows.Scan(&key, &val); err != nil {
+			log.Println("Error getting result set:", err)
+			e.error.Set(1)
 			return
 		}
-
-		res := metric{
-			source: globalStatus,
-			key:    string(key),
-			value:  string(val),
+		if floatVal, ok := parseStatus(val); ok {
+			match := globalStatusRE.FindStringSubmatch(key)
+			if match == nil {
+				ch <- prometheus.MustNewConstMetric(
+					newDesc(globalStatus, strings.ToLower(key), "Generic metric from SHOW GLOBAL STATUS."),
+					prometheus.UntypedValue,
+					floatVal,
+				)
+				continue
+			}
+			switch match[1] {
+			case "com":
+				ch <- prometheus.MustNewConstMetric(
+					globalCommandsDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			case "connection_errors":
+				ch <- prometheus.MustNewConstMetric(
+					globalConnectionErrorsDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			case "innodb_rows":
+				ch <- prometheus.MustNewConstMetric(
+					globalInnoDBRowOpsDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			case "performance_schema":
+				ch <- prometheus.MustNewConstMetric(
+					globalPerformanceSchemaLostDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			}
 		}
-
-		scrapes <- res
 	}
 
-	// fetch slave status
 	slaveStatusRows, err := db.Query("SHOW SLAVE STATUS")
 	if err != nil {
-		log.Println("error running show slave query on database:", err)
+		log.Println("Error running show slave query on database:", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer slaveStatusRows.Close()
 
-	var slaveCols []string
-
-	slaveCols, err = slaveStatusRows.Columns()
-	if err != nil {
-		log.Println("error retrieving column list:", err)
-		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
-		return
-	}
-
-	var slaveData = make([]sql.RawBytes, len(slaveCols))
-
-	// As the number of columns varies with mysqld versions,
-	// and sql.Scan requires []interface{}, we need to create a
-	// slice of pointers to the elements of slaveData.
-
-	scanArgs := make([]interface{}, len(slaveCols))
-	for i := range slaveData {
-		scanArgs[i] = &slaveData[i]
-	}
-
-	for slaveStatusRows.Next() {
-
-		err = slaveStatusRows.Scan(scanArgs...)
+	if slaveStatusRows.Next() {
+		// There is either no row in SHOW SLAVE STATUS (if this is not a
+		// slave server), or exactly one. In case of multi-source
+		// replication, things work very much differently. This code
+		// cannot deal with that case.
+		slaveCols, err := slaveStatusRows.Columns()
 		if err != nil {
-			log.Println("error retrieving result set:", err)
+			log.Println("Error retrieving column list:", err)
 			e.error.Set(1)
-			e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 			return
 		}
 
-	}
-
-	for i, col := range slaveCols {
-
-		res := metric{
-			source: slaveStatus,
-			key:    col,
-			value:  parseStatus(slaveData[i]),
+		// As the number of columns varies with mysqld versions,
+		// and sql.Scan requires []interface{}, we need to create a
+		// slice of pointers to the elements of slaveData.
+		scanArgs := make([]interface{}, len(slaveCols))
+		for i := range scanArgs {
+			scanArgs[i] = &sql.RawBytes{}
 		}
 
-		scrapes <- res
-
+		if err := slaveStatusRows.Scan(scanArgs...); err != nil {
+			log.Println("Error retrieving result set:", err)
+			e.error.Set(1)
+			return
+		}
+		for i, col := range slaveCols {
+			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok {
+				ch <- prometheus.MustNewConstMetric(
+					newDesc(slaveStatus, strings.ToLower(col), "Generic metric from SHOW SLAVE STATUS."),
+					prometheus.UntypedValue,
+					value,
+				)
+			}
+		}
 	}
 
-	// fetch performance_schema.table_io_waits_summary_by_table
 	perfSchemaTableWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_READ, COUNT_WRITE, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
 	if err != nil {
-		log.Println("error running status query on database:", err)
+		log.Println("Error running performance schema query on database:", err)
 		e.error.Set(1)
-		e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
 		return
 	}
 	defer perfSchemaTableWaitsRows.Close()
@@ -259,148 +302,36 @@ func (e *Exporter) scrape(scrapes chan<- metric) {
 	)
 
 	for perfSchemaTableWaitsRows.Next() {
-		// get RawBytes from data
-		err = perfSchemaTableWaitsRows.Scan(&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete)
-		if err != nil {
+		if err := perfSchemaTableWaitsRows.Scan(
+			&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete,
+		); err != nil {
 			log.Println("error getting result set:", err)
 			return
 		}
-
-		// Set COUNT_READ
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|read", objectSchema, objectName),
-			value:  string(countRead),
-		}
-		// Set COUNT_WRITE
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|write", objectSchema, objectName),
-			value:  string(countWrite),
-		}
-		// Set COUNT_FETCH
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|fetch", objectSchema, objectName),
-			value:  string(countFetch),
-		}
-		// Set COUNT_INSERT
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|insert", objectSchema, objectName),
-			value:  string(countInsert),
-		}
-		// Set COUNT_UPDATE
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|update", objectSchema, objectName),
-			value:  string(countUpdate),
-		}
-		// Set COUNT_DELETE
-		scrapes <- metric{
-			source: performanceSchema,
-			key:    fmt.Sprintf("table_io_waits|%s.%s|delete", objectSchema, objectName),
-			value:  string(countDelete),
-		}
-	}
-
-	e.error.Set(0)
-	e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
-}
-
-func (e *Exporter) setGenericMetric(subsystem string, name string, value float64) {
-	if _, ok := e.metrics[name]; !ok {
-		e.metrics[name] = prometheus.NewUntyped(prometheus.UntypedOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      name,
-		})
-	}
-
-	e.metrics[name].Set(value)
-}
-
-var globalStatusRegexp = regexp.MustCompile(`^(com|connection_errors|innodb_rows|performance_schema)_(.*)$`)
-
-func (e *Exporter) setGlobalStatusMetric(name string, value float64) {
-	match := globalStatusRegexp.FindStringSubmatch(name)
-	if match == nil {
-		e.setGenericMetric(globalStatus, name, value)
-		return
-	}
-	switch match[1] {
-	case "com":
-		e.commands.With(prometheus.Labels{"command": match[2]}).Set(value)
-	case "connection_errors":
-		e.connectionErrors.With(prometheus.Labels{"error": match[2]}).Set(value)
-	case "innodb_rows":
-		e.innodbRows.With(prometheus.Labels{"operation": match[2]}).Set(value)
-	case "performance_schema":
-		e.globalPerformanceSchema.With(prometheus.Labels{"instrumentation": match[2]}).Set(value)
-	}
-}
-
-var performanceSchemaRegexp = regexp.MustCompile(`^(.*)|(.*)|(.*)$`)
-
-func (e *Exporter) setPerformanceSchemaMetric(name string, value float64) {
-	match := performanceSchemaRegexp.FindStringSubmatch(name)
-	if match == nil {
-		return
-	}
-	switch match[1] {
-	case "table_io_waits":
-		objectSchemaName := strings.Split(match[2], ".")
-
-		e.performanceSchemaTableWaits.With(
-			prometheus.Labels{"schema": objectSchemaName[1], "name": objectSchemaName[2], "operation": match[3]},
-		).Set(value)
-	}
-}
-
-func (e *Exporter) setMetrics(scrapes <-chan metric) {
-	for m := range scrapes {
-		name := strings.ToLower(m.key)
-		value, err := strconv.ParseFloat(m.value, 64)
-		if err != nil {
-			// convert/serve text values here ?
-			continue
-		}
-
-		switch m.source {
-		case slaveStatus:
-			e.setGenericMetric(m.source, name, value)
-		case globalStatus:
-			e.setGlobalStatusMetric(name, value)
-		case performanceSchema:
-			e.setPerformanceSchemaMetric(name, value)
-		}
-	}
-}
-
-func (e *Exporter) collectMetrics(metrics chan<- prometheus.Metric) {
-	for _, m := range e.metrics {
-		m.Collect(metrics)
-	}
-}
-
-func parseStatus(data []byte) string {
-	logRexp := regexp.MustCompile(`\.([0-9]+$)`)
-	logNum := logRexp.Find(data)
-
-	switch {
-
-	case string(data) == "Yes":
-		return "1"
-
-	case string(data) == "No":
-		return "0"
-
-	case len(logNum) > 1:
-		return string(logNum[1:])
-
-	default:
-		return string(data)
-
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countRead),
+			objectSchema, objectName, "read",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countWrite),
+			objectSchema, objectName, "write",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
+			objectSchema, objectName, "fetch",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countInsert),
+			objectSchema, objectName, "insert",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+			objectSchema, objectName, "update",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
+			objectSchema, objectName, "delete",
+		)
 	}
 }
 
@@ -412,18 +343,12 @@ func main() {
 		log.Fatal("couldn't find environment variable DATA_SOURCE_NAME")
 	}
 
-	exporter := NewMySQLExporter(dsn)
+	exporter := NewExporter(dsn)
 	prometheus.MustRegister(exporter)
+
 	http.Handle(*metricPath, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
-<head><title>MySQLd exporter</title></head>
-<body>
-<h1>MySQLd exporter</h1>
-<p><a href='` + *metricPath + `'>Metrics</a></p>
-</body>
-</html>
-`))
+		w.Write(landingPage)
 	})
 
 	log.Infof("Starting Server: %s", *listenAddress)

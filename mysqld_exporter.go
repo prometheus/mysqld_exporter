@@ -25,7 +25,26 @@ const (
 var (
 	listenAddress = flag.String("web.listen-address", ":9104", "Address to listen on for web interface and telemetry.")
 	metricPath    = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	authUser      = flag.String("auth.user", "", "Username for basic auth.")
+	authPass      = flag.String("auth.pass", "", "Password for basic auth.")
 )
+
+type basicAuthHandler struct {
+	handler  http.HandlerFunc
+	user     string
+	password string
+}
+
+func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	user, password, ok := r.BasicAuth()
+	if !ok || password != h.password || user != h.user {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"metrics\"")
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+	h.handler(w, r)
+	return
+}
 
 type Exporter struct {
 	dsn               string
@@ -316,7 +335,20 @@ func main() {
 
 	exporter := NewMySQLExporter(dsn)
 	prometheus.MustRegister(exporter)
-	http.Handle(*metricPath, prometheus.Handler())
+
+	handler := prometheus.Handler()
+	if *authUser != "" || *authPass != "" {
+		if *authUser == "" || *authPass == "" {
+			log.Fatal("You need to specify -auth.user and -auth.pass to enable basic auth")
+		}
+		handler = &basicAuthHandler{
+			handler:  prometheus.Handler().ServeHTTP,
+			user:     *authUser,
+			password: *authPass,
+		}
+	}
+
+	http.Handle(*metricPath, handler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 <head><title>MySQLd exporter</title></head>

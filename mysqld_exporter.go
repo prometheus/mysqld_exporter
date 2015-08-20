@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -25,6 +24,10 @@ var (
 	metricPath = flag.String(
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
+	)
+	perfTableIOWaits = flag.Bool(
+		"collect.perf_schema.tableiowaits", true,
+		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
 	)
 )
 
@@ -75,7 +78,7 @@ var (
 	performanceSchemaTableWaitsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "table_io_waits_total"),
 		"The total number of table I/O wait events for each table and operation.",
-		[]string{"schema", "name", "operations"}, nil,
+		[]string{"schema", "name", "operation"}, nil,
 	)
 )
 
@@ -87,7 +90,6 @@ var (
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
-	mutex           sync.Mutex
 	dsn             string
 	duration, error prometheus.Gauge
 	totalScrapes    prometheus.Counter
@@ -123,7 +125,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	// We cannot know in advance what metrics the exporter will generate
 	// from MySQL. So we use the poor man's describe method: Run a collect
 	// and send the descriptors of all the collected metrics. The problem
-	// here is that we need to connecte to the MySQL DB. If it is currently
+	// here is that we need to connect to the MySQL DB. If it is currently
 	// unavailable, the descriptors will be incomplete. Since this is a
 	// stand-alone exporter and not used as a library within other code
 	// implementing additional metrics, the worst that can happen is that we
@@ -132,15 +134,18 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	// exported metrics during the runtime of the exporter.
 
 	metricCh := make(chan prometheus.Metric)
+	doneCh := make(chan struct{})
 
 	go func() {
 		for m := range metricCh {
 			ch <- m.Desc()
 		}
+		close(doneCh)
 	}()
 
 	e.Collect(metricCh)
 	close(metricCh)
+	<-doneCh
 }
 
 // Collect implements prometheus.Collector.
@@ -282,56 +287,58 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	perfSchemaTableWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_READ, COUNT_WRITE, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
-	if err != nil {
-		log.Println("Error running performance schema query on database:", err)
-		e.error.Set(1)
-		return
-	}
-	defer perfSchemaTableWaitsRows.Close()
-
-	var (
-		objectSchema string
-		objectName   string
-		countRead    int64
-		countWrite   int64
-		countFetch   int64
-		countInsert  int64
-		countUpdate  int64
-		countDelete  int64
-	)
-
-	for perfSchemaTableWaitsRows.Next() {
-		if err := perfSchemaTableWaitsRows.Scan(
-			&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete,
-		); err != nil {
-			log.Println("error getting result set:", err)
+	if *perfTableIOWaits {
+		perfSchemaTableWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_READ, COUNT_WRITE, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
+		if err != nil {
+			log.Println("Error running performance schema query on database:", err)
+			e.error.Set(1)
 			return
 		}
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countRead),
-			objectSchema, objectName, "read",
+		defer perfSchemaTableWaitsRows.Close()
+
+		var (
+			objectSchema string
+			objectName   string
+			countRead    int64
+			countWrite   int64
+			countFetch   int64
+			countInsert  int64
+			countUpdate  int64
+			countDelete  int64
 		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countWrite),
-			objectSchema, objectName, "write",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
-			objectSchema, objectName, "fetch",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countInsert),
-			objectSchema, objectName, "insert",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countUpdate),
-			objectSchema, objectName, "update",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
-			objectSchema, objectName, "delete",
-		)
+
+		for perfSchemaTableWaitsRows.Next() {
+			if err := perfSchemaTableWaitsRows.Scan(
+				&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countRead),
+				objectSchema, objectName, "read",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countWrite),
+				objectSchema, objectName, "write",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
+				objectSchema, objectName, "fetch",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countInsert),
+				objectSchema, objectName, "insert",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+				objectSchema, objectName, "update",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
+				objectSchema, objectName, "delete",
+			)
+		}
 	}
 }
 

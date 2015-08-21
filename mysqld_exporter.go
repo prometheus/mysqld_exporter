@@ -29,6 +29,18 @@ var (
 		"collect.perf_schema.tableiowaits", true,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
 	)
+	perfTableIOWaitsTime = flag.Bool(
+		"collect.perf_schema.tableiowaitstime", true,
+		"Collect time metrics from performance_schema.table_io_waits_summary_by_table",
+	)
+	perfIndexIOWaits = flag.Bool(
+		"collect.perf_schema.indexiowaits", true,
+		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
+	)
+	perfIndexIOWaitsTime = flag.Bool(
+		"collect.perf_schema.indexiowaitstime", true,
+		"Collect time metrics from performance_schema.table_io_waits_summary_by_index_usage",
+	)
 )
 
 // Metric name parts.
@@ -79,6 +91,21 @@ var (
 		prometheus.BuildFQName(namespace, performanceSchema, "table_io_waits_total"),
 		"The total number of table I/O wait events for each table and operation.",
 		[]string{"schema", "name", "operation"}, nil,
+	)
+	performanceSchemaTableWaitsTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "table_io_waits_seconds_total"),
+		"The total time of table I/O wait events for each table and operation.",
+		[]string{"schema", "name", "operation"}, nil,
+	)
+	performanceSchemaIndexWaitsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "index_io_waits_total"),
+		"The total number of index I/O wait events for each index and operation.",
+		[]string{"schema", "name", "index", "operation"}, nil,
+	)
+	performanceSchemaIndexWaitsTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "index_io_waits_seconds_total"),
+		"The total time of index I/O wait events for each index and operation.",
+		[]string{"schema", "name", "index", "operation"}, nil,
 	)
 )
 
@@ -299,8 +326,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		var (
 			objectSchema string
 			objectName   string
-			countRead    int64
-			countWrite   int64
 			countFetch   int64
 			countInsert  int64
 			countUpdate  int64
@@ -309,19 +334,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 		for perfSchemaTableWaitsRows.Next() {
 			if err := perfSchemaTableWaitsRows.Scan(
-				&objectSchema, &objectName, &countRead, &countWrite, &countFetch, &countInsert, &countUpdate, &countDelete,
+				&objectSchema, &objectName, &countFetch, &countInsert, &countUpdate, &countDelete,
 			); err != nil {
 				log.Println("error getting result set:", err)
+				e.error.Set(1)
 				return
 			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countRead),
-				objectSchema, objectName, "read",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countWrite),
-				objectSchema, objectName, "write",
-			)
 			ch <- prometheus.MustNewConstMetric(
 				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
 				objectSchema, objectName, "fetch",
@@ -338,6 +356,151 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
 				objectSchema, objectName, "delete",
 			)
+		}
+	}
+
+	if *perfTableIOWaitsTime {
+		// Timers here are returned in picoseconds.
+		perfSchemaTableWaitsTimeRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
+		if err != nil {
+			log.Println("Error running performance schema query on database:", err)
+			e.error.Set(1)
+			return
+		}
+		defer perfSchemaTableWaitsTimeRows.Close()
+
+		var (
+			objectSchema string
+			objectName   string
+			timeFetch    int64
+			timeInsert   int64
+			timeUpdate   int64
+			timeDelete   int64
+		)
+
+		for perfSchemaTableWaitsTimeRows.Next() {
+			if err := perfSchemaTableWaitsTimeRows.Scan(
+				&objectSchema, &objectName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				e.error.Set(1)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+				objectSchema, objectName, "fetch",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+				objectSchema, objectName, "insert",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+				objectSchema, objectName, "update",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+				objectSchema, objectName, "delete",
+			)
+		}
+	}
+
+	if *perfIndexIOWaits {
+		perfSchemaIndexWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_index_usage WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
+		if err != nil {
+			log.Println("Error running performance schema query on database:", err)
+			e.error.Set(1)
+			return
+		}
+		defer perfSchemaIndexWaitsRows.Close()
+
+		var (
+			objectSchema string
+			objectName   string
+			indexName    string
+			countFetch   int64
+			countInsert  int64
+			countUpdate  int64
+			countDelete  int64
+		)
+
+		for perfSchemaIndexWaitsRows.Next() {
+			if err := perfSchemaIndexWaitsRows.Scan(
+				&objectSchema, &objectName, &indexName, &countFetch, &countInsert, &countUpdate, &countDelete,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				e.error.Set(1)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countFetch),
+				objectSchema, objectName, indexName, "fetch",
+			)
+			// We only update write columns when indexName is NONE.
+			if indexName == "NONE" {
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countInsert),
+					objectSchema, objectName, indexName, "insert",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+					objectSchema, objectName, indexName, "update",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
+					objectSchema, objectName, indexName, "delete",
+				)
+			}
+		}
+	}
+
+	if *perfIndexIOWaitsTime {
+		// Timers here are returned in picoseconds.
+		perfSchemaIndexWaitsTimeRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE FROM performance_schema.table_io_waits_summary_by_index_usage WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
+		if err != nil {
+			log.Println("Error running performance schema query on database:", err)
+			e.error.Set(1)
+			return
+		}
+		defer perfSchemaIndexWaitsTimeRows.Close()
+
+		var (
+			objectSchema string
+			objectName   string
+			indexName    string
+			timeFetch    int64
+			timeInsert   int64
+			timeUpdate   int64
+			timeDelete   int64
+		)
+
+		for perfSchemaIndexWaitsTimeRows.Next() {
+			if err := perfSchemaIndexWaitsTimeRows.Scan(
+				&objectSchema, &objectName, &indexName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				e.error.Set(1)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+				objectSchema, objectName, indexName, "fetch",
+			)
+			// We only update write columns when indexName is NONE.
+			if indexName == "NONE" {
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+					objectSchema, objectName, indexName, "insert",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+					objectSchema, objectName, indexName, "update",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+					objectSchema, objectName, indexName, "delete",
+				)
+			}
 		}
 	}
 }

@@ -27,23 +27,23 @@ var (
 		"Path under which to expose metrics.",
 	)
 	autoIncrementColumns = flag.Bool(
-		"collect.auto_increment.columns", true,
+		"collect.auto_increment.columns", false,
 		"Collect auto_increment columns and max values from information_schema",
 	)
 	perfTableIOWaits = flag.Bool(
-		"collect.perf_schema.tableiowaits", true,
+		"collect.perf_schema.tableiowaits", false,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
 	)
 	perfTableIOWaitsTime = flag.Bool(
-		"collect.perf_schema.tableiowaitstime", true,
+		"collect.perf_schema.tableiowaitstime", false,
 		"Collect time metrics from performance_schema.table_io_waits_summary_by_table",
 	)
 	perfIndexIOWaits = flag.Bool(
-		"collect.perf_schema.indexiowaits", true,
+		"collect.perf_schema.indexiowaits", false,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
 	)
 	perfIndexIOWaitsTime = flag.Bool(
-		"collect.perf_schema.indexiowaitstime", true,
+		"collect.perf_schema.indexiowaitstime", false,
 		"Collect time metrics from performance_schema.table_io_waits_summary_by_index_usage",
 	)
 	userStat = flag.Bool("collect.info_schema.userstats", false,

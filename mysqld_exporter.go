@@ -46,6 +46,14 @@ var (
 		"collect.perf_schema.indexiowaitstime", false,
 		"Collect time metrics from performance_schema.table_io_waits_summary_by_index_usage",
 	)
+	perfEventsStatements = flag.Bool(
+		"collect.perf_schema.eventsstatements", false,
+		"Collect time metrics from performance_schema.events_statements_summary_by_digest",
+	)
+	perfEventsStatementsLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.limit", 250,
+		"Limit the number of events statements digests by response time",
+	)
 	userStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics")
 )
@@ -77,6 +85,23 @@ const (
 		  FROM information_schema.tables t
 		  JOIN information_schema.columns c USING (table_schema,table_name)
 		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
+		`
+	perfSchemaEventsStatementsQuery = `
+		SELECT
+		    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
+		    DIGEST,
+		    COUNT_STAR,
+		    SUM_TIMER_WAIT,
+		    SUM_ERRORS,
+		    SUM_WARNINGS,
+		    SUM_ROWS_AFFECTED,
+		    SUM_ROWS_SENT,
+		    SUM_ROWS_EXAMINED,
+		    SUM_CREATED_TMP_DISK_TABLES,
+		    SUM_CREATED_TMP_TABLES
+		  FROM performance_schema.events_statements_summary_by_digest
+		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+		  ORDER BY SUM_TIMER_WAIT DESC
 		`
 )
 
@@ -142,6 +167,51 @@ var (
 		prometheus.BuildFQName(namespace, performanceSchema, "index_io_waits_seconds_total"),
 		"The total time of index I/O wait events for each index and operation.",
 		[]string{"schema", "name", "index", "operation"}, nil,
+	)
+	performanceSchemaEventsStatementsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_total"),
+		"The total count of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_seconds_total"),
+		"The total time of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsErrorsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_errors_total"),
+		"The errors of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsWarningsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_warnings_total"),
+		"The warnings of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsRowsAffectedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_affected_total"),
+		"The total rows affected of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsRowsSentDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_sent_total"),
+		"The total rows sent of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsRowsExaminedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_examined_total"),
+		"The total rows examined of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsTmpTablesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_tables_total"),
+		"The total tmp tables of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsTmpDiskTablesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_disk_tables_total"),
+		"The total tmp disk tables of events statements by digest.",
+		[]string{"schema", "digest"}, nil,
 	)
 	// Map known user-statistics values to types. Unknown types will be mapped as
 	// untyped.
@@ -696,6 +766,78 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 
+	if *perfEventsStatements {
+		perfQuery := fmt.Sprintf("%s LIMIT %d", perfSchemaEventsStatementsQuery, *perfEventsStatementsLimit)
+		// Timers here are returned in picoseconds.
+		perfSchemaEventsStatementsRows, err := db.Query(perfQuery)
+		if err != nil {
+			log.Println("Error running performance schema query on database:", err)
+			e.error.Set(1)
+			return
+		}
+		defer perfSchemaEventsStatementsRows.Close()
+
+		var (
+			schemaName    string
+			digest        string
+			count         int64
+			queryTime     int64
+			errors        int64
+			warnings      int64
+			rowsAffected  int64
+			rowsSent      int64
+			rowsExamined  int64
+			tmpTables     int64
+			tmpDiskTables int64
+		)
+
+		for perfSchemaEventsStatementsRows.Next() {
+			if err := perfSchemaEventsStatementsRows.Scan(
+				&schemaName, &digest, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				e.error.Set(1)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/1000000000,
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsErrorsDesc, prometheus.CounterValue, float64(errors),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsWarningsDesc, prometheus.CounterValue, float64(warnings),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsTmpTablesDesc, prometheus.CounterValue, float64(tmpTables),
+				schemaName, digest,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
+				schemaName, digest,
+			)
+		}
+	}
+
 	if *userStat {
 		informationSchemaUserStatisticsRows, err := db.Query("SELECT * FROM information_schema.USER_STATISTICS")
 		if err != nil {
@@ -746,7 +888,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 				}
 			}
 		}
-
 	}
 }
 

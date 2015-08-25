@@ -25,6 +25,10 @@ var (
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
+	autoIncrementColumns = flag.Bool(
+		"collect.auto_increment.columns", true,
+		"Collect auto_increment columns and max values from information_schema",
+	)
 	perfTableIOWaits = flag.Bool(
 		"collect.perf_schema.tableiowaits", true,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
@@ -49,9 +53,27 @@ const (
 	namespace = "mysql"
 	// Subsystems.
 	exporter          = "exporter"
-	slaveStatus       = "slave_status"
 	globalStatus      = "global_status"
+	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
+	slaveStatus       = "slave_status"
+)
+
+// Metric SQL Queries.
+const (
+	infoSchemaAutoIncrementQuery = `
+		SELECT table_schema, table_name, column_name, auto_increment,
+		  pow(2, case data_type
+		    when 'tinyint'   then 7
+		    when 'smallint'  then 15
+		    when 'mediumint' then 23
+		    when 'int'       then 31
+		    when 'bigint'    then 63
+		    end+(column_type like '% unsigned'))-1 as max_int
+		  FROM information_schema.tables t
+		  JOIN information_schema.columns c USING (table_schema,table_name)
+		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
+		`
 )
 
 // landingPage contains the HTML served at '/'.
@@ -81,6 +103,16 @@ var (
 		prometheus.BuildFQName(namespace, globalStatus, "innodb_row_ops_total"),
 		"Total number of MySQL InnoDB row operations.",
 		[]string{"operation"}, nil,
+	)
+	globalInfoSchemaAutoIncrementDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column"),
+		"The current value of an auto_increment column from information_schema.",
+		[]string{"schema", "table", "column"}, nil,
+	)
+	globalInfoSchemaAutoIncrementMaxDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column_max"),
+		"The max value of an auto_increment column from information_schema.",
+		[]string{"schema", "table", "column"}, nil,
 	)
 	globalPerformanceSchemaLostDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "performance_schema_lost_total"),
@@ -311,6 +343,42 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 					value,
 				)
 			}
+		}
+	}
+
+	if *autoIncrementColumns {
+		autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
+		if err != nil {
+			log.Println("Error running information schema query on database:", err)
+			e.error.Set(1)
+			return
+		}
+		defer autoIncrementRows.Close()
+
+		var (
+			schema string
+			table  string
+			column string
+			value  int64
+			max    int64
+		)
+
+		for autoIncrementRows.Next() {
+			if err := autoIncrementRows.Scan(
+				&schema, &table, &column, &value, &max,
+			); err != nil {
+				log.Println("error getting result set:", err)
+				e.error.Set(1)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(
+				globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, float64(value),
+				schema, table, column,
+			)
+			ch <- prometheus.MustNewConstMetric(
+				globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, float64(max),
+				schema, table, column,
+			)
 		}
 	}
 

@@ -273,10 +273,11 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			return
 		}
 		if floatVal, ok := parseStatus(val); ok {
+			key = strings.ToLower(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
 				ch <- prometheus.MustNewConstMetric(
-					newDesc(globalStatus, strings.ToLower(key), "Generic metric from SHOW GLOBAL STATUS."),
+					newDesc(globalStatus, key, "Generic metric from SHOW GLOBAL STATUS."),
 					prometheus.UntypedValue,
 					floatVal,
 				)

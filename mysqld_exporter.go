@@ -54,6 +54,7 @@ const (
 	// Subsystems.
 	exporter          = "exporter"
 	globalStatus      = "global_status"
+	globalVariables   = "global_variables"
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
 	slaveStatus       = "slave_status"
@@ -299,6 +300,34 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 					globalPerformanceSchemaLostDesc, prometheus.CounterValue, floatVal, match[2],
 				)
 			}
+		}
+	}
+
+	globalVariablesRows, err := db.Query("SHOW GLOBAL VARIABLES")
+	if err != nil {
+		log.Println("Error running status query on database:", err)
+		e.error.Set(1)
+		return
+	}
+	defer globalVariablesRows.Close()
+
+	var globalVarKey string
+	var globalVarValue sql.RawBytes
+
+	for globalVariablesRows.Next() {
+		if err := globalVariablesRows.Scan(&globalVarKey, &globalVarValue); err != nil {
+			log.Println("Error getting result set:", err)
+			e.error.Set(1)
+			return
+		}
+		globalVarKey = strings.ToLower(globalVarKey)
+		if floatVal, ok := parseStatus(globalVarValue); ok {
+			ch <- prometheus.MustNewConstMetric(
+				newDesc(globalVariables, globalVarKey, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
+				prometheus.GaugeValue,
+				floatVal,
+			)
+			continue
 		}
 	}
 

@@ -56,6 +56,8 @@ var (
 	)
 	userStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics")
+	tableStatus = flag.String("collect.database.table_status", "",
+		"Comma (,) separated list of database names to collect table status for.")
 )
 
 // Metric name parts.
@@ -69,6 +71,7 @@ const (
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
 	slaveStatus       = "slave_status"
+	database		  = "database"
 )
 
 // Metric SQL Queries.
@@ -304,6 +307,11 @@ var (
 				"The number of times this user’s connections connected using SSL to the server.",
 				[]string{"user"}, nil)},
 	}
+	databaseTableStatusCrashedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, database, "table_crashed_bool"),
+		"Indicates if the table is marked as crashed by MySQL",
+		[]string{"database", "table"}, nil,
+	)
 )
 
 // Various regexps.
@@ -885,6 +893,56 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 					// Unknown metric. Report as untyped.
 					desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("user_statistics_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"user"}, nil)
 					ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(userStatData[idx]), user)
+				}
+			}
+		}
+	}
+
+	if *tableStatus != "" {
+		// Loop and collect table status for monitored databases.
+		databases := strings.Split(*tableStatus, ",")
+		for _, databaseName := range databases {
+			tableStatusRows, err := db.Query(fmt.Sprintf("SHOW TABLE STATUS FROM %s", databaseName))
+			if err !=  nil {
+				log.Println("Error running table status query on database:", databaseName, err)
+				e.error.Set(1)
+				continue	// Not fatal - try other databases
+			}
+			defer tableStatusRows.Close()
+
+			var columnNames []string
+			columnNames, err = tableStatusRows.Columns()
+			if err != nil {
+				log.Println("Error retrieving column list for table status:", databaseName, err)
+				e.error.Set(1)
+				continue
+			}
+
+			var tableName string
+			var engine sql.NullString
+
+			var tableStatusScanArgs = make([]interface{}, len(columnNames))
+			tableStatusScanArgs[0] = &tableName
+			tableStatusScanArgs[1] = &engine
+			for i := range tableStatusScanArgs[2:] {
+				tableStatusScanArgs[i+2] = new(sql.RawBytes)	// Currently we discard the surplus columns
+			}
+
+			// Look for NULL value to determine if table is crashed. Best column choice is "Engine"
+			for tableStatusRows.Next() {
+
+				err = tableStatusRows.Scan(tableStatusScanArgs...)
+				if err != nil {
+					log.Println("Error retrieving table status rows:", databaseName, err)
+					e.error.Set(1)
+					continue
+				}
+
+				if engine.Valid {
+					ch <- prometheus.MustNewConstMetric(databaseTableStatusCrashedDesc, prometheus.GaugeValue, 0, databaseName, tableName)
+				} else {
+					// Table is crashed.
+					ch <- prometheus.MustNewConstMetric(databaseTableStatusCrashedDesc, prometheus.GaugeValue, 1, databaseName, tableName)
 				}
 			}
 		}

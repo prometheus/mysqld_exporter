@@ -73,6 +73,9 @@ const (
 
 // Metric SQL Queries.
 const (
+	globalStatusQuery            = `SHOW GLOBAL STATUS`
+	globalVariablesQuery         = `SHOW GLOBAL VARIABLES`
+	slaveStatusQuery             = `SHOW SLAVE STATUS`
 	infoSchemaAutoIncrementQuery = `
 		SELECT table_schema, table_name, column_name, auto_increment,
 		  pow(2, case data_type
@@ -86,7 +89,27 @@ const (
 		  JOIN information_schema.columns c USING (table_schema,table_name)
 		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
 		`
-	perfSchemaEventsStatementsQuery = `
+	perfTableIOWaitsQuery = `
+		SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+		  FROM performance_schema.table_io_waits_summary_by_table
+		  WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')
+		`
+	perfTableIOWaitsTimeQuery = `
+		SELECT OBJECT_SCHEMA, OBJECT_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE
+		  FROM performance_schema.table_io_waits_summary_by_table
+		  WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')
+		`
+	perfIndexIOWaitsQuery = `
+		SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+		  FROM performance_schema.table_io_waits_summary_by_index_usage
+		  WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')
+		`
+	perfIndexIOWaitsTimeQuery = `
+		SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE
+		  FROM performance_schema.table_io_waits_summary_by_index_usage
+		  WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')
+		`
+	perfEventsStatementsQuery = `
 		SELECT
 		    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
 		    DIGEST,
@@ -103,6 +126,7 @@ const (
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
 		  ORDER BY SUM_TIMER_WAIT DESC
 		`
+	userStatQuery = `SELECT * FROM information_schema.USER_STATISTICS`
 )
 
 // landingPage contains the HTML served at '/'.
@@ -381,49 +405,87 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.error
 }
 
-func newDesc(subsystem, name, help string) *prometheus.Desc {
-	return prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, subsystem, name),
-		help, nil, nil,
-	)
-}
-
-func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
-		return 1, true
-	}
-	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
-		return 0, true
-	}
-	if logNum := logRE.Find(data); logNum != nil {
-		value, err := strconv.ParseFloat(string(logNum), 64)
-		return value, err == nil
-	}
-	value, err := strconv.ParseFloat(string(data), 64)
-	return value, err == nil
-}
-
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+	e.totalScrapes.Inc()
+	var err error
 	defer func(begun time.Time) {
 		e.duration.Set(time.Since(begun).Seconds())
+		if err == nil {
+			e.error.Set(0)
+		} else {
+			e.error.Set(1)
+		}
 	}(time.Now())
-
-	e.error.Set(0)
-	e.totalScrapes.Inc()
 
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Println("Error opening connection to database:", err)
-		e.error.Set(1)
 		return
 	}
 	defer db.Close()
 
-	globalStatusRows, err := db.Query("SHOW GLOBAL STATUS")
-	if err != nil {
-		log.Println("Error running status query on database:", err)
-		e.error.Set(1)
+	if err = scrapeGlobalStatus(db, ch); err != nil {
+		log.Println("Error scraping global state:", err)
 		return
+	}
+	if err = scrapeGlobalVariables(db, ch); err != nil {
+		log.Println("Error scraping global variables:", err)
+		return
+	}
+	if err = scrapeSlaveStatus(db, ch); err != nil {
+		log.Println("Error scraping slave state:", err)
+		return
+	}
+	if *autoIncrementColumns {
+		if err = scrapeInformationSchema(db, ch); err != nil {
+			log.Println("Error scraping information schema:", err)
+			return
+		}
+	}
+	if *perfTableIOWaits {
+		if err = scrapePerfTableIOWaits(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+	}
+	if *perfTableIOWaitsTime {
+		if err = scrapePerfTableIOWaitsTime(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+	}
+	if *perfIndexIOWaits {
+		if err = scrapePerfIndexIOWaits(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+
+	}
+	if *perfIndexIOWaitsTime {
+		if err = scrapePerfIndexIOWaitsTime(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+
+	}
+	if *perfEventsStatements {
+		if err = scrapePerfEventsStatements(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+	}
+	if *userStat {
+		if err = scrapeUserStat(db, ch); err != nil {
+			log.Println("Error scraping user stat:", err)
+			return
+		}
+	}
+}
+
+func scrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+	globalStatusRows, err := db.Query(globalStatusQuery)
+	if err != nil {
+		return err
 	}
 	defer globalStatusRows.Close()
 
@@ -432,11 +494,9 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	for globalStatusRows.Next() {
 		if err := globalStatusRows.Scan(&key, &val); err != nil {
-			log.Println("Error getting result set:", err)
-			e.error.Set(1)
-			return
+			return err
 		}
-		if floatVal, ok := parseStatus(val); ok {
+		if floatVal, ok := parseStatus(val); ok { // Unparsable values are silently skipped.
 			key = strings.ToLower(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
@@ -467,40 +527,40 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
+	return nil
+}
 
-	globalVariablesRows, err := db.Query("SHOW GLOBAL VARIABLES")
+func scrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
+	globalVariablesRows, err := db.Query(globalVariablesQuery)
 	if err != nil {
-		log.Println("Error running status query on database:", err)
-		e.error.Set(1)
-		return
+		return err
 	}
 	defer globalVariablesRows.Close()
 
-	var globalVarKey string
-	var globalVarValue sql.RawBytes
+	var key string
+	var val sql.RawBytes
 
 	for globalVariablesRows.Next() {
-		if err := globalVariablesRows.Scan(&globalVarKey, &globalVarValue); err != nil {
-			log.Println("Error getting result set:", err)
-			e.error.Set(1)
-			return
+		if err := globalVariablesRows.Scan(&key, &val); err != nil {
+			return err
 		}
-		globalVarKey = strings.ToLower(globalVarKey)
-		if floatVal, ok := parseStatus(globalVarValue); ok {
+		key = strings.ToLower(key)
+		if floatVal, ok := parseStatus(val); ok {
 			ch <- prometheus.MustNewConstMetric(
-				newDesc(globalVariables, globalVarKey, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
+				newDesc(globalVariables, key, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
 				prometheus.GaugeValue,
 				floatVal,
 			)
 			continue
 		}
 	}
+	return nil
+}
 
-	slaveStatusRows, err := db.Query("SHOW SLAVE STATUS")
+func scrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+	slaveStatusRows, err := db.Query(slaveStatusQuery)
 	if err != nil {
-		log.Println("Error running show slave query on database:", err)
-		e.error.Set(1)
-		return
+		return err
 	}
 	defer slaveStatusRows.Close()
 
@@ -511,9 +571,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		// cannot deal with that case.
 		slaveCols, err := slaveStatusRows.Columns()
 		if err != nil {
-			log.Println("Error retrieving column list:", err)
-			e.error.Set(1)
-			return
+			return err
 		}
 
 		// As the number of columns varies with mysqld versions,
@@ -525,12 +583,10 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 
 		if err := slaveStatusRows.Scan(scanArgs...); err != nil {
-			log.Println("Error retrieving result set:", err)
-			e.error.Set(1)
-			return
+			return err
 		}
 		for i, col := range slaveCols {
-			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok {
+			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
 				ch <- prometheus.MustNewConstMetric(
 					newDesc(slaveStatus, strings.ToLower(col), "Generic metric from SHOW SLAVE STATUS."),
 					prometheus.UntypedValue,
@@ -539,356 +595,328 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			}
 		}
 	}
+	return nil
+}
 
-	if *autoIncrementColumns {
-		autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
-		if err != nil {
-			log.Println("Error running information schema query on database:", err)
-			e.error.Set(1)
-			return
+func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
+	autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
+	if err != nil {
+		return err
+	}
+	defer autoIncrementRows.Close()
+
+	var (
+		schema, table, column string
+		value, max            int64
+	)
+
+	for autoIncrementRows.Next() {
+		if err := autoIncrementRows.Scan(
+			&schema, &table, &column, &value, &max,
+		); err != nil {
+			return err
 		}
-		defer autoIncrementRows.Close()
-
-		var (
-			schema string
-			table  string
-			column string
-			value  int64
-			max    int64
+		ch <- prometheus.MustNewConstMetric(
+			globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, float64(value),
+			schema, table, column,
 		)
-
-		for autoIncrementRows.Next() {
-			if err := autoIncrementRows.Scan(
-				&schema, &table, &column, &value, &max,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
-			ch <- prometheus.MustNewConstMetric(
-				globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, float64(value),
-				schema, table, column,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, float64(max),
-				schema, table, column,
-			)
-		}
-	}
-
-	if *perfTableIOWaits {
-		perfSchemaTableWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
-		if err != nil {
-			log.Println("Error running performance schema query on database:", err)
-			e.error.Set(1)
-			return
-		}
-		defer perfSchemaTableWaitsRows.Close()
-
-		var (
-			objectSchema string
-			objectName   string
-			countFetch   int64
-			countInsert  int64
-			countUpdate  int64
-			countDelete  int64
+		ch <- prometheus.MustNewConstMetric(
+			globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, float64(max),
+			schema, table, column,
 		)
-
-		for perfSchemaTableWaitsRows.Next() {
-			if err := perfSchemaTableWaitsRows.Scan(
-				&objectSchema, &objectName, &countFetch, &countInsert, &countUpdate, &countDelete,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
-				objectSchema, objectName, "fetch",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countInsert),
-				objectSchema, objectName, "insert",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countUpdate),
-				objectSchema, objectName, "update",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
-				objectSchema, objectName, "delete",
-			)
-		}
 	}
+	return nil
+}
 
-	if *perfTableIOWaitsTime {
-		// Timers here are returned in picoseconds.
-		perfSchemaTableWaitsTimeRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE FROM performance_schema.table_io_waits_summary_by_table WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
-		if err != nil {
-			log.Println("Error running performance schema query on database:", err)
-			e.error.Set(1)
-			return
+func scrapePerfTableIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+	perfSchemaTableWaitsRows, err := db.Query(perfTableIOWaitsQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaTableWaitsRows.Close()
+
+	var (
+		objectSchema, objectName                          string
+		countFetch, countInsert, countUpdate, countDelete int64
+	)
+
+	for perfSchemaTableWaitsRows.Next() {
+		if err := perfSchemaTableWaitsRows.Scan(
+			&objectSchema, &objectName, &countFetch, &countInsert, &countUpdate, &countDelete,
+		); err != nil {
+			return err
 		}
-		defer perfSchemaTableWaitsTimeRows.Close()
-
-		var (
-			objectSchema string
-			objectName   string
-			timeFetch    int64
-			timeInsert   int64
-			timeUpdate   int64
-			timeDelete   int64
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countFetch),
+			objectSchema, objectName, "fetch",
 		)
-
-		for perfSchemaTableWaitsTimeRows.Next() {
-			if err := perfSchemaTableWaitsTimeRows.Scan(
-				&objectSchema, &objectName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
-				objectSchema, objectName, "fetch",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
-				objectSchema, objectName, "insert",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
-				objectSchema, objectName, "update",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
-				objectSchema, objectName, "delete",
-			)
-		}
-	}
-
-	if *perfIndexIOWaits {
-		perfSchemaIndexWaitsRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE FROM performance_schema.table_io_waits_summary_by_index_usage WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
-		if err != nil {
-			log.Println("Error running performance schema query on database:", err)
-			e.error.Set(1)
-			return
-		}
-		defer perfSchemaIndexWaitsRows.Close()
-
-		var (
-			objectSchema string
-			objectName   string
-			indexName    string
-			countFetch   int64
-			countInsert  int64
-			countUpdate  int64
-			countDelete  int64
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countInsert),
+			objectSchema, objectName, "insert",
 		)
-
-		for perfSchemaIndexWaitsRows.Next() {
-			if err := perfSchemaIndexWaitsRows.Scan(
-				&objectSchema, &objectName, &indexName, &countFetch, &countInsert, &countUpdate, &countDelete,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countFetch),
-				objectSchema, objectName, indexName, "fetch",
-			)
-			// We only update write columns when indexName is NONE.
-			if indexName == "NONE" {
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countInsert),
-					objectSchema, objectName, indexName, "insert",
-				)
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
-					objectSchema, objectName, indexName, "update",
-				)
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
-					objectSchema, objectName, indexName, "delete",
-				)
-			}
-		}
-	}
-
-	if *perfIndexIOWaitsTime {
-		// Timers here are returned in picoseconds.
-		perfSchemaIndexWaitsTimeRows, err := db.Query("SELECT OBJECT_SCHEMA, OBJECT_NAME, ifnull(INDEX_NAME, 'NONE') as INDEX_NAME, SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE FROM performance_schema.table_io_waits_summary_by_index_usage WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')")
-		if err != nil {
-			log.Println("Error running performance schema query on database:", err)
-			e.error.Set(1)
-			return
-		}
-		defer perfSchemaIndexWaitsTimeRows.Close()
-
-		var (
-			objectSchema string
-			objectName   string
-			indexName    string
-			timeFetch    int64
-			timeInsert   int64
-			timeUpdate   int64
-			timeDelete   int64
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+			objectSchema, objectName, "update",
 		)
-
-		for perfSchemaIndexWaitsTimeRows.Next() {
-			if err := perfSchemaIndexWaitsTimeRows.Scan(
-				&objectSchema, &objectName, &indexName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
-				objectSchema, objectName, indexName, "fetch",
-			)
-			// We only update write columns when indexName is NONE.
-			if indexName == "NONE" {
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
-					objectSchema, objectName, indexName, "insert",
-				)
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
-					objectSchema, objectName, indexName, "update",
-				)
-				ch <- prometheus.MustNewConstMetric(
-					performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
-					objectSchema, objectName, indexName, "delete",
-				)
-			}
-		}
-	}
-
-	if *perfEventsStatements {
-		perfQuery := fmt.Sprintf("%s LIMIT %d", perfSchemaEventsStatementsQuery, *perfEventsStatementsLimit)
-		// Timers here are returned in picoseconds.
-		perfSchemaEventsStatementsRows, err := db.Query(perfQuery)
-		if err != nil {
-			log.Println("Error running performance schema query on database:", err)
-			e.error.Set(1)
-			return
-		}
-		defer perfSchemaEventsStatementsRows.Close()
-
-		var (
-			schemaName    string
-			digest        string
-			count         int64
-			queryTime     int64
-			errors        int64
-			warnings      int64
-			rowsAffected  int64
-			rowsSent      int64
-			rowsExamined  int64
-			tmpTables     int64
-			tmpDiskTables int64
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countDelete),
+			objectSchema, objectName, "delete",
 		)
+	}
+	return nil
+}
 
-		for perfSchemaEventsStatementsRows.Next() {
-			if err := perfSchemaEventsStatementsRows.Scan(
-				&schemaName, &digest, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
-			); err != nil {
-				log.Println("error getting result set:", err)
-				e.error.Set(1)
-				return
-			}
+func scrapePerfTableIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
+	// Timers here are returned in picoseconds.
+	perfSchemaTableWaitsTimeRows, err := db.Query(perfTableIOWaitsTimeQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaTableWaitsTimeRows.Close()
+
+	var (
+		objectSchema, objectName                      string
+		timeFetch, timeInsert, timeUpdate, timeDelete int64
+	)
+
+	for perfSchemaTableWaitsTimeRows.Next() {
+		if err := perfSchemaTableWaitsTimeRows.Scan(
+			&objectSchema, &objectName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+			objectSchema, objectName, "fetch",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+			objectSchema, objectName, "insert",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+			objectSchema, objectName, "update",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+			objectSchema, objectName, "delete",
+		)
+	}
+	return nil
+}
+
+func scrapePerfIndexIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+	perfSchemaIndexWaitsRows, err := db.Query(perfIndexIOWaitsQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaIndexWaitsRows.Close()
+
+	var (
+		objectSchema, objectName, indexName               string
+		countFetch, countInsert, countUpdate, countDelete int64
+	)
+
+	for perfSchemaIndexWaitsRows.Next() {
+		if err := perfSchemaIndexWaitsRows.Scan(
+			&objectSchema, &objectName, &indexName, &countFetch, &countInsert, &countUpdate, &countDelete,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countFetch),
+			objectSchema, objectName, indexName, "fetch",
+		)
+		// We only update write columns when indexName is NONE.
+		if indexName == "NONE" {
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
-				schemaName, digest,
+				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countInsert),
+				objectSchema, objectName, indexName, "insert",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/1000000000,
-				schemaName, digest,
+				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+				objectSchema, objectName, indexName, "update",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsErrorsDesc, prometheus.CounterValue, float64(errors),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsWarningsDesc, prometheus.CounterValue, float64(warnings),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsTmpTablesDesc, prometheus.CounterValue, float64(tmpTables),
-				schemaName, digest,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
-				schemaName, digest,
+				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
+				objectSchema, objectName, indexName, "delete",
 			)
 		}
 	}
+	return nil
+}
 
-	if *userStat {
-		informationSchemaUserStatisticsRows, err := db.Query("SELECT * FROM information_schema.USER_STATISTICS")
+func scrapePerfIndexIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
+	// Timers here are returned in picoseconds.
+	perfSchemaIndexWaitsTimeRows, err := db.Query(perfIndexIOWaitsTimeQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaIndexWaitsTimeRows.Close()
+
+	var (
+		objectSchema, objectName, indexName           string
+		timeFetch, timeInsert, timeUpdate, timeDelete int64
+	)
+
+	for perfSchemaIndexWaitsTimeRows.Next() {
+		if err := perfSchemaIndexWaitsTimeRows.Scan(
+			&objectSchema, &objectName, &indexName, &timeFetch, &timeInsert, &timeUpdate, &timeDelete,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+			objectSchema, objectName, indexName, "fetch",
+		)
+		// We only update write columns when indexName is NONE.
+		if indexName == "NONE" {
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+				objectSchema, objectName, indexName, "insert",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+				objectSchema, objectName, indexName, "update",
+			)
+			ch <- prometheus.MustNewConstMetric(
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+				objectSchema, objectName, indexName, "delete",
+			)
+		}
+	}
+	return nil
+}
+
+func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
+	perfQuery := fmt.Sprintf("%s LIMIT %d", perfEventsStatementsQuery, *perfEventsStatementsLimit)
+	// Timers here are returned in picoseconds.
+	perfSchemaEventsStatementsRows, err := db.Query(perfQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaEventsStatementsRows.Close()
+
+	var (
+		schemaName, digest                   string
+		count, queryTime, errors, warnings   int64
+		rowsAffected, rowsSent, rowsExamined int64
+		tmpTables, tmpDiskTables             int64
+	)
+
+	for perfSchemaEventsStatementsRows.Next() {
+		if err := perfSchemaEventsStatementsRows.Scan(
+			&schemaName, &digest, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/1000000000,
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsErrorsDesc, prometheus.CounterValue, float64(errors),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsWarningsDesc, prometheus.CounterValue, float64(warnings),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsTmpTablesDesc, prometheus.CounterValue, float64(tmpTables),
+			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
+			schemaName, digest,
+		)
+	}
+	return nil
+}
+
+func scrapeUserStat(db *sql.DB, ch chan<- prometheus.Metric) error {
+	informationSchemaUserStatisticsRows, err := db.Query(userStatQuery)
+	if err != nil {
+		return err
+	}
+	defer informationSchemaUserStatisticsRows.Close()
+
+	// The user column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
+	// Because of the user column, userStatData[0] maps to columnNames[1] when reading off the metrics
+	// (because userStatScanArgs is mapped as [ &user, &userData[0], &userData[1] ... &userdata[n] ]
+	// To map metrics to names therefore we always range over columnNames[1:]
+	var columnNames []string
+	columnNames, err = informationSchemaUserStatisticsRows.Columns()
+	if err != nil {
+		return err
+	}
+
+	var user string                                        // Holds the username, which should be in column 0.
+	var userStatData = make([]float64, len(columnNames)-1) // 1 less because of the user column.
+	var userStatScanArgs = make([]interface{}, len(columnNames))
+	userStatScanArgs[0] = &user
+	for i := range userStatData {
+		userStatScanArgs[i+1] = &userStatData[i+1]
+	}
+
+	for informationSchemaUserStatisticsRows.Next() {
+		err = informationSchemaUserStatisticsRows.Scan(userStatScanArgs...)
 		if err != nil {
-			log.Println("Error running user statistics query on database:", err)
-			e.error.Set(1)
-			return
-		}
-		defer informationSchemaUserStatisticsRows.Close()
-
-		// The user column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
-		// Because of the user column, userStatData[0] maps to columnNames[1] when reading off the metrics
-		// (because userStatScanArgs is mapped as [ &user, &userData[0], &userData[1] ... &userdata[n] ]
-		// To map metrics to names therefore we always range over columnNames[1:]
-		var columnNames []string
-		columnNames, err = informationSchemaUserStatisticsRows.Columns()
-		if err != nil {
-			log.Println("Error retrieving column list for information_schema.USER_STATISTICS:", err)
-			e.error.Set(1)
-			return
+			return err
 		}
 
-		var user string                                        // Holds the username, which should be in column 0
-		var userStatData = make([]float64, len(columnNames)-1) // 1 less because of the user column
-		var userStatScanArgs = make([]interface{}, len(columnNames))
-		userStatScanArgs[0] = &user
-		for i := range userStatData {
-			userStatScanArgs[i+1] = &userStatData[i]
-		}
-
-		for informationSchemaUserStatisticsRows.Next() {
-			err = informationSchemaUserStatisticsRows.Scan(userStatScanArgs...)
-			if err != nil {
-				log.Println("Error retrieving information_schema.USER_STATISTICS rows:", err)
-				e.error.Set(1)
-				return
-			}
-
-			// Loop over column names, and match to scan data. Unknown columns
-			// will be filled with an untyped metric number. We assume other then
-			// user, that we'll only get numbers.
-			for idx, columnName := range columnNames[1:] {
-				if metricType, ok := informationSchemaUserStatisticsTypes[columnName]; ok {
-					ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(userStatData[idx]), user)
-				} else {
-					// Unknown metric. Report as untyped.
-					desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("user_statistics_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"user"}, nil)
-					ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(userStatData[idx]), user)
-				}
+		// Loop over column names, and match to scan data. Unknown columns
+		// will be filled with an untyped metric number. We assume other then
+		// user, that we'll only get numbers.
+		for idx, columnName := range columnNames[1:] {
+			if metricType, ok := informationSchemaUserStatisticsTypes[columnName]; ok {
+				ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(userStatData[idx]), user)
+			} else {
+				// Unknown metric. Report as untyped.
+				desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("user_statistics_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"user"}, nil)
+				ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(userStatData[idx]), user)
 			}
 		}
 	}
+	return nil
+}
+
+func newDesc(subsystem, name, help string) *prometheus.Desc {
+	return prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, subsystem, name),
+		help, nil, nil,
+	)
+}
+
+func parseStatus(data sql.RawBytes) (float64, bool) {
+	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
+		return 1, true
+	}
+	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
+		return 0, true
+	}
+	if logNum := logRE.Find(data); logNum != nil {
+		value, err := strconv.ParseFloat(string(logNum), 64)
+		return value, err == nil
+	}
+	value, err := strconv.ParseFloat(string(data), 64)
+	return value, err == nil
 }
 
 func main() {

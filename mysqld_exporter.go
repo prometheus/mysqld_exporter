@@ -863,8 +863,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		var userStatData = make([]float64, len(columnNames)-1) // 1 less because of the user column
 		var userStatScanArgs = make([]interface{}, len(columnNames))
 		userStatScanArgs[0] = &user
-		for i := range userStatData[1:] {
-			userStatScanArgs[i+1] = &userStatData[i+1]
+		for i := range userStatData {
+			userStatScanArgs[i+1] = &userStatData[i]
 		}
 
 		for informationSchemaUserStatisticsRows.Next() {

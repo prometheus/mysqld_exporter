@@ -54,6 +54,10 @@ var (
 		"collect.perf_schema.eventsstatements.limit", 250,
 		"Limit the number of events statements digests by response time",
 	)
+	perfEventsStatementsTimeLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.timelimit", 86400,
+		"Limit how old the 'last_seen' events statements can be, in seconds",
+	)
 	userStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics")
 )
@@ -124,7 +128,9 @@ const (
 		    SUM_CREATED_TMP_TABLES
 		  FROM performance_schema.events_statements_summary_by_digest
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+		    AND last_seen > DATE_SUB(NOW(), INTERVAL %d SECOND)
 		  ORDER BY SUM_TIMER_WAIT DESC
+		  LIMIT %d
 		`
 	userStatQuery = `SELECT * FROM information_schema.USER_STATISTICS`
 )
@@ -789,7 +795,11 @@ func scrapePerfIndexIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
-	perfQuery := fmt.Sprintf("%s LIMIT %d", perfEventsStatementsQuery, *perfEventsStatementsLimit)
+	perfQuery := fmt.Sprintf(
+		perfEventsStatementsQuery,
+		*perfEventsStatementsTimeLimit,
+		*perfEventsStatementsLimit,
+	)
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.Query(perfQuery)
 	if err != nil {

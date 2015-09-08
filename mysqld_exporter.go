@@ -882,7 +882,7 @@ func scrapeUserStat(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var userStatScanArgs = make([]interface{}, len(columnNames))
 	userStatScanArgs[0] = &user
 	for i := range userStatData {
-		userStatScanArgs[i+1] = &userStatData[i+1]
+		userStatScanArgs[i+1] = &userStatData[i]
 	}
 
 	for informationSchemaUserStatisticsRows.Next() {

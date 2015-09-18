@@ -58,8 +58,13 @@ var (
 		"collect.perf_schema.eventsstatements.timelimit", 86400,
 		"Limit how old the 'last_seen' events statements can be, in seconds",
 	)
+	perfEventsStatementsDigestTextLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.digest_text_limit", 120,
+		"Maximum length of the normalized statement text",
+	)
 	userStat = flag.Bool("collect.info_schema.userstats", false,
-		"If running with userstat=1, set to true to collect user statistics")
+		"If running with userstat=1, set to true to collect user statistics",
+	)
 )
 
 // Metric name parts.
@@ -117,6 +122,7 @@ const (
 		SELECT
 		    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
 		    DIGEST,
+		    LEFT(DIGEST_TEXT, %d) as DIGEST_TEXT,
 		    COUNT_STAR,
 		    SUM_TIMER_WAIT,
 		    SUM_ERRORS,
@@ -202,6 +208,11 @@ var (
 		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_total"),
 		"The total count of events statements by digest.",
 		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsStatementsDigestTextDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_digest_text"),
+		"The mapping of query schema text to their digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
 	)
 	performanceSchemaEventsStatementsTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_seconds_total"),
@@ -797,6 +808,7 @@ func scrapePerfIndexIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
+		*perfEventsStatementsDigestTextLimit,
 		*perfEventsStatementsTimeLimit,
 		*perfEventsStatementsLimit,
 	)
@@ -808,7 +820,7 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 	defer perfSchemaEventsStatementsRows.Close()
 
 	var (
-		schemaName, digest                   string
+		schemaName, digest, digest_text      string
 		count, queryTime, errors, warnings   int64
 		rowsAffected, rowsSent, rowsExamined int64
 		tmpTables, tmpDiskTables             int64
@@ -816,13 +828,17 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	for perfSchemaEventsStatementsRows.Next() {
 		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
+			&schemaName, &digest, &digest_text, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
 		); err != nil {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
 			schemaName, digest,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsDigestTextDesc, prometheus.GaugeValue, 1,
+			schemaName, digest, digest_text,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/1000000000,

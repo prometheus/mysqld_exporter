@@ -1,3 +1,9 @@
+## 0.4.0 / 2015-09-21
+
+[CHANGE] Limit events_statements to recently used
+[FEATURE] Add digest_text mapping metric
+[IMPROVEMENT] General refactoring
+
 ## 0.3.0 / 2015-08-31
 
 BREAKING CHANGES: Most metrics have been prefixed with Prometheus subsystem names

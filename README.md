@@ -15,6 +15,7 @@ NOTE: Not all collection methods are support on MySQL < 5.6
 Name                                       | Description
 -------------------------------------------|------------------------------------------------------------------------------------
 collect.auto_increment.columns             | Collect auto_increment columns and max values from information_schema.
+collect.binlog_size                        | Compute the size of all binlog files combined (as specified by "SHOW MASTER LOGS")
 collect.info_schema.userstats              | If running with userstat=1, set to true to collect user statistics.
 collect.perf_schema.eventsstatements       | Collect time metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.limit | Limit the number of events statements digests by response time. (default: 250)

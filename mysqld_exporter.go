@@ -30,6 +30,10 @@ var (
 		"collect.auto_increment.columns", false,
 		"Collect auto_increment columns and max values from information_schema",
 	)
+	binlogSize = flag.Bool(
+		"collect.binlog_size", false,
+		"Collect the current size of all registered binlog files",
+	)
 	perfTableIOWaits = flag.Bool(
 		"collect.perf_schema.tableiowaits", false,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
@@ -78,6 +82,7 @@ const (
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
 	slaveStatus       = "slave_status"
+	binlog            = "binlog"
 )
 
 // Metric SQL Queries.
@@ -85,6 +90,7 @@ const (
 	globalStatusQuery            = `SHOW GLOBAL STATUS`
 	globalVariablesQuery         = `SHOW GLOBAL VARIABLES`
 	slaveStatusQuery             = `SHOW SLAVE STATUS`
+	binlogQuery                  = `SHOW BINARY LOGS`
 	infoSchemaAutoIncrementQuery = `
 		SELECT table_schema, table_name, column_name, auto_increment,
 		  pow(2, case data_type
@@ -154,6 +160,16 @@ var landingPage = []byte(`<html>
 
 // Metric descriptors for dynamically created metrics.
 var (
+	binlogSizeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, binlog, "size"),
+		"Combined size of all registered binlog files.",
+		[]string{}, nil,
+	)
+	binlogFilesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, binlog, "files"),
+		"Number of registered binlog files.",
+		[]string{}, nil,
+	)
 	globalCommandsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "commands_total"),
 		"Total number of executed MySQL commands.",
@@ -459,6 +475,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			return
 		}
 	}
+	if *binlogSize {
+		if err = scrapeBinlogSize(db, ch); err != nil {
+			log.Println("Error scraping binlog size:", err)
+			return
+		}
+	}
 	if *perfTableIOWaits {
 		if err = scrapePerfTableIOWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
@@ -642,6 +664,40 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 			schema, table, column,
 		)
 	}
+	return nil
+}
+
+func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
+	masterLogRows, err := db.Query(binlogQuery)
+	if err != nil {
+		return err
+	}
+	defer masterLogRows.Close()
+
+	var (
+		size     uint64
+		count    uint64
+		filename string
+		filesize uint64
+	)
+	size = 0
+	count = 0
+
+	for masterLogRows.Next() {
+		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
+			return nil
+		}
+		size += filesize
+		count++
+	}
+
+	ch <- prometheus.MustNewConstMetric(
+		binlogSizeDesc, prometheus.GaugeValue, float64(size),
+	)
+	ch <- prometheus.MustNewConstMetric(
+		binlogFilesDesc, prometheus.GaugeValue, float64(count),
+	)
+
 	return nil
 }
 

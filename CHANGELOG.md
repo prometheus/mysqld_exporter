@@ -1,3 +1,9 @@
+## 0.5.0 / 2015-09-22
+
+[FEATURE] Add metrics for table locks
+[BUGFIX] Use uint64 to prevent int64 overflow
+[BUGFIX] Correct picsecond times to correct second values
+
 ## 0.4.0 / 2015-09-21
 
 [CHANGE] Limit events_statements to recently used

@@ -654,7 +654,7 @@ func scrapePerfTableIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		objectSchema, objectName                          string
-		countFetch, countInsert, countUpdate, countDelete int64
+		countFetch, countInsert, countUpdate, countDelete uint64
 	)
 
 	for perfSchemaTableWaitsRows.Next() {
@@ -693,7 +693,7 @@ func scrapePerfTableIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		objectSchema, objectName                      string
-		timeFetch, timeInsert, timeUpdate, timeDelete int64
+		timeFetch, timeInsert, timeUpdate, timeDelete uint64
 	)
 
 	for perfSchemaTableWaitsTimeRows.Next() {
@@ -731,7 +731,7 @@ func scrapePerfIndexIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		objectSchema, objectName, indexName               string
-		countFetch, countInsert, countUpdate, countDelete int64
+		countFetch, countInsert, countUpdate, countDelete uint64
 	)
 
 	for perfSchemaIndexWaitsRows.Next() {
@@ -773,7 +773,7 @@ func scrapePerfIndexIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		objectSchema, objectName, indexName           string
-		timeFetch, timeInsert, timeUpdate, timeDelete int64
+		timeFetch, timeInsert, timeUpdate, timeDelete uint64
 	)
 
 	for perfSchemaIndexWaitsTimeRows.Next() {

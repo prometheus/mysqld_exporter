@@ -624,7 +624,7 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		schema, table, column string
-		value, max            int64
+		value, max            uint64
 	)
 
 	for autoIncrementRows.Next() {
@@ -821,9 +821,9 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		schemaName, digest, digest_text      string
-		count, queryTime, errors, warnings   int64
-		rowsAffected, rowsSent, rowsExamined int64
-		tmpTables, tmpDiskTables             int64
+		count, queryTime, errors, warnings   uint64
+		rowsAffected, rowsSent, rowsExamined uint64
+		tmpTables, tmpDiskTables             uint64
 	)
 
 	for perfSchemaEventsStatementsRows.Next() {

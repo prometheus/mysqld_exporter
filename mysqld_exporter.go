@@ -347,6 +347,11 @@ var (
 	}
 )
 
+// Math constants
+const (
+	picoSeconds = 1e12
+)
+
 // Various regexps.
 var (
 	globalStatusRE = regexp.MustCompile(`^(com|connection_errors|innodb_rows|performance_schema)_(.*)$`)
@@ -703,19 +708,19 @@ func scrapePerfTableIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/picoSeconds,
 			objectSchema, objectName, "fetch",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/picoSeconds,
 			objectSchema, objectName, "insert",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
 			objectSchema, objectName, "update",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+			performanceSchemaTableWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/picoSeconds,
 			objectSchema, objectName, "delete",
 		)
 	}
@@ -783,21 +788,21 @@ func scrapePerfIndexIOWaitsTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/1000000000,
+			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/picoSeconds,
 			objectSchema, objectName, indexName, "fetch",
 		)
 		// We only update write columns when indexName is NONE.
 		if indexName == "NONE" {
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/1000000000,
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/picoSeconds,
 				objectSchema, objectName, indexName, "insert",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/1000000000,
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
 				objectSchema, objectName, indexName, "update",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/1000000000,
+				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/picoSeconds,
 				objectSchema, objectName, indexName, "delete",
 			)
 		}
@@ -841,7 +846,7 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 			schemaName, digest, digest_text,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/1000000000,
+			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/picoSeconds,
 			schemaName, digest,
 		)
 		ch <- prometheus.MustNewConstMetric(

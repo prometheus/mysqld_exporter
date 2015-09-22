@@ -23,6 +23,8 @@ collect.perf_schema.indexiowaits           | Collect metrics from performance_sc
 collect.perf_schema.indexiowaitstime       | Collect time metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.tableiowaits           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tableiowaitstime       | Collect time metrics from performance_schema.table_io_waits_summary_by_table.
+collect.perf_schema.tablelocks             | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
+collect.perf_schema.tablelockstime         | Collect time metrics from performance_schema.events_statements_summary_by_digest.
 log.level                                  | Logging verbosity (default: info)
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.

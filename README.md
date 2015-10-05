@@ -67,7 +67,7 @@ meaning without knowing the actual query behind the digest.
 Extending the query adds a `digest_text` label to the result vector showing us
 exactly that information:
 
-    (sum(rate(mysql_perf_schema_events_statements_total[5m])) by (digest)) * on(digest) group_right(schema, digest_text) mysql_perf_schema_events_statements_digest_text
+    (sum(rate(mysql_perf_schema_events_statements_total[5m])) by (digest, instance)) * on(digest, instance) group_right(schema, digest_text) mysql_perf_schema_events_statements_digest_text
 
 This extension (`* on(digest)...`) is generally applicable to all similar
 queries.

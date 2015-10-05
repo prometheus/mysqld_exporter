@@ -69,6 +69,6 @@ exactly that information:
 
     (sum(rate(mysql_perf_schema_events_statements_total[5m])) by (digest, instance)) * on(digest, instance) group_right(schema, digest_text) mysql_perf_schema_events_statements_digest_text
 
-This extension (`* on(digest)...`) is generally applicable to all similar
+This extension (`* on(digest, instance)...`) is generally applicable to all similar
 queries.
 

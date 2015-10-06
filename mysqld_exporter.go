@@ -26,43 +26,55 @@ var (
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
-	processlist = flag.Bool(
+	collectProcesslist = flag.Bool(
 		"collect.info_schema.processlist", false,
 		"Collect current thread state counts from the information_schema.processlist",
 	)
-	autoIncrementColumns = flag.Bool(
+	collectGlobalStatus = flag.Bool(
+		"collect.global_status", true,
+		"Collect from SHOW GLOBAL STATUS",
+	)
+	collectGlobalVariables = flag.Bool(
+		"collect.global_variables", true,
+		"Collect from SHOW GLOBAL VARIABLES",
+	)
+	collectSlaveStatus = flag.Bool(
+		"collect.slave_status", true,
+		"Collect from SHOW SLAVE STATUS",
+	)
+	collectAutoIncrementColumns = flag.Bool(
 		"collect.auto_increment.columns", false,
 		"Collect auto_increment columns and max values from information_schema",
 	)
-	binlogSize = flag.Bool(
+	collectBinlogSize = flag.Bool(
 		"collect.binlog_size", false,
 		"Collect the current size of all registered binlog files",
 	)
-	perfTableIOWaits = flag.Bool(
+	collectPerfTableIOWaits = flag.Bool(
 		"collect.perf_schema.tableiowaits", false,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
 	)
-	perfTableIOWaitsTime = flag.Bool(
+	collectPerfTableIOWaitsTime = flag.Bool(
 		"collect.perf_schema.tableiowaitstime", false,
 		"Collect time metrics from performance_schema.table_io_waits_summary_by_table",
 	)
-	perfIndexIOWaits = flag.Bool(
+	collectPerfIndexIOWaits = flag.Bool(
 		"collect.perf_schema.indexiowaits", false,
 		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
 	)
-	perfIndexIOWaitsTime = flag.Bool(
+	collectPerfIndexIOWaitsTime = flag.Bool(
 		"collect.perf_schema.indexiowaitstime", false,
 		"Collect time metrics from performance_schema.table_io_waits_summary_by_index_usage",
 	)
-	perfTableLockWaits = flag.Bool(
+	collectPerfTableLockWaits = flag.Bool(
 		"collect.perf_schema.tablelocks", false,
 		"Collect metrics from performance_schema.table_lock_waits_summary_by_table",
 	)
-	perfTableLockWaitsTime = flag.Bool(
+	collectPerfTableLockWaitsTime = flag.Bool(
 		"collect.perf_schema.tablelockstime", false,
 		"Collect time metrics from performance_schema.table_lock_waits_summary_by_table",
 	)
-	perfEventsStatements = flag.Bool(
+	collectPerfEventsStatements = flag.Bool(
 		"collect.perf_schema.eventsstatements", false,
 		"Collect time metrics from performance_schema.events_statements_summary_by_digest",
 	)
@@ -78,7 +90,7 @@ var (
 		"collect.perf_schema.eventsstatements.digest_text_limit", 120,
 		"Maximum length of the normalized statement text",
 	)
-	userStat = flag.Bool("collect.info_schema.userstats", false,
+	collectUserStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics",
 	)
 )
@@ -621,79 +633,85 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
-	if err = scrapeGlobalStatus(db, ch); err != nil {
-		log.Println("Error scraping global state:", err)
-		return
+	if *collectGlobalStatus {
+		if err = scrapeGlobalStatus(db, ch); err != nil {
+			log.Println("Error scraping global state:", err)
+			return
+		}
 	}
-	if err = scrapeGlobalVariables(db, ch); err != nil {
-		log.Println("Error scraping global variables:", err)
-		return
+	if *collectGlobalVariables {
+		if err = scrapeGlobalVariables(db, ch); err != nil {
+			log.Println("Error scraping global variables:", err)
+			return
+		}
 	}
-	if err = scrapeSlaveStatus(db, ch); err != nil {
-		log.Println("Error scraping slave state:", err)
-		return
+	if *collectSlaveStatus {
+		if err = scrapeSlaveStatus(db, ch); err != nil {
+			log.Println("Error scraping slave state:", err)
+			return
+		}
 	}
-	if *processlist {
+	if *collectProcesslist {
 		if err = scrapeProcesslist(db, ch); err != nil {
 			log.Println("Error scraping process list:", err)
 			return
 		}
 	}
-	if *autoIncrementColumns {
+	if *collectAutoIncrementColumns {
 		if err = scrapeInformationSchema(db, ch); err != nil {
 			log.Println("Error scraping information schema:", err)
 			return
 		}
 	}
-	if *binlogSize {
+	if *collectBinlogSize {
 		if err = scrapeBinlogSize(db, ch); err != nil {
 			log.Println("Error scraping binlog size:", err)
 			return
 		}
 	}
-	if *perfTableIOWaits {
+	if *collectPerfTableIOWaits {
 		if err = scrapePerfTableIOWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfTableIOWaitsTime {
+	if *collectPerfTableIOWaitsTime {
 		if err = scrapePerfTableIOWaitsTime(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfIndexIOWaits {
+	if *collectPerfIndexIOWaits {
 		if err = scrapePerfIndexIOWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfIndexIOWaitsTime {
+	if *collectPerfIndexIOWaitsTime {
 		if err = scrapePerfIndexIOWaitsTime(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfTableLockWaits {
+	if *collectPerfTableLockWaits {
 		if err = scrapePerfTableLockWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfTableLockWaitsTime {
+	if *collectPerfTableLockWaitsTime {
 		if err = scrapePerfTableLockWaitsTime(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *perfEventsStatements {
+	if *collectPerfEventsStatements {
 		if err = scrapePerfEventsStatements(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
 	}
-	if *userStat {
+	if *collectUserStat {
 		if err = scrapeUserStat(db, ch); err != nil {
 			log.Println("Error scraping user stat:", err)
 			return

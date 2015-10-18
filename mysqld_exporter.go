@@ -78,6 +78,14 @@ var (
 		"collect.perf_schema.eventsstatements.digest_text_limit", 120,
 		"Maximum length of the normalized statement text",
 	)
+	collectPerfEventsWaits = flag.Bool(
+		"collect.perf_schema.eventswaits", false,
+		"Collect metrics from performance_schema.events_waits_summary_global_by_event_name",
+	)
+	collectPerfFileEvents = flag.Bool(
+		"collect.perf_schema.file_events", false,
+		"Collect metrics from performance_schema.file_summary_by_event_name",
+	)
 	collectUserStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics",
 	)
@@ -183,6 +191,18 @@ const (
 		    AND last_seen > DATE_SUB(NOW(), INTERVAL %d SECOND)
 		  ORDER BY SUM_TIMER_WAIT DESC
 		  LIMIT %d
+		`
+	perfEventsWaitsQuery = `
+		SELECT EVENT_NAME, COUNT_STAR, SUM_TIMER_WAIT
+		  FROM performance_schema.events_waits_summary_global_by_event_name
+		`
+	perfFileEventsQuery = `
+		SELECT
+		  EVENT_NAME,
+		  COUNT_READ, SUM_TIMER_READ, SUM_NUMBER_OF_BYTES_READ,
+		  COUNT_WRITE, SUM_TIMER_WRITE, SUM_NUMBER_OF_BYTES_WRITE,
+		  COUNT_MISC, SUM_TIMER_MISC
+		  FROM performance_schema.file_summary_by_event_name
 		`
 	userStatQuery = `SELECT * FROM information_schema.USER_STATISTICS`
 )
@@ -329,6 +349,31 @@ var (
 		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_disk_tables_total"),
 		"The total tmp disk tables of events statements by digest.",
 		[]string{"schema", "digest"}, nil,
+	)
+	performanceSchemaEventsWaitsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_waits_total"),
+		"The total events waits by event name.",
+		[]string{"event_name"}, nil,
+	)
+	performanceSchemaEventsWaitsTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_waits_seconds_total"),
+		"The total seconds of events waits by event name.",
+		[]string{"event_name"}, nil,
+	)
+	performanceSchemaFileEventsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "file_events_total"),
+		"The total file events by event name/mode.",
+		[]string{"event_name", "mode"}, nil,
+	)
+	performanceSchemaFileEventsTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "file_events_seconds_total"),
+		"The total seconds of file events by event name/mode.",
+		[]string{"event_name", "mode"}, nil,
+	)
+	performanceSchemaFileEventsBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "file_events_bytes_total"),
+		"The total bytes of file events by event name/mode.",
+		[]string{"event_name", "mode"}, nil,
 	)
 	// Map known user-statistics values to types. Unknown types will be mapped as
 	// untyped.
@@ -663,6 +708,18 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	if *collectPerfEventsStatements {
 		if err = scrapePerfEventsStatements(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+	}
+	if *collectPerfEventsWaits {
+		if err = scrapePerfEventsWaits(db, ch); err != nil {
+			log.Println("Error scraping performance schema:", err)
+			return
+		}
+	}
+	if *collectPerfFileEvents {
+		if err = scrapePerfFileEvents(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
 			return
 		}
@@ -1195,6 +1252,97 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
 			schemaName, digest,
+		)
+	}
+	return nil
+}
+
+func scrapePerfEventsWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+	// Timers here are returned in picoseconds.
+	perfSchemaEventsWaitsRows, err := db.Query(perfEventsWaitsQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaEventsWaitsRows.Close()
+
+	var (
+		eventName   string
+		count, time uint64
+	)
+
+	for perfSchemaEventsWaitsRows.Next() {
+		if err := perfSchemaEventsWaitsRows.Scan(
+			&eventName, &count, &time,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsWaitsDesc, prometheus.CounterValue, float64(count),
+			eventName,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsWaitsTimeDesc, prometheus.CounterValue, float64(time)/picoSeconds,
+			eventName,
+		)
+	}
+	return nil
+}
+
+func scrapePerfFileEvents(db *sql.DB, ch chan<- prometheus.Metric) error {
+	// Timers here are returned in picoseconds.
+	perfSchemaFileEventsRows, err := db.Query(perfFileEventsQuery)
+	if err != nil {
+		return err
+	}
+	defer perfSchemaFileEventsRows.Close()
+
+	var (
+		eventName                         string
+		countRead, timeRead, bytesRead    uint64
+		countWrite, timeWrite, bytesWrite uint64
+		countMisc, timeMisc               uint64
+	)
+
+	for perfSchemaFileEventsRows.Next() {
+		if err := perfSchemaFileEventsRows.Scan(
+			&eventName,
+			&countRead, &timeRead, &bytesRead,
+			&countWrite, &timeWrite, &bytesWrite,
+			&countMisc, &timeMisc,
+		); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsDesc, prometheus.CounterValue, float64(countRead),
+			eventName, "read",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsTimeDesc, prometheus.CounterValue, float64(timeRead)/picoSeconds,
+			eventName, "read",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsBytesDesc, prometheus.CounterValue, float64(bytesRead),
+			eventName, "read",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsDesc, prometheus.CounterValue, float64(countWrite),
+			eventName, "write",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsTimeDesc, prometheus.CounterValue, float64(timeWrite)/picoSeconds,
+			eventName, "write",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsBytesDesc, prometheus.CounterValue, float64(bytesWrite),
+			eventName, "write",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsDesc, prometheus.CounterValue, float64(countMisc),
+			eventName, "misc",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaFileEventsTimeDesc, prometheus.CounterValue, float64(timeMisc)/picoSeconds,
+			eventName, "misc",
 		)
 	}
 	return nil

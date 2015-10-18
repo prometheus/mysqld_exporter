@@ -23,6 +23,8 @@ collect.perf_schema.eventsstatements.digest_text_limit | Maximum length of the n
 collect.perf_schema.indexiowaits           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.tableiowaits           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks             | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
+collect.perf_schema.file_events            | Collect metrics from performance_schema.file_summary_by_event_name.
+collect.perf_schema.eventswaits            | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.info_schema.processlist            | Collect thread state counts from information_schema.processlist.
 log.level                                  | Logging verbosity (default: info)
 web.listen-address                         | Address to listen on for web interface and telemetry.

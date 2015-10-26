@@ -3,7 +3,7 @@ Julius Volz in 2012.
 
 Maintainers of this repository:
 
-* Julius Volz <notifications@github.com>
+* Julius Volz <julius.volz@gmail.com>
 * Brian Brazil <brian.brazil@boxever.com>
 
 The following individuals have contributed code to this repository

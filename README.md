@@ -48,27 +48,3 @@ docker pull prom/mysqld-exporter
 docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
         -e DATA_SOURCE_NAME="user:password@(bdd:3306)/database" prom/mysqld-exporter
 ```
-
-## Example queries
-
-Certain queries to `events_statements` metrics will contain a query digest
-label in the result vector. The `events_statements_digest_text` metrics
-stores a mapping of those digests to their actual query template (digest_text).
-This metric can be used to join in the digest text to a query result so it can
-be interpreted in a more meaningful way.
-
-Suppose a query is:
-
-    sum(rate(mysql_perf_schema_events_statements_total[5m])) by (digest)
-
-The result vector contains the rate of events per digest, which is of little
-meaning without knowing the actual query behind the digest.
-
-Extending the query adds a `digest_text` label to the result vector showing us
-exactly that information:
-
-    (sum(rate(mysql_perf_schema_events_statements_total[5m])) by (digest, instance)) * on(digest, instance) group_right(schema, digest_text) mysql_perf_schema_events_statements_digest_text
-
-This extension (`* on(digest, instance)...`) is generally applicable to all similar
-queries.
-

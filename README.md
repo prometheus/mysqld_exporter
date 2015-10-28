@@ -17,6 +17,8 @@ Name                                       | Description
 collect.auto_increment.columns             | Collect auto_increment columns and max values from information_schema.
 collect.binlog_size                        | Compute the size of all binlog files combined (as specified by "SHOW MASTER LOGS")
 collect.info_schema.userstats              | If running with userstat=1, set to true to collect user statistics.
+collect.info_schema.tables                 | Collect metrics from information_schema.tables.
+collect.info_schema.tables.databases       | The list of databases to collect table stats for, or '`*`' for all.
 collect.perf_schema.eventsstatements       | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.limit | Limit the number of events statements digests by response time. (default: 250)
 collect.perf_schema.eventsstatements.digest_text_limit | Maximum length of the normalized statement text. (default: 120)

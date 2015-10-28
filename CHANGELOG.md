@@ -1,3 +1,18 @@
+## 0.6.0 / 2015-10-28
+
+BREAKING CHANGES:
+* The digest_text mapping metric has been removed, now included in all digest metrics (PR #50)
+* Flags for timing metrics have been removed, now included with related counter flag (PR #48)
+
+* [FEATURE] New collector for metrics from information_schema.processlist (PR #34)
+* [FEATURE] New collector for binlog counts/sizes (PR #35)
+* [FEATURE] New collector for performance_schema.{file_summary_by_event_name,events_waits_summary_global_by_event_name} (PR #49)
+* [FEATURE] New collector for information_schema.tables (PR #51)
+* [IMPROVEMENT] All collection methods now have enable flags (PR #46)
+* [IMPROVEMENT] Consolidate performance_schema metrics flags (PR #48)
+* [IMPROVEMENT] Removed need for digest_text mapping metric (PR #50)
+* [IMPROVEMENT] Update docs (PR #52)
+
 ## 0.5.0 / 2015-09-22
 
 * [FEATURE] Add metrics for table locks

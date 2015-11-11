@@ -38,6 +38,10 @@ var (
 		"collect.info_schema.tables.databases", "*",
 		"The list of databases to collect table stats for, or '*' for all",
 	)
+	tableSchemaAutoAnalyze = flag.Bool(
+		"collect.info_schema.tables.auto_analyze", false,
+		"Automatically run ANALYZE TABLE to update stats",
+	)
 	collectGlobalStatus = flag.Bool(
 		"collect.global_status", true,
 		"Collect from SHOW GLOBAL STATUS",
@@ -250,6 +254,15 @@ const (
 		  FROM information_schema.schemata
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
 		`
+	tableListQuery = `
+		SELECT
+		    TABLE_NAME
+		  FROM information_schema.tables
+		  WHERE TABLE_SCHEMA = '%s'
+		    AND TABLE_TYPE = 'BASE TABLE'
+		    AND ENGINE IS NOT NULL
+		`
+	analyzeTableQuery = `ANALYZE TABLE %s.%s`
 )
 
 // landingPage contains the HTML served at '/'.
@@ -1643,6 +1656,26 @@ func scrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	for _, database := range dbList {
+		if *tableSchemaAutoAnalyze {
+			tablesRows, err := db.Query(fmt.Sprintf(tableListQuery, database))
+			if err != nil {
+				return err
+			}
+			defer tablesRows.Close()
+
+			var tableName string
+
+			for tablesRows.Next() {
+				err = tablesRows.Scan(&tableName)
+				if err != nil {
+					return err
+				}
+				_, err := db.Query(fmt.Sprintf(analyzeTableQuery, database, tableName))
+				if err != nil {
+					return err
+				}
+			}
+		}
 		tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, database))
 		if err != nil {
 			return err

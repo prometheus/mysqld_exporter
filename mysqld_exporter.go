@@ -193,7 +193,10 @@ const (
 		    SUM_ROWS_SENT,
 		    SUM_ROWS_EXAMINED,
 		    SUM_CREATED_TMP_DISK_TABLES,
-		    SUM_CREATED_TMP_TABLES
+		    SUM_CREATED_TMP_TABLES,
+		    SUM_SORT_MERGE_PASSES,
+		    SUM_SORT_ROWS,
+		    SUM_NO_INDEX_USED
 		  FROM performance_schema.events_statements_summary_by_digest
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
 		    AND last_seen > DATE_SUB(NOW(), INTERVAL %d SECOND)
@@ -388,6 +391,21 @@ var (
 	performanceSchemaEventsStatementsTmpDiskTablesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_disk_tables_total"),
 		"The total tmp disk tables of events statements by digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
+	performanceSchemaEventsStatementsSortMergePassesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_sort_merge_passes_total"),
+		"The total number of merge passes by the sort algorithm performed by digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
+	performanceSchemaEventsStatementsSortRowsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_sort_rows_total"),
+		"The total number of sorted rows by digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
+	performanceSchemaEventsStatementsNoIndexUsedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_no_index_used_total"),
+		"The total number of statements that used full table scans by digest.",
 		[]string{"schema", "digest", "digest_text"}, nil,
 	)
 	performanceSchemaEventsWaitsDesc = prometheus.NewDesc(
@@ -1251,11 +1269,13 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 		count, queryTime, errors, warnings   uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
+		sortMergePasses, sortRows            uint64
+		noIndexUsed                          uint64
 	)
 
 	for perfSchemaEventsStatementsRows.Next() {
 		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digest_text, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables,
+			&schemaName, &digest, &digest_text, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables, &sortMergePasses, &sortRows, &noIndexUsed,
 		); err != nil {
 			return err
 		}
@@ -1293,6 +1313,18 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
+			schemaName, digest, digest_text,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsSortMergePassesDesc, prometheus.CounterValue, float64(sortMergePasses),
+			schemaName, digest, digest_text,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsSortRowsDesc, prometheus.CounterValue, float64(sortRows),
+			schemaName, digest, digest_text,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
 			schemaName, digest, digest_text,
 		)
 	}

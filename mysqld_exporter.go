@@ -218,8 +218,8 @@ const (
 		  COUNT_MISC, SUM_TIMER_MISC
 		  FROM performance_schema.file_summary_by_event_name
 		`
-	userStatQuery    = `SELECT * FROM information_schema.USER_STATISTICS`
-	tableStatQuery   = `
+	userStatQuery  = `SELECT * FROM information_schema.USER_STATISTICS`
+	tableStatQuery = `
 		SELECT
 			TABLE_SCHEMA,
 			TABLE_NAME,
@@ -1510,11 +1510,11 @@ func scrapeTableStat(db *sql.DB, ch chan<- prometheus.Metric) error {
 	defer informationSchemaTableStatisticsRows.Close()
 
 	var (
-		tableSchema   		string
-		tableName     		string
-		rowsRead    		uint64
-		rowsChanged   		uint64
-		rowsChangedXIndexes	uint64
+		tableSchema         string
+		tableName           string
+		rowsRead            uint64
+		rowsChanged         uint64
+		rowsChangedXIndexes uint64
 	)
 
 	for informationSchemaTableStatisticsRows.Next() {

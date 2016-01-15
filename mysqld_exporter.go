@@ -251,6 +251,7 @@ const (
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
 		`
 )
+var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
 // landingPage contains the HTML served at '/'.
 // TODO: Make this nicer and more informative.
@@ -918,7 +919,17 @@ func scrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 func scrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
-	slaveStatusRows, err := db.Query(slaveStatusQuery)
+	var (
+		slaveStatusRows *sql.Rows
+		err error
+	)
+	// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
+	for _, suffix := range slaveStatusQuerySuffixes {
+		slaveStatusRows, err = db.Query(fmt.Sprint(slaveStatusQuery, suffix))
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return err
 	}

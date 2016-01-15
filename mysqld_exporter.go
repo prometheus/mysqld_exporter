@@ -26,6 +26,10 @@ var (
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
+	slowLogFilter = flag.Bool(
+		"log_slow_filter", false,
+		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
+	)
 	collectProcesslist = flag.Bool(
 		"collect.info_schema.processlist", false,
 		"Collect current thread state counts from the information_schema.processlist",
@@ -118,6 +122,7 @@ const (
 
 // Metric SQL Queries.
 const (
+	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
 	globalStatusQuery          = `SHOW GLOBAL STATUS`
 	globalVariablesQuery       = `SHOW GLOBAL VARIABLES`
 	slaveStatusQuery           = `SHOW SLAVE STATUS`
@@ -736,6 +741,14 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	defer db.Close()
+
+	if *slowLogFilter {
+		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
+		if err != nil {
+			return err
+		}
+		sessionSettingsRows.Close()
+	}
 
 	if *collectGlobalStatus {
 		if err = scrapeGlobalStatus(db, ch); err != nil {

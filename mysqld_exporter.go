@@ -745,7 +745,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
-			return err
+			log.Println("Error setting log_slow_filter:", err)
+			return
 		}
 		sessionSettingsRows.Close()
 	}

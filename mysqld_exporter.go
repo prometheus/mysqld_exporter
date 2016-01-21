@@ -285,6 +285,11 @@ var (
 		"Total number of executed MySQL commands.",
 		[]string{"command"}, nil,
 	)
+	globalHandlerDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "handlers_total"),
+		"Total number of executed MySQL handlers.",
+		[]string{"handler"}, nil,
+	)
 	globalConnectionErrorsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "connection_errors_total"),
 		"Total number of MySQL connection errors.",
@@ -650,7 +655,7 @@ var (
 
 // Various regexps.
 var (
-	globalStatusRE = regexp.MustCompile(`^(com|connection_errors|innodb_rows|performance_schema)_(.*)$`)
+	globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_rows|performance_schema)_(.*)$`)
 	logRE          = regexp.MustCompile(`.+\.(\d+)$`)
 )
 
@@ -872,6 +877,10 @@ func scrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 			case "com":
 				ch <- prometheus.MustNewConstMetric(
 					globalCommandsDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			case "handler":
+				ch <- prometheus.MustNewConstMetric(
+					globalHandlerDesc, prometheus.CounterValue, floatVal, match[2],
 				)
 			case "connection_errors":
 				ch <- prometheus.MustNewConstMetric(

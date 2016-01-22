@@ -22,6 +22,7 @@ collect.global_status                                  | 5.1           | Collect
 collect.global_variables                               | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)
 collect.slave_status                                   | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
+collect.info_schema.innodb_metrics                     | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
 collect.info_schema.userstats                          | 5.1           | If running with userstat=1, set to true to collect user statistics.
 collect.info_schema.tablestats                         | 5.1           | If running with userstat=1, set to true to collect table statistics.

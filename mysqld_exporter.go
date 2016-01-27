@@ -127,6 +127,7 @@ const (
 	globalVariablesQuery       = `SHOW GLOBAL VARIABLES`
 	slaveStatusQuery           = `SHOW SLAVE STATUS`
 	binlogQuery                = `SHOW BINARY LOGS`
+	logbinQuery                = `SELECT @@log_bin`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*)
 		FROM information_schema.processlist
@@ -1012,8 +1013,8 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var logBin int8
-	err := db.QueryRow("SELECT @@log_bin").Scan(&logBin)
+	var logBin uint8
+	err := db.QueryRow(logbinQuery).Scan(&logBin)
 	if err != nil {
 		return err
 	}

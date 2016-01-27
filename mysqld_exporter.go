@@ -127,6 +127,7 @@ const (
 	globalVariablesQuery       = `SHOW GLOBAL VARIABLES`
 	slaveStatusQuery           = `SHOW SLAVE STATUS`
 	binlogQuery                = `SHOW BINARY LOGS`
+	logbinQuery                = `SELECT @@log_bin`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*)
 		FROM information_schema.processlist
@@ -1012,6 +1013,16 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
+	var logBin uint8
+	err := db.QueryRow(logbinQuery).Scan(&logBin)
+	if err != nil {
+		return err
+	}
+	// If log_bin is OFF, do not run SHOW BINARY LOGS which explicitly produces MySQL error
+	if logBin == 0 {
+		return nil
+	}
+
 	masterLogRows, err := db.Query(binlogQuery)
 	if err != nil {
 		return err

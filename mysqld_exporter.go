@@ -1012,6 +1012,16 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 }
 
 func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
+	var logBin int8
+	err := db.QueryRow("SELECT @@log_bin").Scan(&logBin)
+	if err != nil {
+		return err
+	}
+	// If log_bin is OFF, do not run SHOW BINARY LOGS which explicitly produces MySQL error
+	if logBin == 0 {
+		return nil
+	}
+
 	masterLogRows, err := db.Query(binlogQuery)
 	if err != nil {
 		return err

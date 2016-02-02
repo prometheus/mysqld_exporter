@@ -1796,18 +1796,14 @@ func parseMycnf() (string) {
 		}
 		return in
 	})
-	port := cfg.Section("client").Key("port").Validate(func(in string) string {
-		if len(in) == 0 {
-			return "3306"
-		}
-		return in
-	})
+	host := cfg.Section("client").Key("host").MustString("localhost")
+	port := cfg.Section("client").Key("port").MustUint(3306)
 	socket := cfg.Section("client").Key("socket").String()
 	var dsn string
 	if socket != "" {
 		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
 	} else {
-		dsn = fmt.Sprintf("%s:%s@tcp(localhost:%s)/", user, password, port)
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 	}
 	log.Debugln(dsn)
 	return dsn

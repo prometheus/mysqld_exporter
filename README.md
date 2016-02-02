@@ -10,6 +10,10 @@ NOTE: Not all collection methods are support on MySQL < 5.6
     export DATA_SOURCE_NAME="login:password@(hostname:port)/dbname"
     ./mysqld_exporter <flags>
 
+Running using ~/.my.cnf:
+
+    ./mysqld_exporter <flags>
+
 ### Flags
 
 Name                                       | Description
@@ -29,6 +33,7 @@ collect.perf_schema.tablelocks             | Collect metrics from performance_sc
 collect.perf_schema.file_events            | Collect metrics from performance_schema.file_summary_by_event_name.
 collect.perf_schema.eventswaits            | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.info_schema.processlist            | Collect thread state counts from information_schema.processlist.
+config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.

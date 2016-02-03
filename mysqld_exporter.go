@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
+	"gopkg.in/ini.v1"
 )
 
 var (
@@ -25,6 +27,10 @@ var (
 	metricPath = flag.String(
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
+	)
+	configMycnf = flag.String(
+		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
+		"Path to .my.cnf file to read MySQL credentials from.",
 	)
 	slowLogFilter = flag.Bool(
 		"log_slow_filter", false,
@@ -1773,12 +1779,42 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	return value, err == nil
 }
 
+func parseMycnf() (string) {
+	cfg, err := ini.Load(*configMycnf)
+	if err != nil {
+		log.Fatalf("failed reading .my.cnf file: %s", err)
+	}
+	user := cfg.Section("client").Key("user").Validate(func(in string) string {
+		if len(in) == 0 {
+			log.Fatalf("no user specified under [client] in %s", *configMycnf)
+		}
+		return in
+	})
+	password := cfg.Section("client").Key("password").Validate(func(in string) string {
+		if len(in) == 0 {
+			log.Fatalf("no password specified under [client] in %s", *configMycnf)
+		}
+		return in
+	})
+	host := cfg.Section("client").Key("host").MustString("localhost")
+	port := cfg.Section("client").Key("port").MustUint(3306)
+	socket := cfg.Section("client").Key("socket").String()
+	var dsn string
+	if socket != "" {
+		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
+	} else {
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+	}
+	log.Debugln(dsn)
+	return dsn
+}
+
 func main() {
 	flag.Parse()
 
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
-		log.Fatal("couldn't find environment variable DATA_SOURCE_NAME")
+		dsn = parseMycnf()
 	}
 
 	exporter := NewExporter(dsn)

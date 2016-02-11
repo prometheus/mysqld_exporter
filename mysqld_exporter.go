@@ -265,12 +265,13 @@ const (
 		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
 		`
 	queryResponseCheckQuery = `SELECT @@query_response_time_stats`
-	queryResponseTimeQuery = `
+	queryResponseTimeQuery  = `
 		SELECT
 		    TIME, COUNT, TOTAL
 		  FROM information_schema.query_response_time
 	`
 )
+
 var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
 // landingPage contains the HTML served at '/'.
@@ -975,7 +976,7 @@ func scrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 func scrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var (
 		slaveStatusRows *sql.Rows
-		err error
+		err             error
 	)
 	// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
 	for _, suffix := range slaveStatusQuerySuffixes {
@@ -1656,7 +1657,7 @@ func scrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 		total        string
 		histogramCnt uint64
 		histogramSum float64
-		countBuckets = map[float64]uint64 {}
+		countBuckets = map[float64]uint64{}
 	)
 
 	for queryDistributionRows.Next() {
@@ -1867,7 +1868,7 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	return value, err == nil
 }
 
-func parseMycnf() (string) {
+func parseMycnf() string {
 	cfg, err := ini.Load(*configMycnf)
 	if err != nil {
 		log.Fatalf("failed reading .my.cnf file: %s", err)

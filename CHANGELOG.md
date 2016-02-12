@@ -1,3 +1,23 @@
+## 0.7.0 / 2016-02-12
+
+BREAKING CHANGES:
+* Global status metrics for "handlers" have been renamed
+
+* [FEATURE] New collector for `information_schema.table_statistics` (PR #57)
+* [FEATURE] New server version metric (PR #59)
+* [FEATURE] New collector for `information_schema.innodb_metrics` (PR #69)
+* [FEATURE] Read credentials from ".my.cnf" files (PR #77)
+* [FEATURE] New collector for query response time distribution (PR #79)
+* [FEATURE] Add minimum time flag for processlist metrics (PR #82)
+* [IMPROVEMENT] Collect more metrics from `performance_schema.events_statements_summary_by_digest` (PR #58)
+* [IMPROVEMENT] Add option to filter metrics queries from the slow log (PR #60)
+* [IMPROVEMENT] Leverage lock-free SHOW SLAVE STATUS (PR #61)
+* [IMPROVEMENT] Add labels to global status "handlers" counters (PR #68)
+* [IMPROVEMENT] Update Makefile.COMMON from utils repo (PR #73)
+* [BUGFIX] Fix broken error return in the scrape function and log an error (PR #64)
+* [BUGFIX] Check log_bin before running SHOW BINARY LOGS (PR #74)
+* [BUGFIX] Fixed uint for scrapeInnodbMetrics() and gofmt (PR #81)
+
 ## 0.6.0 / 2015-10-28
 
 BREAKING CHANGES:

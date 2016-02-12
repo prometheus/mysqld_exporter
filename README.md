@@ -30,6 +30,7 @@ collect.info_schema.tables                             | 5.1           | Collect
 collect.info_schema.tables.databases                   | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
 collect.info_schema.query_response_time                | 5.1           | Collect query response time distribution if query_response_time_stats is ON.
 collect.info_schema.processlist                        | 5.1           | Collect thread state counts from information_schema.processlist.
+collect.info_schema.processlist.min_time               | 5.1           | Minimum time a thread must be in each state to be counted
 collect.perf_schema.eventsstatements                   | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.limit             | 5.6           | Limit the number of events statements digests by response time. (default: 250)
 collect.perf_schema.eventsstatements.digest_text_limit | 5.6           | Maximum length of the normalized statement text. (default: 120)

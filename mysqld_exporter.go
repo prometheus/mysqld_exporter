@@ -40,6 +40,10 @@ var (
 		"collect.info_schema.processlist", false,
 		"Collect current thread state counts from the information_schema.processlist",
 	)
+	processlistMinTime = flag.Int(
+		"collect.info_schema.processlist.min_time", 0,
+		"Minimum time a thread must be in each state to be counted",
+	)
 	collectTableSchema = flag.Bool(
 		"collect.info_schema.tables", true,
 		"Collect metrics from information_schema.tables",
@@ -142,10 +146,11 @@ const (
 	logbinQuery                = `SELECT @@log_bin`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*)
-		FROM information_schema.processlist
-		WHERE ID != connection_id()
-		GROUP BY command,state
-		ORDER BY null`
+		  FROM information_schema.processlist
+		  WHERE ID != connection_id()
+		    AND TIME >= %d
+		  GROUP BY command,state
+		  ORDER BY null`
 	infoSchemaAutoIncrementQuery = `
 		SELECT table_schema, table_name, column_name, auto_increment,
 		  pow(2, case data_type
@@ -1745,7 +1750,11 @@ func deriveThreadState(command string, state string) string {
 }
 
 func scrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
-	processlistRows, err := db.Query(infoSchemaProcesslistQuery)
+	processQuery := fmt.Sprintf(
+		infoSchemaProcesslistQuery,
+		*processlistMinTime,
+	)
+	processlistRows, err := db.Query(processQuery)
 	if err != nil {
 		return err
 	}

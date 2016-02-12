@@ -14,28 +14,37 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
-### Flags
+### Collector Flags
 
+Name                                                   | MySQL Version | Description
+-------------------------------------------------------|---------------|------------------------------------------------------------------------------------
+collect.global_status                                  | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
+collect.global_variables                               | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)
+collect.slave_status                                   | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
+collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
+collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
+collect.info_schema.userstats                          | 5.1           | If running with userstat=1, set to true to collect user statistics.
+collect.info_schema.tablestats                         | 5.1           | If running with userstat=1, set to true to collect table statistics.
+collect.info_schema.tables                             | 5.1           | Collect metrics from information_schema.tables.
+collect.info_schema.tables.databases                   | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
+collect.info_schema.query_response_time                | 5.1           | Collect query response time distribution if query_response_time_stats is ON.
+collect.info_schema.processlist                        | 5.1           | Collect thread state counts from information_schema.processlist.
+collect.perf_schema.eventsstatements                   | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
+collect.perf_schema.eventsstatements.limit             | 5.6           | Limit the number of events statements digests by response time. (default: 250)
+collect.perf_schema.eventsstatements.digest_text_limit | 5.6           | Maximum length of the normalized statement text. (default: 120)
+collect.perf_schema.indexiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
+collect.perf_schema.tableiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
+collect.perf_schema.tablelocks                         | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
+collect.perf_schema.file_events                        | 5.5           | Collect metrics from performance_schema.file_summary_by_event_name.
+collect.perf_schema.eventswaits                        | 5.5           | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
+
+
+### General Flags
 Name                                       | Description
--------------------------------------------|------------------------------------------------------------------------------------
-collect.auto_increment.columns             | Collect auto_increment columns and max values from information_schema.
-collect.binlog_size                        | Compute the size of all binlog files combined (as specified by "SHOW MASTER LOGS")
-collect.info_schema.userstats              | If running with userstat=1, set to true to collect user statistics.
-collect.info_schema.tablestats             | If running with userstat=1, set to true to collect table statistics.
-collect.info_schema.tables                 | Collect metrics from information_schema.tables.
-collect.info_schema.tables.databases       | The list of databases to collect table stats for, or '`*`' for all.
-collect.info_schema.query_response_time    | Collect query response time distribution if query_response_time_stats is ON.
-collect.perf_schema.eventsstatements       | Collect metrics from performance_schema.events_statements_summary_by_digest.
-collect.perf_schema.eventsstatements.limit | Limit the number of events statements digests by response time. (default: 250)
-collect.perf_schema.eventsstatements.digest_text_limit | Maximum length of the normalized statement text. (default: 120)
-collect.perf_schema.indexiowaits           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
-collect.perf_schema.tableiowaits           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
-collect.perf_schema.tablelocks             | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
-collect.perf_schema.file_events            | Collect metrics from performance_schema.file_summary_by_event_name.
-collect.perf_schema.eventswaits            | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
-collect.info_schema.processlist            | Collect thread state counts from information_schema.processlist.
+-------------------------------------------|--------------------------------------------------------------------------------------------------
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
+log_slow_filter                            | Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 

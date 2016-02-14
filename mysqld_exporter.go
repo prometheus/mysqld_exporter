@@ -1890,7 +1890,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		name, subsystem, metricType, comment string
-		value                                uint64
+		value                                int64
 	)
 
 	for innodbMetricsRows.Next() {
@@ -1900,7 +1900,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 		metricName := "innodb_metrics_" + subsystem + "_" + name
-		if metricType == "counter" {
+		if metricType == "counter" && value >= 0 {
 			description := prometheus.NewDesc(
 				prometheus.BuildFQName(namespace, informationSchema, metricName+"_total"),
 				comment, nil, nil,

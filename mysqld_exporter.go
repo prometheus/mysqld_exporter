@@ -708,6 +708,7 @@ type Exporter struct {
 	dsn             string
 	duration, error prometheus.Gauge
 	totalScrapes    prometheus.Counter
+	scrapeErrors    *prometheus.CounterVec
 }
 
 // NewExporter returns a new MySQL exporter for the provided DSN.
@@ -726,6 +727,12 @@ func NewExporter(dsn string) *Exporter {
 			Name:      "scrapes_total",
 			Help:      "Total number of times MySQL was scraped for metrics.",
 		}),
+		scrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "scrape_errors_total",
+			Help:      "Total number of times an error occured scraping a MySQL.",
+		}, []string{"collector"}),
 		error: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
@@ -770,6 +777,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.duration
 	ch <- e.totalScrapes
 	ch <- e.error
+	e.scrapeErrors.Collect(ch)
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
@@ -803,103 +811,103 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	if *collectGlobalStatus {
 		if err = scrapeGlobalStatus(db, ch); err != nil {
 			log.Println("Error scraping global state:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
 	if *collectGlobalVariables {
 		if err = scrapeGlobalVariables(db, ch); err != nil {
 			log.Println("Error scraping global variables:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
 		}
 	}
 	if *collectSlaveStatus {
 		if err = scrapeSlaveStatus(db, ch); err != nil {
 			log.Println("Error scraping slave state:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.slave_status").Inc()
 		}
 	}
 	if *collectProcesslist {
 		if err = scrapeProcesslist(db, ch); err != nil {
 			log.Println("Error scraping process list:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
 	if *collectTableSchema {
 		if err = scrapeTableSchema(db, ch); err != nil {
 			log.Println("Error scraping table schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
 		}
 	}
 	if *innodbMetrics {
 		if err = scrapeInnodbMetrics(db, ch); err != nil {
 			log.Println("Error scraping information_schema.innodb_metrics:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
 	if *collectAutoIncrementColumns {
 		if err = scrapeInformationSchema(db, ch); err != nil {
 			log.Println("Error scraping information schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.auto_increment.columns").Inc()
 		}
 	}
 	if *collectBinlogSize {
 		if err = scrapeBinlogSize(db, ch); err != nil {
 			log.Println("Error scraping binlog size:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
 	}
 	if *collectPerfTableIOWaits {
 		if err = scrapePerfTableIOWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
 		}
 	}
 	if *collectPerfIndexIOWaits {
 		if err = scrapePerfIndexIOWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
 		}
 	}
 	if *collectPerfTableLockWaits {
 		if err = scrapePerfTableLockWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
 		}
 	}
 	if *collectPerfEventsStatements {
 		if err = scrapePerfEventsStatements(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
 		}
 	}
 	if *collectPerfEventsWaits {
 		if err = scrapePerfEventsWaits(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
 		}
 	}
 	if *collectPerfFileEvents {
 		if err = scrapePerfFileEvents(db, ch); err != nil {
 			log.Println("Error scraping performance schema:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
 		}
 	}
 	if *collectUserStat {
 		if err = scrapeUserStat(db, ch); err != nil {
 			log.Println("Error scraping user stat:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
 		}
 	}
 	if *collectTableStat {
 		if err = scrapeTableStat(db, ch); err != nil {
 			log.Println("Error scraping table stat:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
 	if *collectQueryResponseTime {
 		if err = scrapeQueryResponseTime(db, ch); err != nil {
 			log.Println("Error scraping query response time:", err)
-			return
+			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
 	}
 }

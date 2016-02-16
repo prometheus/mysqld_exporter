@@ -1,3 +1,9 @@
+## 0.7.1 / 2016-02-16
+
+* [IMPROVEMENT] Soft error on collector failure (PR #84)
+* [BUGFIX] Fix innodb_metrics collector (PR #85)
+* [BUGFIX] Parse auto increment values and maximum as float64 (PR #88)
+
 ## 0.7.0 / 2016-02-12
 
 BREAKING CHANGES:

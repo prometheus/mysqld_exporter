@@ -1063,7 +1063,7 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		schema, table, column string
-		value, max            uint64
+		value, max            float64
 	)
 
 	for autoIncrementRows.Next() {
@@ -1073,11 +1073,11 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, float64(value),
+			globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, value,
 			schema, table, column,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, float64(max),
+			globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, max,
 			schema, table, column,
 		)
 	}

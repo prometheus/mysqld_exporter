@@ -146,12 +146,13 @@ const (
 	logbinQuery                = `SELECT @@log_bin`
 	upQuery                    = `SELECT 1`
 	infoSchemaProcesslistQuery = `
-		SELECT COALESCE(command,''),COALESCE(state,''),count(*)
+		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
 		  FROM information_schema.processlist
 		  WHERE ID != connection_id()
 		    AND TIME >= %d
 		  GROUP BY command,state
-		  ORDER BY null`
+		  ORDER BY null
+		`
 	infoSchemaAutoIncrementQuery = `
 		SELECT table_schema, table_name, column_name, auto_increment,
 		  pow(2, case data_type
@@ -691,9 +692,13 @@ var (
 		"deleting from main table":                 "deleting",
 		"deleting from reference tables":           "deleting",
 	}
-	processlistDesc = prometheus.NewDesc(
+	processlistCountDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "threads"),
 		"The number of threads (connections) split by current state.",
+		[]string{"state"}, nil)
+	processlistTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
+		"The number of seconds threads (connections) have used split by current state.",
 		[]string{"state"}, nil)
 )
 
@@ -1787,23 +1792,30 @@ func scrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
 		command string
 		state   string
 		count   uint32
+		time    uint32
 	)
 	stateCounts := make(map[string]uint32, len(threadStateCounterMap))
+	stateTime := make(map[string]uint32, len(threadStateCounterMap))
 	for k, v := range threadStateCounterMap {
 		stateCounts[k] = v
+		stateTime[k] = v
 	}
 
 	for processlistRows.Next() {
-		err = processlistRows.Scan(&command, &state, &count)
+		err = processlistRows.Scan(&command, &state, &count, &time)
 		if err != nil {
 			return err
 		}
 		realState := deriveThreadState(command, state)
 		stateCounts[realState] += count
+		stateTime[realState] += time
 	}
 
 	for state, count := range stateCounts {
-		ch <- prometheus.MustNewConstMetric(processlistDesc, prometheus.GaugeValue, float64(count), state)
+		ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(count), state)
+	}
+	for state, time := range stateTime {
+		ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(time), state)
 	}
 
 	return nil

@@ -170,7 +170,6 @@ const (
 		  count
 		  FROM information_schema.innodb_metrics
 		  WHERE status = 'enabled'
-		    AND type != 'status_counter'
 		`
 	perfTableIOWaitsQuery = `
 		SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE,
@@ -1890,7 +1889,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		name, subsystem, metricType, comment string
-		value                                uint64
+		value                                int64
 	)
 
 	for innodbMetricsRows.Next() {
@@ -1900,7 +1899,9 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 		metricName := "innodb_metrics_" + subsystem + "_" + name
-		if metricType == "counter" {
+		// MySQL returns counters named two different ways. "counter" and "status_counter"
+		// value >= 0 is necessary due to upstream bugs: http://bugs.mysql.com/bug.php?id=75966
+		if (metricType == "counter" || metricType == "status_counter") && value >= 0 {
 			description := prometheus.NewDesc(
 				prometheus.BuildFQName(namespace, informationSchema, metricName+"_total"),
 				comment, nil, nil,

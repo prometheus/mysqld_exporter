@@ -9,6 +9,7 @@ install:
 - go get github.com/prometheus/client_golang/prometheus
 - go get github.com/prometheus/log
 - go get gopkg.in/ini.v1
+- go get gopkg.in/DATA-DOG/go-sqlmock.v1
 
 script:
 - "! gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print) | read nothing"

@@ -1,4 +1,4 @@
-# MySQL Server Exporter
+# MySQL Server Exporter <img src="https://travis-ci.org/prometheus/mysqld_exporter.svg" />
 
 Prometheus exporter for MySQL server metrics.
 Supported MySQL versions: 5.1 and up.

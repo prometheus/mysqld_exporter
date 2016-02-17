@@ -4,6 +4,12 @@ language: go
 go:
 - 1.5.3
 
+install:
+- go get github.com/go-sql-driver/mysql
+- go get github.com/prometheus/client_golang/prometheus
+- go get github.com/prometheus/log
+- go get gopkg.in/ini.v1
+
 script:
 - "! gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print) | read nothing"
 - go test -race -v

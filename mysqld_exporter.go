@@ -1948,34 +1948,27 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	return value, err == nil
 }
 
-func parseMycnf() string {
-	cfg, err := ini.Load(*configMycnf)
+func parseMycnf(config interface{}) (string, error) {
+	var dsn string
+	cfg, err := ini.Load(config)
 	if err != nil {
-		log.Fatalf("failed reading .my.cnf file: %s", err)
+		return dsn, fmt.Errorf("failed reading ini file: %s", err)
 	}
-	user := cfg.Section("client").Key("user").Validate(func(in string) string {
-		if len(in) == 0 {
-			log.Fatalf("no user specified under [client] in %s", *configMycnf)
-		}
-		return in
-	})
-	password := cfg.Section("client").Key("password").Validate(func(in string) string {
-		if len(in) == 0 {
-			log.Fatalf("no password specified under [client] in %s", *configMycnf)
-		}
-		return in
-	})
+	user := cfg.Section("client").Key("user").String()
+	password := cfg.Section("client").Key("password").String()
+	if (user == "") || (password == "") {
+		return dsn, fmt.Errorf("no user or password specified under [client] in %s", config)
+	}
 	host := cfg.Section("client").Key("host").MustString("localhost")
 	port := cfg.Section("client").Key("port").MustUint(3306)
 	socket := cfg.Section("client").Key("socket").String()
-	var dsn string
 	if socket != "" {
 		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
 	} else {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 	}
 	log.Debugln(dsn)
-	return dsn
+	return dsn, nil
 }
 
 func main() {
@@ -1983,7 +1976,10 @@ func main() {
 
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
-		dsn = parseMycnf()
+		var err error
+		if dsn, err = parseMycnf(*configMycnf); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	exporter := NewExporter(dsn)

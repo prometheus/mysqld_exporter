@@ -1,21 +1,25 @@
 package main
 
 import (
-	"reflect"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func readCounter(m prometheus.Metric) (string, float64) {
+func readCounter(m prometheus.Metric) (map[string]string, float64) {
 	pb := &dto.Metric{}
 	m.Write(pb)
-	label := pb.Label[0].GetValue()
+	labels := make(map[string]string, len(pb.Label))
+	for _, v := range pb.Label {
+		labels[v.GetName()] = v.GetValue()
+	}
 	value := pb.GetCounter().GetValue()
-	return label, value
+	return labels, value
 }
 
 func sanitizeQuery(q string) string {
@@ -25,11 +29,11 @@ func sanitizeQuery(q string) string {
 func Test_scrapeQueryResponseTime(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("error when opening a stub database connection: %s", err)
+		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
 
-	mock.ExpectQuery(queryResponseCheckQuery).WillReturnRows(sqlmock.NewRows([]string{"1"}).AddRow(1))
+	mock.ExpectQuery(queryResponseCheckQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
 
 	rows := sqlmock.NewRows([]string{"TIME", "COUNT", "TOTAL"}).
 		AddRow(0.000001, 124, 0.000000).
@@ -44,7 +48,8 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		AddRow(1000.000000, 0, 0.000000).
 		AddRow(10000.000000, 0, 0.000000).
 		AddRow(100000.000000, 0, 0.000000).
-		AddRow(1000000.000000, 0, 0.000000)
+		AddRow(1000000.000000, 0, 0.000000).
+		AddRow("TOO LONG", 0, "TOO LONG")
 	mock.ExpectQuery(sanitizeQuery(queryResponseTimeQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -56,7 +61,7 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 	}()
 
 	// Test counters one by one to easy spot a mismatch
-	expectCounts := map[string]float64{
+	expectTimes := map[string]float64{
 		"1e-06":  0,
 		"1e-05":  0.000797,
 		"0.0001": 0.108118,
@@ -72,14 +77,17 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		"1e+06":  1.5773549999999998,
 		"+Inf":   1.5773549999999998,
 	}
-	for _ = range expectCounts {
-		if label, got := readCounter((<-ch).(prometheus.Metric)); expectCounts[label] != got {
-			t.Errorf("Counter: [%s] expected %v, got %v", label, expectCounts[label], got)
+	Convey("Counters comparison", t, func() {
+		for _ = range expectTimes {
+			labels, value := readCounter((<-ch).(prometheus.Metric))
+			expect := fmt.Sprintf("[%s] %v", labels["le"], expectTimes[labels["le"]])
+			got := fmt.Sprintf("[%s] %v", labels["le"], value)
+			So(expect, ShouldEqual, got)
 		}
-	}
+	})
 
 	// Test histogram
-	expectTimes := map[float64]uint64{
+	expectCounts := map[float64]uint64{
 		1e-06:  124,
 		1e-05:  303,
 		0.0001: 3162,
@@ -95,20 +103,112 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		1e+06:  4528,
 	}
 	expectHistogram := prometheus.MustNewConstHistogram(infoSchemaQueryResponseTimeCountDesc,
-		4528, 1.5773549999999998, expectTimes)
+		4528, 1.5773549999999998, expectCounts)
 	expectPb := &dto.Metric{}
 	expectHistogram.Write(expectPb)
 
-	// Read the last item from channel
 	gotPb := &dto.Metric{}
-	gotHistogram := <-ch
+	gotHistogram := <-ch // read the last item from channel
 	gotHistogram.Write(gotPb)
-	if !reflect.DeepEqual(expectPb.Histogram, gotPb.Histogram) {
-		t.Errorf("Histogram: expected %+v, got %+v", expectPb.Histogram, gotPb.Histogram)
-	}
+	Convey("Histogram comparison", t, func() {
+		So(expectPb.Histogram, ShouldResemble, gotPb.Histogram)
+	})
 
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expections: %s", err)
 	}
+}
+
+func Test_parseMycnf(t *testing.T) {
+	const (
+		tcpConfig = `
+			[client]
+			user = root
+			password = abc123
+		`
+		tcpConfig2 = `
+			[client]
+			user = root
+			password = abc123
+			port = 3308
+		`
+		socketConfig = `
+			[client]
+			user = user
+			password = pass
+			socket = /var/lib/mysql/mysql.sock
+		`
+		socketConfig2 = `
+			[client]
+			user = dude
+			password = nopassword
+			# host and port will not be used because of socket presence
+			host = 1.2.3.4
+			port = 3307
+			socket = /var/lib/mysql/mysql.sock
+		`
+		remoteConfig = `
+			[client]
+			user = dude
+			password = nopassword
+			host = 1.2.3.4
+			port = 3307
+		`
+		badConfig = `
+			[client]
+			user = root
+		`
+		badConfig2 = `
+			[client]
+			password = abc123
+			socket = /var/lib/mysql/mysql.sock
+		`
+		badConfig3 = `
+			[hello]
+			world = ismine
+		`
+		badConfig4 = `
+			[hello]
+			world
+		`
+	)
+	Convey("Various .my.cnf configurations", t, func() {
+		Convey("Local tcp connection", func() {
+			dsn, _ := parseMycnf([]byte(tcpConfig))
+			So(dsn, ShouldEqual, "root:abc123@tcp(localhost:3306)/")
+		})
+		Convey("Local tcp connection on non-default port", func() {
+			dsn, _ := parseMycnf([]byte(tcpConfig2))
+			So(dsn, ShouldEqual, "root:abc123@tcp(localhost:3308)/")
+		})
+		Convey("Socket connection", func() {
+			dsn, _ := parseMycnf([]byte(socketConfig))
+			So(dsn, ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
+		})
+		Convey("Socket connection ignoring defined host", func() {
+			dsn, _ := parseMycnf([]byte(socketConfig2))
+			So(dsn, ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
+		})
+		Convey("Remote connection", func() {
+			dsn, _ := parseMycnf([]byte(remoteConfig))
+			So(dsn, ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
+		})
+		Convey("Missed user", func() {
+			_, err := parseMycnf([]byte(badConfig))
+			So(err, ShouldNotBeNil)
+		})
+		Convey("Missed password", func() {
+			_, err := parseMycnf([]byte(badConfig2))
+			So(err, ShouldNotBeNil)
+		})
+		Convey("No [client] section", func() {
+			_, err := parseMycnf([]byte(badConfig3))
+			So(err, ShouldNotBeNil)
+		})
+		Convey("Invalid config", func() {
+			_, err := parseMycnf([]byte(badConfig4))
+			So(err, ShouldNotBeNil)
+		})
+	})
 }

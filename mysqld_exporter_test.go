@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -11,19 +10,71 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func readCounter(m prometheus.Metric) (map[string]string, float64) {
+type LabelMap map[string]string
+
+type CounterResult struct {
+	labels LabelMap
+	value  float64
+}
+
+func readCounter(m prometheus.Metric) CounterResult {
 	pb := &dto.Metric{}
 	m.Write(pb)
-	labels := make(map[string]string, len(pb.Label))
+	labels := make(LabelMap, len(pb.Label))
 	for _, v := range pb.Label {
 		labels[v.GetName()] = v.GetValue()
 	}
-	value := pb.GetCounter().GetValue()
-	return labels, value
+	return CounterResult{labels, pb.GetCounter().GetValue()}
 }
 
 func sanitizeQuery(q string) string {
 	return strings.Join(strings.Fields(q), " ")
+}
+
+func Test_scrapeTableStat(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"TABLE_SCHEMA", "TABLE_NAME", "ROWS_READ", "ROWS_CHANGED", "ROWS_CHANGED_X_INDEXES"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("mysql", "db", 238, 0, 8).
+		AddRow("mysql", "proxies_priv", 99, 1, 0).
+		AddRow("mysql", "user", 1064, 2, 5)
+	mock.ExpectQuery(sanitizeQuery(tableStatQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = scrapeTableStat(db, ch); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	expected := []CounterResult{
+		{LabelMap{"schema": "mysql", "table": "db"}, 238},
+		{LabelMap{"schema": "mysql", "table": "db"}, 0},
+		{LabelMap{"schema": "mysql", "table": "db"}, 8},
+		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 99},
+		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 1},
+		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 0},
+		{LabelMap{"schema": "mysql", "table": "user"}, 1064},
+		{LabelMap{"schema": "mysql", "table": "user"}, 2},
+		{LabelMap{"schema": "mysql", "table": "user"}, 5},
+	}
+	Convey("Counters comparison", t, func() {
+		for _, expect := range expected {
+			got := readCounter((<-ch).(prometheus.Metric))
+			So(expect, ShouldResemble, got)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expections: %s", err)
+	}
 }
 
 func Test_scrapeQueryResponseTime(t *testing.T) {
@@ -60,29 +111,27 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		close(ch)
 	}()
 
-	// Test counters one by one to easy spot a mismatch
-	expectTimes := map[string]float64{
-		"1e-06":  0,
-		"1e-05":  0.000797,
-		"0.0001": 0.108118,
-		"0.001":  0.443513,
-		"0.01":   0.9657769999999999,
-		"0.1":    1.3099859999999999,
-		"1":      1.5773549999999998,
-		"10":     1.5773549999999998,
-		"100":    1.5773549999999998,
-		"1000":   1.5773549999999998,
-		"10000":  1.5773549999999998,
-		"100000": 1.5773549999999998,
-		"1e+06":  1.5773549999999998,
-		"+Inf":   1.5773549999999998,
+	// Test counters
+	expectTimes := []CounterResult{
+		{LabelMap{"le": "1e-06"}, 0},
+		{LabelMap{"le": "1e-05"}, 0.000797},
+		{LabelMap{"le": "0.0001"}, 0.108118},
+		{LabelMap{"le": "0.001"}, 0.443513},
+		{LabelMap{"le": "0.01"}, 0.9657769999999999},
+		{LabelMap{"le": "0.1"}, 1.3099859999999999},
+		{LabelMap{"le": "1"}, 1.5773549999999998},
+		{LabelMap{"le": "10"}, 1.5773549999999998},
+		{LabelMap{"le": "100"}, 1.5773549999999998},
+		{LabelMap{"le": "1000"}, 1.5773549999999998},
+		{LabelMap{"le": "10000"}, 1.5773549999999998},
+		{LabelMap{"le": "100000"}, 1.5773549999999998},
+		{LabelMap{"le": "1e+06"}, 1.5773549999999998},
+		{LabelMap{"le": "+Inf"}, 1.5773549999999998},
 	}
 	Convey("Counters comparison", t, func() {
-		for _ = range expectTimes {
-			labels, value := readCounter((<-ch).(prometheus.Metric))
-			expect := fmt.Sprintf("[%s] %v", labels["le"], expectTimes[labels["le"]])
-			got := fmt.Sprintf("[%s] %v", labels["le"], value)
-			So(expect, ShouldEqual, got)
+		for _, expect := range expectTimes {
+			got := readCounter((<-ch).(prometheus.Metric))
+			So(expect, ShouldResemble, got)
 		}
 	})
 

@@ -15,7 +15,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 	"gopkg.in/ini.v1"
 )
 
@@ -793,7 +793,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Println("Error opening connection to database:", err)
+		log.Errorln("Error opening connection to database:", err)
 		return
 	}
 	defer db.Close()
@@ -801,7 +801,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
-			log.Println("Error setting log_slow_filter:", err)
+			log.Errorln("Error setting log_slow_filter:", err)
 			return
 		}
 		sessionSettingsRows.Close()
@@ -809,103 +809,103 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	if *collectGlobalStatus {
 		if err = scrapeGlobalStatus(db, ch); err != nil {
-			log.Println("Error scraping global state:", err)
+			log.Errorln("Error scraping global state:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
 	if *collectGlobalVariables {
 		if err = scrapeGlobalVariables(db, ch); err != nil {
-			log.Println("Error scraping global variables:", err)
+			log.Errorln("Error scraping global variables:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
 		}
 	}
 	if *collectSlaveStatus {
 		if err = scrapeSlaveStatus(db, ch); err != nil {
-			log.Println("Error scraping slave state:", err)
+			log.Errorln("Error scraping slave state:", err)
 			e.scrapeErrors.WithLabelValues("collect.slave_status").Inc()
 		}
 	}
 	if *collectProcesslist {
 		if err = scrapeProcesslist(db, ch); err != nil {
-			log.Println("Error scraping process list:", err)
+			log.Errorln("Error scraping process list:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
 	if *collectTableSchema {
 		if err = scrapeTableSchema(db, ch); err != nil {
-			log.Println("Error scraping table schema:", err)
+			log.Errorln("Error scraping table schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
 		}
 	}
 	if *innodbMetrics {
 		if err = scrapeInnodbMetrics(db, ch); err != nil {
-			log.Println("Error scraping information_schema.innodb_metrics:", err)
+			log.Errorln("Error scraping information_schema.innodb_metrics:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
 	if *collectAutoIncrementColumns {
 		if err = scrapeInformationSchema(db, ch); err != nil {
-			log.Println("Error scraping information schema:", err)
+			log.Errorln("Error scraping information schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.auto_increment.columns").Inc()
 		}
 	}
 	if *collectBinlogSize {
 		if err = scrapeBinlogSize(db, ch); err != nil {
-			log.Println("Error scraping binlog size:", err)
+			log.Errorln("Error scraping binlog size:", err)
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
 	}
 	if *collectPerfTableIOWaits {
 		if err = scrapePerfTableIOWaits(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
 		}
 	}
 	if *collectPerfIndexIOWaits {
 		if err = scrapePerfIndexIOWaits(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
 		}
 	}
 	if *collectPerfTableLockWaits {
 		if err = scrapePerfTableLockWaits(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
 		}
 	}
 	if *collectPerfEventsStatements {
 		if err = scrapePerfEventsStatements(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
 		}
 	}
 	if *collectPerfEventsWaits {
 		if err = scrapePerfEventsWaits(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
 		}
 	}
 	if *collectPerfFileEvents {
 		if err = scrapePerfFileEvents(db, ch); err != nil {
-			log.Println("Error scraping performance schema:", err)
+			log.Errorln("Error scraping performance schema:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
 		}
 	}
 	if *collectUserStat {
 		if err = scrapeUserStat(db, ch); err != nil {
-			log.Println("Error scraping user stat:", err)
+			log.Errorln("Error scraping user stat:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
 		}
 	}
 	if *collectTableStat {
 		if err = scrapeTableStat(db, ch); err != nil {
-			log.Println("Error scraping table stat:", err)
+			log.Errorln("Error scraping table stat:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
 	if *collectQueryResponseTime {
 		if err = scrapeQueryResponseTime(db, ch); err != nil {
-			log.Println("Error scraping query response time:", err)
+			log.Errorln("Error scraping query response time:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
 	}

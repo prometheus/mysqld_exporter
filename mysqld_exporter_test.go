@@ -24,7 +24,7 @@ func readCounter(m prometheus.Metric) CounterResult {
 	for _, v := range pb.Label {
 		labels[v.GetName()] = v.GetValue()
 	}
-	return CounterResult{labels, pb.GetCounter().GetValue()}
+	return CounterResult{labels: labels, value: pb.GetCounter().GetValue()}
 }
 
 func sanitizeQuery(q string) string {
@@ -54,15 +54,15 @@ func Test_scrapeTableStat(t *testing.T) {
 	}()
 
 	expected := []CounterResult{
-		{LabelMap{"schema": "mysql", "table": "db"}, 238},
-		{LabelMap{"schema": "mysql", "table": "db"}, 0},
-		{LabelMap{"schema": "mysql", "table": "db"}, 8},
-		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 99},
-		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 1},
-		{LabelMap{"schema": "mysql", "table": "proxies_priv"}, 0},
-		{LabelMap{"schema": "mysql", "table": "user"}, 1064},
-		{LabelMap{"schema": "mysql", "table": "user"}, 2},
-		{LabelMap{"schema": "mysql", "table": "user"}, 5},
+		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 238},
+		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 0},
+		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 8},
+		{labels: LabelMap{"schema": "mysql", "table": "proxies_priv"}, value: 99},
+		{labels: LabelMap{"schema": "mysql", "table": "proxies_priv"}, value: 1},
+		{labels: LabelMap{"schema": "mysql", "table": "proxies_priv"}, value: 0},
+		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 1064},
+		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 2},
+		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 5},
 	}
 	Convey("Counters comparison", t, func() {
 		for _, expect := range expected {
@@ -113,20 +113,20 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 
 	// Test counters
 	expectTimes := []CounterResult{
-		{LabelMap{"le": "1e-06"}, 0},
-		{LabelMap{"le": "1e-05"}, 0.000797},
-		{LabelMap{"le": "0.0001"}, 0.108118},
-		{LabelMap{"le": "0.001"}, 0.443513},
-		{LabelMap{"le": "0.01"}, 0.9657769999999999},
-		{LabelMap{"le": "0.1"}, 1.3099859999999999},
-		{LabelMap{"le": "1"}, 1.5773549999999998},
-		{LabelMap{"le": "10"}, 1.5773549999999998},
-		{LabelMap{"le": "100"}, 1.5773549999999998},
-		{LabelMap{"le": "1000"}, 1.5773549999999998},
-		{LabelMap{"le": "10000"}, 1.5773549999999998},
-		{LabelMap{"le": "100000"}, 1.5773549999999998},
-		{LabelMap{"le": "1e+06"}, 1.5773549999999998},
-		{LabelMap{"le": "+Inf"}, 1.5773549999999998},
+		{labels: LabelMap{"le": "1e-06"}, value: 0},
+		{labels: LabelMap{"le": "1e-05"}, value: 0.000797},
+		{labels: LabelMap{"le": "0.0001"}, value: 0.108118},
+		{labels: LabelMap{"le": "0.001"}, value: 0.443513},
+		{labels: LabelMap{"le": "0.01"}, value: 0.9657769999999999},
+		{labels: LabelMap{"le": "0.1"}, value: 1.3099859999999999},
+		{labels: LabelMap{"le": "1"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "10"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "100"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "1000"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "10000"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "100000"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "1e+06"}, value: 1.5773549999999998},
+		{labels: LabelMap{"le": "+Inf"}, value: 1.5773549999999998},
 	}
 	Convey("Counters comparison", t, func() {
 		for _, expect := range expectTimes {

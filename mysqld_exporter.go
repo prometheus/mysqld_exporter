@@ -144,6 +144,7 @@ const (
 	slaveStatusQuery           = `SHOW SLAVE STATUS`
 	binlogQuery                = `SHOW BINARY LOGS`
 	logbinQuery                = `SELECT @@log_bin`
+	upQuery                    = `SELECT 1`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*)
 		  FROM information_schema.processlist
@@ -708,6 +709,7 @@ type Exporter struct {
 	duration, error prometheus.Gauge
 	totalScrapes    prometheus.Counter
 	scrapeErrors    *prometheus.CounterVec
+	mysqldUp        prometheus.Gauge
 }
 
 // NewExporter returns a new MySQL exporter for the provided DSN.
@@ -737,6 +739,11 @@ func NewExporter(dsn string) *Exporter {
 			Subsystem: exporter,
 			Name:      "last_scrape_error",
 			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
+		mysqldUp: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "up",
+			Help:      "Whether the MySQL server is up.",
 		}),
 	}
 }
@@ -777,6 +784,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.totalScrapes
 	ch <- e.error
 	e.scrapeErrors.Collect(ch)
+	ch <- e.mysqldUp
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
@@ -797,6 +805,14 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	defer db.Close()
+
+	_, err = db.Query(upQuery)
+	if err != nil {
+		log.Errorln("Error pinging mysqld:", err)
+		e.mysqldUp.Set(0)
+		return
+	}
+	e.mysqldUp.Set(1)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)

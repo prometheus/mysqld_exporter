@@ -330,6 +330,16 @@ var (
 		"Total number of MySQL connection errors.",
 		[]string{"error"}, nil,
 	)
+	globalBufferPoolPagesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "buffer_pool_pages"),
+		"Innodb buffer pool pages by state.",
+		[]string{"state"}, nil,
+	)
+	globalBufferPoolPageChangesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "buffer_pool_page_changes_total"),
+		"Innodb buffer pool page state changes.",
+		[]string{"operation"}, nil,
+	)
 	globalInnoDBRowOpsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "innodb_row_ops_total"),
 		"Total number of MySQL InnoDB row operations.",
@@ -704,7 +714,7 @@ var (
 
 // Various regexps.
 var (
-	globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_rows|performance_schema)_(.*)$`)
+	globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
 	logRE          = regexp.MustCompile(`.+\.(\d+)$`)
 )
 
@@ -970,6 +980,17 @@ func scrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 				ch <- prometheus.MustNewConstMetric(
 					globalConnectionErrorsDesc, prometheus.CounterValue, floatVal, match[2],
 				)
+			case "innodb_buffer_pool_pages":
+				switch match[2] {
+				case "data", "dirty", "free", "misc":
+					ch <- prometheus.MustNewConstMetric(
+						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, match[2],
+					)
+				default:
+					ch <- prometheus.MustNewConstMetric(
+						globalBufferPoolPageChangesDesc, prometheus.CounterValue, floatVal, match[2],
+					)
+				}
 			case "innodb_rows":
 				ch <- prometheus.MustNewConstMetric(
 					globalInnoDBRowOpsDesc, prometheus.CounterValue, floatVal, match[2],

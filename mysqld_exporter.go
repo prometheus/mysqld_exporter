@@ -1263,21 +1263,21 @@ func scrapePerfIndexIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countFetch),
 			objectSchema, objectName, indexName, "fetch",
 		)
-		// We only update write columns when indexName is NONE.
+		// We only include the insert column when indexName is NONE.
 		if indexName == "NONE" {
 			ch <- prometheus.MustNewConstMetric(
 				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countInsert),
 				objectSchema, objectName, indexName, "insert",
 			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
-				objectSchema, objectName, indexName, "update",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
-				objectSchema, objectName, indexName, "delete",
-			)
 		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+			objectSchema, objectName, indexName, "update",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
+			objectSchema, objectName, indexName, "delete",
+		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/picoSeconds,
 			objectSchema, objectName, indexName, "fetch",
@@ -1288,15 +1288,15 @@ func scrapePerfIndexIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/picoSeconds,
 				objectSchema, objectName, indexName, "insert",
 			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
-				objectSchema, objectName, indexName, "update",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/picoSeconds,
-				objectSchema, objectName, indexName, "delete",
-			)
 		}
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
+			objectSchema, objectName, indexName, "update",
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/picoSeconds,
+			objectSchema, objectName, indexName, "delete",
+		)
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
@@ -74,10 +74,10 @@ func Test_scrapeTableStat(t *testing.T) {
 		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 2},
 		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 5},
 	}
-	Convey("Metrics comparison", t, func() {
+	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {
 			got := readMetric(<-ch)
-			So(expect, ShouldResemble, got)
+			convey.So(expect, convey.ShouldResemble, got)
 		}
 	})
 
@@ -138,10 +138,10 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		{labels: LabelMap{"le": "1e+06"}, value: 1.5773549999999998},
 		{labels: LabelMap{"le": "+Inf"}, value: 1.5773549999999998},
 	}
-	Convey("Metrics comparison", t, func() {
+	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expectTimes {
 			got := readMetric(<-ch)
-			So(expect, ShouldResemble, got)
+			convey.So(expect, convey.ShouldResemble, got)
 		}
 	})
 
@@ -169,8 +169,8 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 	gotPb := &dto.Metric{}
 	gotHistogram := <-ch // read the last item from channel
 	gotHistogram.Write(gotPb)
-	Convey("Histogram comparison", t, func() {
-		So(expectPb.Histogram, ShouldResemble, gotPb.Histogram)
+	convey.Convey("Histogram comparison", t, func() {
+		convey.So(expectPb.Histogram, convey.ShouldResemble, gotPb.Histogram)
 	})
 
 	// Ensure all SQL queries were executed
@@ -232,42 +232,42 @@ func Test_parseMycnf(t *testing.T) {
 			world
 		`
 	)
-	Convey("Various .my.cnf configurations", t, func() {
-		Convey("Local tcp connection", func() {
+	convey.Convey("Various .my.cnf configurations", t, func() {
+		convey.Convey("Local tcp connection", func() {
 			dsn, _ := parseMycnf([]byte(tcpConfig))
-			So(dsn, ShouldEqual, "root:abc123@tcp(localhost:3306)/")
+			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
 		})
-		Convey("Local tcp connection on non-default port", func() {
+		convey.Convey("Local tcp connection on non-default port", func() {
 			dsn, _ := parseMycnf([]byte(tcpConfig2))
-			So(dsn, ShouldEqual, "root:abc123@tcp(localhost:3308)/")
+			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3308)/")
 		})
-		Convey("Socket connection", func() {
+		convey.Convey("Socket connection", func() {
 			dsn, _ := parseMycnf([]byte(socketConfig))
-			So(dsn, ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
+			convey.So(dsn, convey.ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
 		})
-		Convey("Socket connection ignoring defined host", func() {
+		convey.Convey("Socket connection ignoring defined host", func() {
 			dsn, _ := parseMycnf([]byte(socketConfig2))
-			So(dsn, ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
+			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
 		})
-		Convey("Remote connection", func() {
+		convey.Convey("Remote connection", func() {
 			dsn, _ := parseMycnf([]byte(remoteConfig))
-			So(dsn, ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
+			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
 		})
-		Convey("Missed user", func() {
+		convey.Convey("Missed user", func() {
 			_, err := parseMycnf([]byte(badConfig))
-			So(err, ShouldNotBeNil)
+			convey.So(err, convey.ShouldNotBeNil)
 		})
-		Convey("Missed password", func() {
+		convey.Convey("Missed password", func() {
 			_, err := parseMycnf([]byte(badConfig2))
-			So(err, ShouldNotBeNil)
+			convey.So(err, convey.ShouldNotBeNil)
 		})
-		Convey("No [client] section", func() {
+		convey.Convey("No [client] section", func() {
 			_, err := parseMycnf([]byte(badConfig3))
-			So(err, ShouldNotBeNil)
+			convey.So(err, convey.ShouldNotBeNil)
 		})
-		Convey("Invalid config", func() {
+		convey.Convey("Invalid config", func() {
 			_, err := parseMycnf([]byte(badConfig4))
-			So(err, ShouldNotBeNil)
+			convey.So(err, convey.ShouldNotBeNil)
 		})
 	})
 }
@@ -316,10 +316,10 @@ func Test_scrapeGlobalStatus(t *testing.T) {
 		{labels: LabelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
 		{labels: LabelMap{}, value: 10, metricType: dto.MetricType_UNTYPED},
 	}
-	Convey("Metrics comparison", t, func() {
+	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {
 			got := readMetric(<-ch)
-			So(got, ShouldResemble, expect)
+			convey.So(got, convey.ShouldResemble, expect)
 		}
 	})
 

@@ -12,19 +12,29 @@ import (
 
 type LabelMap map[string]string
 
-type CounterResult struct {
-	labels LabelMap
-	value  float64
+type MetricResult struct {
+	labels     LabelMap
+	value      float64
+	metricType dto.MetricType
 }
 
-func readCounter(m prometheus.Metric) CounterResult {
+func readMetric(m prometheus.Metric) MetricResult {
 	pb := &dto.Metric{}
 	m.Write(pb)
 	labels := make(LabelMap, len(pb.Label))
 	for _, v := range pb.Label {
 		labels[v.GetName()] = v.GetValue()
 	}
-	return CounterResult{labels: labels, value: pb.GetCounter().GetValue()}
+	if pb.Gauge != nil {
+		return MetricResult{labels: labels, value: pb.GetGauge().GetValue(), metricType: dto.MetricType_GAUGE}
+	}
+	if pb.Counter != nil {
+		return MetricResult{labels: labels, value: pb.GetCounter().GetValue(), metricType: dto.MetricType_COUNTER}
+	}
+	if pb.Untyped != nil {
+		return MetricResult{labels: labels, value: pb.GetUntyped().GetValue(), metricType: dto.MetricType_UNTYPED}
+	}
+	panic("Unsupported metric type")
 }
 
 func sanitizeQuery(q string) string {
@@ -53,7 +63,7 @@ func Test_scrapeTableStat(t *testing.T) {
 		close(ch)
 	}()
 
-	expected := []CounterResult{
+	expected := []MetricResult{
 		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 238},
 		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 0},
 		{labels: LabelMap{"schema": "mysql", "table": "db"}, value: 8},
@@ -64,9 +74,9 @@ func Test_scrapeTableStat(t *testing.T) {
 		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 2},
 		{labels: LabelMap{"schema": "mysql", "table": "user"}, value: 5},
 	}
-	Convey("Counters comparison", t, func() {
+	Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {
-			got := readCounter((<-ch).(prometheus.Metric))
+			got := readMetric(<-ch)
 			So(expect, ShouldResemble, got)
 		}
 	})
@@ -112,7 +122,7 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 	}()
 
 	// Test counters
-	expectTimes := []CounterResult{
+	expectTimes := []MetricResult{
 		{labels: LabelMap{"le": "1e-06"}, value: 0},
 		{labels: LabelMap{"le": "1e-05"}, value: 0.000797},
 		{labels: LabelMap{"le": "0.0001"}, value: 0.108118},
@@ -128,9 +138,9 @@ func Test_scrapeQueryResponseTime(t *testing.T) {
 		{labels: LabelMap{"le": "1e+06"}, value: 1.5773549999999998},
 		{labels: LabelMap{"le": "+Inf"}, value: 1.5773549999999998},
 	}
-	Convey("Counters comparison", t, func() {
+	Convey("Metrics comparison", t, func() {
 		for _, expect := range expectTimes {
-			got := readCounter((<-ch).(prometheus.Metric))
+			got := readMetric(<-ch)
 			So(expect, ShouldResemble, got)
 		}
 	})
@@ -260,4 +270,61 @@ func Test_parseMycnf(t *testing.T) {
 			So(err, ShouldNotBeNil)
 		})
 	})
+}
+
+func Test_scrapeGlobalStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"Variable_name", "Value"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("Com_alter_db", "1").
+		AddRow("Com_show_status", "2").
+		AddRow("Com_select", "3").
+		AddRow("Connection_errors_internal", "4").
+		AddRow("Handler_commit", "5").
+		AddRow("Innodb_buffer_pool_pages_data", "6").
+		AddRow("Innodb_buffer_pool_pages_flushed", "7").
+		AddRow("Innodb_rows_read", "8").
+		AddRow("Performance_schema_users_lost", "9").
+		AddRow("Slave_running", "OFF").
+		AddRow("Ssl_version", "").
+		AddRow("Uptime", "10")
+	mock.ExpectQuery(sanitizeQuery(globalStatusQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = scrapeGlobalStatus(db, ch); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	counterExpected := []MetricResult{
+		{labels: LabelMap{"command": "alter_db"}, value: 1, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"command": "show_status"}, value: 2, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"command": "select"}, value: 3, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"error": "internal"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"handler": "commit"}, value: 5, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"state": "data"}, value: 6, metricType: dto.MetricType_GAUGE},
+		{labels: LabelMap{"operation": "flushed"}, value: 7, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"operation": "read"}, value: 8, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"instrumentation": "users_lost"}, value: 9, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
+		{labels: LabelMap{}, value: 10, metricType: dto.MetricType_UNTYPED},
+	}
+	Convey("Metrics comparison", t, func() {
+		for _, expect := range counterExpected {
+			got := readMetric(<-ch)
+			So(got, ShouldResemble, expect)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expections: %s", err)
+	}
 }

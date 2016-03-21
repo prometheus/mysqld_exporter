@@ -821,12 +821,14 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
-	_, err = db.Query(upQuery)
+	isUpRows, err := db.Query(upQuery)
 	if err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.mysqldUp.Set(0)
 		return
 	}
+	isUpRows.Close()
+
 	e.mysqldUp.Set(1)
 
 	if *slowLogFilter {

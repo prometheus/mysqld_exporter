@@ -24,11 +24,12 @@ collect.slave_status                                   | 5.1           | Collect
 collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
 collect.info_schema.innodb_metrics                     | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
+collect.engine_tokudb_status                           | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.info_schema.userstats                          | 5.1           | If running with userstat=1, set to true to collect user statistics.
 collect.info_schema.tablestats                         | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.tables                             | 5.1           | Collect metrics from information_schema.tables.
 collect.info_schema.tables.databases                   | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
-collect.info_schema.query_response_time                | 5.1           | Collect query response time distribution if query_response_time_stats is ON.
+collect.info_schema.query_response_time                | 5.5           | Collect query response time distribution if query_response_time_stats is ON.
 collect.info_schema.processlist                        | 5.1           | Collect thread state counts from information_schema.processlist.
 collect.info_schema.processlist.min_time               | 5.1           | Minimum time a thread must be in each state to be counted
 collect.perf_schema.eventsstatements                   | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.

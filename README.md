@@ -20,7 +20,7 @@ NOTE: Not all collection methods are support on MySQL < 5.6
 
 Running using an enviornment variable:
 
-    export DATA_SOURCE_NAME="login:password@(hostname:port)/dbname"
+    export DATA_SOURCE_NAME='login:password@(hostname:port)/'
     ./mysqld_exporter <flags>
 
 Running using ~/.my.cnf:

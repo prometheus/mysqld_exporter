@@ -201,7 +201,6 @@ const (
 		    COUNT_READ_EXTERNAL,
 		    COUNT_WRITE_ALLOW_WRITE,
 		    COUNT_WRITE_CONCURRENT_INSERT,
-		    COUNT_WRITE_DELAYED,
 		    COUNT_WRITE_LOW_PRIORITY,
 		    COUNT_WRITE_NORMAL,
 		    COUNT_WRITE_EXTERNAL,
@@ -212,7 +211,6 @@ const (
 		    SUM_TIMER_READ_EXTERNAL,
 		    SUM_TIMER_WRITE_ALLOW_WRITE,
 		    SUM_TIMER_WRITE_CONCURRENT_INSERT,
-		    SUM_TIMER_WRITE_DELAYED,
 		    SUM_TIMER_WRITE_LOW_PRIORITY,
 		    SUM_TIMER_WRITE_NORMAL,
 		    SUM_TIMER_WRITE_EXTERNAL
@@ -1217,7 +1215,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		countReadExternal          uint64
 		countWriteAllowWrite       uint64
 		countWriteConcurrentInsert uint64
-		countWriteDelayed          uint64
 		countWriteLowPriority      uint64
 		countWriteNormal           uint64
 		countWriteExternal         uint64
@@ -1228,7 +1225,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		timeReadExternal           uint64
 		timeWriteAllowWrite        uint64
 		timeWriteConcurrentInsert  uint64
-		timeWriteDelayed           uint64
 		timeWriteLowPriority       uint64
 		timeWriteNormal            uint64
 		timeWriteExternal          uint64
@@ -1245,7 +1241,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 			&countReadExternal,
 			&countWriteAllowWrite,
 			&countWriteConcurrentInsert,
-			&countWriteDelayed,
 			&countWriteLowPriority,
 			&countWriteNormal,
 			&countWriteExternal,
@@ -1256,7 +1251,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 			&timeReadExternal,
 			&timeWriteAllowWrite,
 			&timeWriteConcurrentInsert,
-			&timeWriteDelayed,
 			&timeWriteLowPriority,
 			&timeWriteNormal,
 			&timeWriteExternal,
@@ -1290,10 +1284,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteConcurrentInsert),
 			objectSchema, objectName, "write_concurrent_insert",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteDelayed),
-			objectSchema, objectName, "write_delayed",
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteLowPriority),
@@ -1334,10 +1324,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteConcurrentInsert)/picoSeconds,
 			objectSchema, objectName, "write_concurrent_insert",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteDelayed)/picoSeconds,
-			objectSchema, objectName, "write_delayed",
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteLowPriority)/picoSeconds,

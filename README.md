@@ -6,7 +6,20 @@ NOTE: Not all collection methods are support on MySQL < 5.6
 
 ## Building and running
 
+### Required Grants
+
+    CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX';
+    GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'localhost';
+    GRANT SELECT ON performance_schema.* TO 'exporter'@'localhost';
+
+### Build
+
     make
+
+### Running
+
+Running using an enviornment variable:
+
     export DATA_SOURCE_NAME="login:password@(hostname:port)/dbname"
     ./mysqld_exporter <flags>
 

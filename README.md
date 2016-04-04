@@ -18,7 +18,7 @@ NOTE: Not all collection methods are support on MySQL < 5.6
 
 ### Running
 
-Running using an enviornment variable:
+Running using an environment variable:
 
     export DATA_SOURCE_NAME='login:password@(hostname:port)/'
     ./mysqld_exporter <flags>

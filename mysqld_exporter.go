@@ -583,6 +583,16 @@ var (
 		"Total time of queries according to the length of time they took to execute separately.",
 		[]string{"le"}, nil,
 	)
+	infoSchemaBufferPageReadTotalDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "innodb_metrics_buffer_page_read_total"),
+		"Total number of buffer pages read total.",
+		[]string{"type"}, nil,
+	)
+	infoSchemaBufferPageWrittenTotalDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "innodb_metrics_buffer_page_written_total"),
+		"Total number of buffer pages written total.",
+		[]string{"type"}, nil,
+	)
 )
 
 // Math constants
@@ -680,7 +690,10 @@ var (
 )
 
 // Various regexps.
-var logRE = regexp.MustCompile(`.+\.(\d+)$`)
+var (
+	logRE        = regexp.MustCompile(`.+\.(\d+)$`)
+	bufferPageRE = regexp.MustCompile(`^buffer_page_(read|written)_(.*)$`)
+)
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
@@ -1835,7 +1848,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var (
 		name, subsystem, metricType, comment string
-		value                                int64
+		value                                float64
 	)
 
 	for innodbMetricsRows.Next() {
@@ -1844,6 +1857,23 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 		); err != nil {
 			return err
 		}
+
+		// Special handling of the "buffer_page_io" subsystem.
+		if subsystem == "buffer_page_io" {
+			match := bufferPageRE.FindStringSubmatch(name)
+			switch match[1] {
+			case "read":
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaBufferPageReadTotalDesc, prometheus.CounterValue, value, match[2],
+				)
+			case "written":
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaBufferPageWrittenTotalDesc, prometheus.CounterValue, value, match[2],
+				)
+			}
+			continue
+		}
+
 		metricName := "innodb_metrics_" + subsystem + "_" + name
 		// MySQL returns counters named two different ways. "counter" and "status_counter"
 		// value >= 0 is necessary due to upstream bugs: http://bugs.mysql.com/bug.php?id=75966
@@ -1855,7 +1885,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(
 				description,
 				prometheus.CounterValue,
-				float64(value),
+				value,
 			)
 		} else {
 			description := prometheus.NewDesc(
@@ -1865,7 +1895,7 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(
 				description,
 				prometheus.GaugeValue,
-				float64(value),
+				value,
 			)
 		}
 	}

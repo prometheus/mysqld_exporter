@@ -384,3 +384,47 @@ func Test_scrapePerfIndexIOWaits(t *testing.T) {
 		t.Errorf("there were unfulfilled expections: %s", err)
 	}
 }
+
+func Test_scrapeInnodbMetrics(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"name", "subsystem", "type", "comment", "count"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("lock_timeouts", "lock", "counter", "Number of lock timeouts", 0).
+		AddRow("buffer_pool_reads", "buffer", "status_counter", "Number of reads directly from disk (innodb_buffer_pool_reads)", 1).
+		AddRow("buffer_pool_size", "server", "value", "Server buffer pool size (all buffer pools) in bytes", 2).
+		AddRow("buffer_page_read_system_page", "buffer_page_io", "counter", "Number of System Pages read", 3).
+		AddRow("buffer_page_written_undo_log", "buffer_page_io", "counter", "Number of Undo Log Pages written", 4)
+	mock.ExpectQuery(sanitizeQuery(infoSchemaInnodbMetricsQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = scrapeInnodbMetrics(db, ch); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	metricExpected := []MetricResult{
+		{labels: LabelMap{}, value: 0, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{}, value: 1, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
+		{labels: LabelMap{"type": "system_page"}, value: 3, metricType: dto.MetricType_COUNTER},
+		{labels: LabelMap{"type": "undo_log"}, value: 4, metricType: dto.MetricType_COUNTER},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range metricExpected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expections: %s", err)
+	}
+}

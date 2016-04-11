@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -134,13 +133,11 @@ const (
 	exporter          = "exporter"
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
-	tokudb            = "engine_tokudb"
 )
 
 // Metric SQL Queries.
 const (
 	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	engineTokudbStatusQuery    = `SHOW ENGINE TOKUDB STATUS`
 	upQuery                    = `SELECT 1`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
@@ -888,7 +885,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectEngineTokudbStatus {
-		if err = scrapeEngineTokudbStatus(db, ch); err != nil {
+		if err = collector.ScrapeEngineTokudbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping TokuDB engine status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
 		}
@@ -1718,70 +1715,11 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func sanitizeTokudbMetric(metricName string) string {
-	replacements := map[string]string{
-		">": "",
-		",": "",
-		":": "",
-		"(": "",
-		")": "",
-		" ": "_",
-		"-": "_",
-		"+": "and",
-		"/": "and",
-	}
-	for r := range replacements {
-		metricName = strings.Replace(metricName, r, replacements[r], -1)
-	}
-	return metricName
-}
-
-func scrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
-	tokudbRows, err := db.Query(engineTokudbStatusQuery)
-	if err != nil {
-		return err
-	}
-	defer tokudbRows.Close()
-
-	var temp, key string
-	var val sql.RawBytes
-
-	for tokudbRows.Next() {
-		if err := tokudbRows.Scan(&temp, &key, &val); err != nil {
-			return err
-		}
-		key = strings.ToLower(key)
-		if floatVal, ok := parseStatus(val); ok {
-			ch <- prometheus.MustNewConstMetric(
-				newDesc(tokudb, sanitizeTokudbMetric(key), "Generic metric from SHOW ENGINE TOKUDB STATUS."),
-				prometheus.UntypedValue,
-				floatVal,
-			)
-		}
-	}
-	return nil
-}
-
 func newDesc(subsystem, name, help string) *prometheus.Desc {
 	return prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, name),
 		help, nil, nil,
 	)
-}
-
-func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
-		return 1, true
-	}
-	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
-		return 0, true
-	}
-	if logNum := logRE.Find(data); logNum != nil {
-		value, err := strconv.ParseFloat(string(logNum), 64)
-		return value, err == nil
-	}
-	value, err := strconv.ParseFloat(string(data), 64)
-	return value, err == nil
 }
 
 func parseMycnf(config interface{}) (string, error) {

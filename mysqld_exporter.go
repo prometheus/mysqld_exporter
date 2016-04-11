@@ -132,7 +132,6 @@ const (
 	namespace = "mysql"
 	// Subsystems.
 	exporter          = "exporter"
-	globalVariables   = "global_variables"
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
 	slaveStatus       = "slave_status"
@@ -143,7 +142,6 @@ const (
 // Metric SQL Queries.
 const (
 	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	globalVariablesQuery       = `SHOW GLOBAL VARIABLES`
 	slaveStatusQuery           = `SHOW SLAVE STATUS`
 	binlogQuery                = `SHOW BINARY LOGS`
 	engineTokudbStatusQuery    = `SHOW ENGINE TOKUDB STATUS`
@@ -811,7 +809,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectGlobalVariables {
-		if err = scrapeGlobalVariables(db, ch); err != nil {
+		if err = collector.ScrapeGlobalVariables(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.global_variables:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
 		}
@@ -912,46 +910,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
 		}
 	}
-}
-
-func scrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
-	globalVariablesRows, err := db.Query(globalVariablesQuery)
-	if err != nil {
-		return err
-	}
-	defer globalVariablesRows.Close()
-
-	var key string
-	var val sql.RawBytes
-	var mysqlVersion = map[string]string{
-		"innodb_version":  "",
-		"version":         "",
-		"version_comment": "",
-	}
-
-	for globalVariablesRows.Next() {
-		if err := globalVariablesRows.Scan(&key, &val); err != nil {
-			return err
-		}
-		key = strings.ToLower(key)
-		if floatVal, ok := parseStatus(val); ok {
-			ch <- prometheus.MustNewConstMetric(
-				newDesc(globalVariables, key, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
-				prometheus.GaugeValue,
-				floatVal,
-			)
-			continue
-		} else if _, ok := mysqlVersion[key]; ok {
-			mysqlVersion[key] = string(val)
-		}
-	}
-	// Create mysql_version_info metric
-	ch <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc(prometheus.BuildFQName(namespace, "version", "info"), "MySQL version and distribution.",
-			[]string{"innodb_version", "version", "version_comment"}, nil),
-		prometheus.GaugeValue, 1, mysqlVersion["innodb_version"], mysqlVersion["version"], mysqlVersion["version_comment"],
-	)
-	return nil
 }
 
 func scrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {

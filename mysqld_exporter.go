@@ -134,16 +134,13 @@ const (
 	exporter          = "exporter"
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
-	binlog            = "binlog"
 	tokudb            = "engine_tokudb"
 )
 
 // Metric SQL Queries.
 const (
 	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	binlogQuery                = `SHOW BINARY LOGS`
 	engineTokudbStatusQuery    = `SHOW ENGINE TOKUDB STATUS`
-	logbinQuery                = `SELECT @@log_bin`
 	upQuery                    = `SELECT 1`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
@@ -301,16 +298,6 @@ var landingPage = []byte(`<html>
 
 // Metric descriptors for dynamically created metrics.
 var (
-	binlogSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, binlog, "size_bytes"),
-		"Combined size of all registered binlog files.",
-		[]string{}, nil,
-	)
-	binlogFilesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, binlog, "files"),
-		"Number of registered binlog files.",
-		[]string{}, nil,
-	)
 	globalInfoSchemaAutoIncrementDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column"),
 		"The current value of an auto_increment column from information_schema.",
@@ -841,7 +828,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectBinlogSize {
-		if err = scrapeBinlogSize(db, ch); err != nil {
+		if err = collector.ScrapeBinlogSize(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.binlog_size:", err)
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
@@ -935,50 +922,6 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 			schema, table, column,
 		)
 	}
-	return nil
-}
-
-func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var logBin uint8
-	err := db.QueryRow(logbinQuery).Scan(&logBin)
-	if err != nil {
-		return err
-	}
-	// If log_bin is OFF, do not run SHOW BINARY LOGS which explicitly produces MySQL error
-	if logBin == 0 {
-		return nil
-	}
-
-	masterLogRows, err := db.Query(binlogQuery)
-	if err != nil {
-		return err
-	}
-	defer masterLogRows.Close()
-
-	var (
-		size     uint64
-		count    uint64
-		filename string
-		filesize uint64
-	)
-	size = 0
-	count = 0
-
-	for masterLogRows.Next() {
-		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-			return nil
-		}
-		size += filesize
-		count++
-	}
-
-	ch <- prometheus.MustNewConstMetric(
-		binlogSizeDesc, prometheus.GaugeValue, float64(size),
-	)
-	ch <- prometheus.MustNewConstMetric(
-		binlogFilesDesc, prometheus.GaugeValue, float64(count),
-	)
-
 	return nil
 }
 

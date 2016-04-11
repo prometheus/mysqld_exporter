@@ -14,5 +14,5 @@ install:
 
 script:
 - "! gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print) | read nothing"
-- go test -race -v
+- go test -race -v ./ ./collector
 - go build

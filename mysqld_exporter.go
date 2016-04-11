@@ -201,7 +201,6 @@ const (
 		    COUNT_READ_EXTERNAL,
 		    COUNT_WRITE_ALLOW_WRITE,
 		    COUNT_WRITE_CONCURRENT_INSERT,
-		    COUNT_WRITE_DELAYED,
 		    COUNT_WRITE_LOW_PRIORITY,
 		    COUNT_WRITE_NORMAL,
 		    COUNT_WRITE_EXTERNAL,
@@ -212,7 +211,6 @@ const (
 		    SUM_TIMER_READ_EXTERNAL,
 		    SUM_TIMER_WRITE_ALLOW_WRITE,
 		    SUM_TIMER_WRITE_CONCURRENT_INSERT,
-		    SUM_TIMER_WRITE_DELAYED,
 		    SUM_TIMER_WRITE_LOW_PRIORITY,
 		    SUM_TIMER_WRITE_NORMAL,
 		    SUM_TIMER_WRITE_EXTERNAL
@@ -808,91 +806,91 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	if *collectGlobalStatus {
 		if err = collector.ScrapeGlobalStatus(db, ch); err != nil {
-			log.Errorln("Error scraping global state:", err)
+			log.Errorln("Error scraping for collect.global_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
 	if *collectGlobalVariables {
 		if err = scrapeGlobalVariables(db, ch); err != nil {
-			log.Errorln("Error scraping global variables:", err)
+			log.Errorln("Error scraping for collect.global_variables:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
 		}
 	}
 	if *collectSlaveStatus {
 		if err = scrapeSlaveStatus(db, ch); err != nil {
-			log.Errorln("Error scraping slave state:", err)
+			log.Errorln("Error scraping for collect.slave_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.slave_status").Inc()
 		}
 	}
 	if *collectProcesslist {
 		if err = scrapeProcesslist(db, ch); err != nil {
-			log.Errorln("Error scraping process list:", err)
+			log.Errorln("Error scraping for collect.info_schema.processlist:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
 	if *collectTableSchema {
 		if err = scrapeTableSchema(db, ch); err != nil {
-			log.Errorln("Error scraping table schema:", err)
+			log.Errorln("Error scraping collect.info_schema.tables:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
 		}
 	}
 	if *innodbMetrics {
 		if err = scrapeInnodbMetrics(db, ch); err != nil {
-			log.Errorln("Error scraping information_schema.innodb_metrics:", err)
+			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
 	if *collectAutoIncrementColumns {
 		if err = scrapeInformationSchema(db, ch); err != nil {
-			log.Errorln("Error scraping information schema:", err)
+			log.Errorln("Error scraping for collect.auto_increment.columns:", err)
 			e.scrapeErrors.WithLabelValues("collect.auto_increment.columns").Inc()
 		}
 	}
 	if *collectBinlogSize {
 		if err = scrapeBinlogSize(db, ch); err != nil {
-			log.Errorln("Error scraping binlog size:", err)
+			log.Errorln("Error scraping for collect.binlog_size:", err)
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
 	}
 	if *collectPerfTableIOWaits {
 		if err = scrapePerfTableIOWaits(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.tableiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
 		}
 	}
 	if *collectPerfIndexIOWaits {
 		if err = scrapePerfIndexIOWaits(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.indexiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
 		}
 	}
 	if *collectPerfTableLockWaits {
 		if err = scrapePerfTableLockWaits(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
 		}
 	}
 	if *collectPerfEventsStatements {
 		if err = scrapePerfEventsStatements(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
 		}
 	}
 	if *collectPerfEventsWaits {
 		if err = scrapePerfEventsWaits(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
 		}
 	}
 	if *collectPerfFileEvents {
 		if err = scrapePerfFileEvents(db, ch); err != nil {
-			log.Errorln("Error scraping performance schema:", err)
+			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
 		}
 	}
 	if *collectUserStat {
 		if err = scrapeUserStat(db, ch); err != nil {
-			log.Errorln("Error scraping user stat:", err)
+			log.Errorln("Error scraping for collect.info_schema.userstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
 		}
 	}
@@ -1217,7 +1215,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		countReadExternal          uint64
 		countWriteAllowWrite       uint64
 		countWriteConcurrentInsert uint64
-		countWriteDelayed          uint64
 		countWriteLowPriority      uint64
 		countWriteNormal           uint64
 		countWriteExternal         uint64
@@ -1228,7 +1225,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		timeReadExternal           uint64
 		timeWriteAllowWrite        uint64
 		timeWriteConcurrentInsert  uint64
-		timeWriteDelayed           uint64
 		timeWriteLowPriority       uint64
 		timeWriteNormal            uint64
 		timeWriteExternal          uint64
@@ -1245,7 +1241,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 			&countReadExternal,
 			&countWriteAllowWrite,
 			&countWriteConcurrentInsert,
-			&countWriteDelayed,
 			&countWriteLowPriority,
 			&countWriteNormal,
 			&countWriteExternal,
@@ -1256,7 +1251,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 			&timeReadExternal,
 			&timeWriteAllowWrite,
 			&timeWriteConcurrentInsert,
-			&timeWriteDelayed,
 			&timeWriteLowPriority,
 			&timeWriteNormal,
 			&timeWriteExternal,
@@ -1290,10 +1284,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteConcurrentInsert),
 			objectSchema, objectName, "write_concurrent_insert",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteDelayed),
-			objectSchema, objectName, "write_delayed",
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsDesc, prometheus.CounterValue, float64(countWriteLowPriority),
@@ -1334,10 +1324,6 @@ func scrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteConcurrentInsert)/picoSeconds,
 			objectSchema, objectName, "write_concurrent_insert",
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteDelayed)/picoSeconds,
-			objectSchema, objectName, "write_delayed",
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaSQLTableLockWaitsTimeDesc, prometheus.CounterValue, float64(timeWriteLowPriority)/picoSeconds,

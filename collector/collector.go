@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const namespace = "node"
+const namespace = "mysql"
 
 var logRE = regexp.MustCompile(`.+\.(\d+)$`)
 

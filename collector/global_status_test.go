@@ -9,7 +9,7 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func Test_ScrapeGlobalStatus(t *testing.T) {
+func TestScrapeGlobalStatus(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)

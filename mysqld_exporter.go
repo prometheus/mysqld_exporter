@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -132,22 +131,13 @@ const (
 	namespace = "mysql"
 	// Subsystems.
 	exporter          = "exporter"
-	globalVariables   = "global_variables"
 	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
-	slaveStatus       = "slave_status"
-	binlog            = "binlog"
-	tokudb            = "engine_tokudb"
 )
 
 // Metric SQL Queries.
 const (
 	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	globalVariablesQuery       = `SHOW GLOBAL VARIABLES`
-	slaveStatusQuery           = `SHOW SLAVE STATUS`
-	binlogQuery                = `SHOW BINARY LOGS`
-	engineTokudbStatusQuery    = `SHOW ENGINE TOKUDB STATUS`
-	logbinQuery                = `SELECT @@log_bin`
 	upQuery                    = `SELECT 1`
 	infoSchemaProcesslistQuery = `
 		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
@@ -292,8 +282,6 @@ const (
 	`
 )
 
-var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
-
 // landingPage contains the HTML served at '/'.
 // TODO: Make this nicer and more informative.
 var landingPage = []byte(`<html>
@@ -307,16 +295,6 @@ var landingPage = []byte(`<html>
 
 // Metric descriptors for dynamically created metrics.
 var (
-	binlogSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, binlog, "size_bytes"),
-		"Combined size of all registered binlog files.",
-		[]string{}, nil,
-	)
-	binlogFilesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, binlog, "files"),
-		"Number of registered binlog files.",
-		[]string{}, nil,
-	)
 	globalInfoSchemaAutoIncrementDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column"),
 		"The current value of an auto_increment column from information_schema.",
@@ -811,13 +789,13 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectGlobalVariables {
-		if err = scrapeGlobalVariables(db, ch); err != nil {
+		if err = collector.ScrapeGlobalVariables(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.global_variables:", err)
 			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
 		}
 	}
 	if *collectSlaveStatus {
-		if err = scrapeSlaveStatus(db, ch); err != nil {
+		if err = collector.ScrapeSlaveStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.slave_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.slave_status").Inc()
 		}
@@ -847,7 +825,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectBinlogSize {
-		if err = scrapeBinlogSize(db, ch); err != nil {
+		if err = collector.ScrapeBinlogSize(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.binlog_size:", err)
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
@@ -907,102 +885,11 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectEngineTokudbStatus {
-		if err = scrapeEngineTokudbStatus(db, ch); err != nil {
+		if err = collector.ScrapeEngineTokudbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping TokuDB engine status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
 		}
 	}
-}
-
-func scrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
-	globalVariablesRows, err := db.Query(globalVariablesQuery)
-	if err != nil {
-		return err
-	}
-	defer globalVariablesRows.Close()
-
-	var key string
-	var val sql.RawBytes
-	var mysqlVersion = map[string]string{
-		"innodb_version":  "",
-		"version":         "",
-		"version_comment": "",
-	}
-
-	for globalVariablesRows.Next() {
-		if err := globalVariablesRows.Scan(&key, &val); err != nil {
-			return err
-		}
-		key = strings.ToLower(key)
-		if floatVal, ok := parseStatus(val); ok {
-			ch <- prometheus.MustNewConstMetric(
-				newDesc(globalVariables, key, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
-				prometheus.GaugeValue,
-				floatVal,
-			)
-			continue
-		} else if _, ok := mysqlVersion[key]; ok {
-			mysqlVersion[key] = string(val)
-		}
-	}
-	// Create mysql_version_info metric
-	ch <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc(prometheus.BuildFQName(namespace, "version", "info"), "MySQL version and distribution.",
-			[]string{"innodb_version", "version", "version_comment"}, nil),
-		prometheus.GaugeValue, 1, mysqlVersion["innodb_version"], mysqlVersion["version"], mysqlVersion["version_comment"],
-	)
-	return nil
-}
-
-func scrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var (
-		slaveStatusRows *sql.Rows
-		err             error
-	)
-	// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
-	for _, suffix := range slaveStatusQuerySuffixes {
-		slaveStatusRows, err = db.Query(fmt.Sprint(slaveStatusQuery, suffix))
-		if err == nil {
-			break
-		}
-	}
-	if err != nil {
-		return err
-	}
-	defer slaveStatusRows.Close()
-
-	if slaveStatusRows.Next() {
-		// There is either no row in SHOW SLAVE STATUS (if this is not a
-		// slave server), or exactly one. In case of multi-source
-		// replication, things work very much differently. This code
-		// cannot deal with that case.
-		slaveCols, err := slaveStatusRows.Columns()
-		if err != nil {
-			return err
-		}
-
-		// As the number of columns varies with mysqld versions,
-		// and sql.Scan requires []interface{}, we need to create a
-		// slice of pointers to the elements of slaveData.
-		scanArgs := make([]interface{}, len(slaveCols))
-		for i := range scanArgs {
-			scanArgs[i] = &sql.RawBytes{}
-		}
-
-		if err := slaveStatusRows.Scan(scanArgs...); err != nil {
-			return err
-		}
-		for i, col := range slaveCols {
-			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
-				ch <- prometheus.MustNewConstMetric(
-					newDesc(slaveStatus, strings.ToLower(col), "Generic metric from SHOW SLAVE STATUS."),
-					prometheus.UntypedValue,
-					value,
-				)
-			}
-		}
-	}
-	return nil
 }
 
 func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
@@ -1032,50 +919,6 @@ func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 			schema, table, column,
 		)
 	}
-	return nil
-}
-
-func scrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var logBin uint8
-	err := db.QueryRow(logbinQuery).Scan(&logBin)
-	if err != nil {
-		return err
-	}
-	// If log_bin is OFF, do not run SHOW BINARY LOGS which explicitly produces MySQL error
-	if logBin == 0 {
-		return nil
-	}
-
-	masterLogRows, err := db.Query(binlogQuery)
-	if err != nil {
-		return err
-	}
-	defer masterLogRows.Close()
-
-	var (
-		size     uint64
-		count    uint64
-		filename string
-		filesize uint64
-	)
-	size = 0
-	count = 0
-
-	for masterLogRows.Next() {
-		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-			return nil
-		}
-		size += filesize
-		count++
-	}
-
-	ch <- prometheus.MustNewConstMetric(
-		binlogSizeDesc, prometheus.GaugeValue, float64(size),
-	)
-	ch <- prometheus.MustNewConstMetric(
-		binlogFilesDesc, prometheus.GaugeValue, float64(count),
-	)
-
 	return nil
 }
 
@@ -1872,70 +1715,11 @@ func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func sanitizeTokudbMetric(metricName string) string {
-	replacements := map[string]string{
-		">": "",
-		",": "",
-		":": "",
-		"(": "",
-		")": "",
-		" ": "_",
-		"-": "_",
-		"+": "and",
-		"/": "and",
-	}
-	for r := range replacements {
-		metricName = strings.Replace(metricName, r, replacements[r], -1)
-	}
-	return metricName
-}
-
-func scrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
-	tokudbRows, err := db.Query(engineTokudbStatusQuery)
-	if err != nil {
-		return err
-	}
-	defer tokudbRows.Close()
-
-	var temp, key string
-	var val sql.RawBytes
-
-	for tokudbRows.Next() {
-		if err := tokudbRows.Scan(&temp, &key, &val); err != nil {
-			return err
-		}
-		key = strings.ToLower(key)
-		if floatVal, ok := parseStatus(val); ok {
-			ch <- prometheus.MustNewConstMetric(
-				newDesc(tokudb, sanitizeTokudbMetric(key), "Generic metric from SHOW ENGINE TOKUDB STATUS."),
-				prometheus.UntypedValue,
-				floatVal,
-			)
-		}
-	}
-	return nil
-}
-
 func newDesc(subsystem, name, help string) *prometheus.Desc {
 	return prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, name),
 		help, nil, nil,
 	)
-}
-
-func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
-		return 1, true
-	}
-	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
-		return 0, true
-	}
-	if logNum := logRE.Find(data); logNum != nil {
-		value, err := strconv.ParseFloat(string(logNum), 64)
-		return value, err == nil
-	}
-	value, err := strconv.ParseFloat(string(data), 64)
-	return value, err == nil
 }
 
 func parseMycnf(config interface{}) (string, error) {

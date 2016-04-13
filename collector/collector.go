@@ -9,7 +9,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const namespace = "mysql"
+const (
+	// Exporter namespace.
+	namespace = "mysql"
+	// Math constant for picoseconds to seconds.
+	picoSeconds = 1e12
+)
 
 var logRE = regexp.MustCompile(`.+\.(\d+)$`)
 

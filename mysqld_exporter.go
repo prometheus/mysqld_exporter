@@ -8,8 +8,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -41,17 +39,9 @@ var (
 		"collect.info_schema.processlist", false,
 		"Collect current thread state counts from the information_schema.processlist",
 	)
-	processlistMinTime = flag.Int(
-		"collect.info_schema.processlist.min_time", 0,
-		"Minimum time a thread must be in each state to be counted",
-	)
 	collectTableSchema = flag.Bool(
 		"collect.info_schema.tables", true,
 		"Collect metrics from information_schema.tables",
-	)
-	tableSchemaDatabases = flag.String(
-		"collect.info_schema.tables.databases", "*",
-		"The list of databases to collect table stats for, or '*' for all",
 	)
 	innodbMetrics = flag.Bool(
 		"collect.info_schema.innodb_metrics", false,
@@ -131,42 +121,13 @@ const (
 	namespace = "mysql"
 	// Subsystems.
 	exporter          = "exporter"
-	informationSchema = "info_schema"
 	performanceSchema = "perf_schema"
 )
 
 // Metric SQL Queries.
 const (
-	sessionSettingsQuery       = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	upQuery                    = `SELECT 1`
-	infoSchemaProcesslistQuery = `
-		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
-		  FROM information_schema.processlist
-		  WHERE ID != connection_id()
-		    AND TIME >= %d
-		  GROUP BY command,state
-		  ORDER BY null
-		`
-	infoSchemaAutoIncrementQuery = `
-		SELECT table_schema, table_name, column_name, auto_increment,
-		  pow(2, case data_type
-		    when 'tinyint'   then 7
-		    when 'smallint'  then 15
-		    when 'mediumint' then 23
-		    when 'int'       then 31
-		    when 'bigint'    then 63
-		    end+(column_type like '% unsigned'))-1 as max_int
-		  FROM information_schema.tables t
-		  JOIN information_schema.columns c USING (table_schema,table_name)
-		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
-		`
-	infoSchemaInnodbMetricsQuery = `
-		SELECT
-		  name, subsystem, type, comment,
-		  count
-		  FROM information_schema.innodb_metrics
-		  WHERE status = 'enabled'
-		`
+	sessionSettingsQuery  = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
+	upQuery               = `SELECT 1`
 	perfTableIOWaitsQuery = `
 		SELECT OBJECT_SCHEMA, OBJECT_NAME, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE,
 		  SUM_TIMER_FETCH, SUM_TIMER_INSERT, SUM_TIMER_UPDATE, SUM_TIMER_DELETE
@@ -242,44 +203,6 @@ const (
 		  COUNT_MISC, SUM_TIMER_MISC
 		  FROM performance_schema.file_summary_by_event_name
 		`
-	userStatQuery  = `SELECT * FROM information_schema.USER_STATISTICS`
-	tableStatQuery = `
-		SELECT
-			TABLE_SCHEMA,
-			TABLE_NAME,
-			ROWS_READ,
-			ROWS_CHANGED,
-			ROWS_CHANGED_X_INDEXES
-		  FROM information_schema.TABLE_STATISTICS
-		`
-	tableSchemaQuery = `
-		SELECT
-		    TABLE_SCHEMA,
-		    TABLE_NAME,
-		    TABLE_TYPE,
-		    ifnull(ENGINE, 'NONE') as ENGINE,
-		    ifnull(VERSION, '0') as VERSION,
-		    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
-		    ifnull(TABLE_ROWS, '0') as TABLE_ROWS,
-		    ifnull(DATA_LENGTH, '0') as DATA_LENGTH,
-		    ifnull(INDEX_LENGTH, '0') as INDEX_LENGTH,
-		    ifnull(DATA_FREE, '0') as DATA_FREE,
-		    ifnull(CREATE_OPTIONS, 'NONE') as CREATE_OPTIONS
-		  FROM information_schema.tables
-		  WHERE TABLE_SCHEMA = '%s'
-		`
-	dbListQuery = `
-		SELECT
-		    SCHEMA_NAME
-		  FROM information_schema.schemata
-		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
-		`
-	queryResponseCheckQuery = `SELECT @@query_response_time_stats`
-	queryResponseTimeQuery  = `
-		SELECT
-		    TIME, COUNT, TOTAL
-		  FROM information_schema.query_response_time
-	`
 )
 
 // landingPage contains the HTML served at '/'.
@@ -295,31 +218,6 @@ var landingPage = []byte(`<html>
 
 // Metric descriptors for dynamically created metrics.
 var (
-	globalInfoSchemaAutoIncrementDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column"),
-		"The current value of an auto_increment column from information_schema.",
-		[]string{"schema", "table", "column"}, nil,
-	)
-	globalInfoSchemaAutoIncrementMaxDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column_max"),
-		"The max value of an auto_increment column from information_schema.",
-		[]string{"schema", "table", "column"}, nil,
-	)
-	infoSchemaTablesVersionDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_version"),
-		"The version number of the table's .frm file",
-		[]string{"schema", "table", "type", "engine", "row_format", "create_options"}, nil,
-	)
-	infoSchemaTablesRowsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_rows"),
-		"The estimated number of rows in the table from information_schema.tables",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTablesSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_size"),
-		"The size of the table components from information_schema.tables",
-		[]string{"schema", "table", "component"}, nil,
-	)
 	performanceSchemaTableWaitsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "table_io_waits_total"),
 		"The total number of table I/O wait events for each table and operation.",
@@ -445,216 +343,11 @@ var (
 		"The total bytes of file events by event name/mode.",
 		[]string{"event_name", "mode"}, nil,
 	)
-	// Map known user-statistics values to types. Unknown types will be mapped as
-	// untyped.
-	informationSchemaUserStatisticsTypes = map[string]struct {
-		vtype prometheus.ValueType
-		desc  *prometheus.Desc
-	}{
-		"TOTAL_CONNECTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_total_connections"),
-				"The number of connections created for this user.",
-				[]string{"user"}, nil)},
-		"CONCURRENT_CONNECTIONS": {prometheus.GaugeValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_concurrent_connections"),
-				"The number of concurrent connections for this user.",
-				[]string{"user"}, nil)},
-		"CONNECTED_TIME": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_connected_time_seconds_total"),
-				"The cumulative number of seconds elapsed while there were connections from this user.",
-				[]string{"user"}, nil)},
-		"BUSY_TIME": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_busy_seconds_total"),
-				"The cumulative number of seconds there was activity on connections from this user.",
-				[]string{"user"}, nil)},
-		"CPU_TIME": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_cpu_time_seconds_total"),
-				"The cumulative CPU time elapsed, in seconds, while servicing this user's connections.",
-				[]string{"user"}, nil)},
-		"BYTES_RECEIVED": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_bytes_received_total"),
-				"The number of bytes received from this user’s connections.",
-				[]string{"user"}, nil)},
-		"BYTES_SENT": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_bytes_sent_total"),
-				"The number of bytes sent to this user’s connections.",
-				[]string{"user"}, nil)},
-		"BINLOG_BYTES_WRITTEN": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_binlog_bytes_written_total"),
-				"The number of bytes written to the binary log from this user’s connections.",
-				[]string{"user"}, nil)},
-		"ROWS_FETCHED": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_fetched_total"),
-				"The number of rows fetched by this user’s connections.",
-				[]string{"user"}, nil)},
-		"ROWS_UPDATED": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_updated_total"),
-				"The number of rows updated by this user’s connections.",
-				[]string{"user"}, nil)},
-		"TABLE_ROWS_READ": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_table_rows_read_total"),
-				"The number of rows read from tables by this user’s connections. (It may be different from ROWS_FETCHED.)",
-				[]string{"user"}, nil)},
-		"SELECT_COMMANDS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_select_commands_total"),
-				"The number of SELECT commands executed from this user’s connections.",
-				[]string{"user"}, nil)},
-		"UPDATE_COMMANDS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_update_commands_total"),
-				"The number of UPDATE commands executed from this user’s connections.",
-				[]string{"user"}, nil)},
-		"OTHER_COMMANDS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_other_commands_total"),
-				"The number of other commands executed from this user’s connections.",
-				[]string{"user"}, nil)},
-		"COMMIT_TRANSACTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_commit_transactions_total"),
-				"The number of COMMIT commands issued by this user’s connections.",
-				[]string{"user"}, nil)},
-		"ROLLBACK_TRANSACTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rollback_transactions_total"),
-				"The number of ROLLBACK commands issued by this user’s connections.",
-				[]string{"user"}, nil)},
-		"DENIED_CONNECTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_denied_connections_total"),
-				"The number of connections denied to this user.",
-				[]string{"user"}, nil)},
-		"LOST_CONNECTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_lost_connections_total"),
-				"The number of this user’s connections that were terminated uncleanly.",
-				[]string{"user"}, nil)},
-		"ACCESS_DENIED": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_access_denied_total"),
-				"The number of times this user’s connections issued commands that were denied.",
-				[]string{"user"}, nil)},
-		"EMPTY_QUERIES": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_empty_queries_total"),
-				"The number of times this user’s connections sent empty queries to the server.",
-				[]string{"user"}, nil)},
-		"TOTAL_SSL_CONNECTIONS": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_total_ssl_connections_total"),
-				"The number of times this user’s connections connected using SSL to the server.",
-				[]string{"user"}, nil)},
-	}
-	infoSchemaTableStatsRowsReadDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_read_total"),
-		"The number of rows read from the table.",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTableStatsRowsChangedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_changed_total"),
-		"The number of rows changed in the table.",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTableStatsRowsChangedXIndexesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_changed_x_indexes_total"),
-		"The number of rows changed in the table, multiplied by the number of indexes changed.",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaQueryResponseTimeCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "query_response_time_count"),
-		"The number of queries according to the length of time they took to execute.",
-		[]string{}, nil,
-	)
-	infoSchemaQueryResponseTimeTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "query_response_time_total"),
-		"Total time of queries according to the length of time they took to execute separately.",
-		[]string{"le"}, nil,
-	)
 )
 
 // Math constants
 const (
 	picoSeconds = 1e12
-)
-
-// whitelist for connection/process states in SHOW PROCESSLIST
-// tokudb uses the state column for "Queried about _______ rows"
-var (
-	// TODO: might need some more keys for other MySQL versions or other storage engines
-	// see https://dev.mysql.com/doc/refman/5.7/en/general-thread-states.html
-	threadStateCounterMap = map[string]uint32{
-		"after create":              uint32(0),
-		"altering table":            uint32(0),
-		"analyzing":                 uint32(0),
-		"checking permissions":      uint32(0),
-		"checking table":            uint32(0),
-		"cleaning up":               uint32(0),
-		"closing tables":            uint32(0),
-		"converting heap to myisam": uint32(0),
-		"copying to tmp table":      uint32(0),
-		"creating sort index":       uint32(0),
-		"creating table":            uint32(0),
-		"creating tmp table":        uint32(0),
-		"deleting":                  uint32(0),
-		"executing":                 uint32(0),
-		"execution of init_command": uint32(0),
-		"end":                     uint32(0),
-		"freeing items":           uint32(0),
-		"flushing tables":         uint32(0),
-		"fulltext initialization": uint32(0),
-		"idle":                      uint32(0),
-		"init":                      uint32(0),
-		"killed":                    uint32(0),
-		"waiting for lock":          uint32(0),
-		"logging slow query":        uint32(0),
-		"login":                     uint32(0),
-		"manage keys":               uint32(0),
-		"opening tables":            uint32(0),
-		"optimizing":                uint32(0),
-		"preparing":                 uint32(0),
-		"reading from net":          uint32(0),
-		"removing duplicates":       uint32(0),
-		"removing tmp table":        uint32(0),
-		"reopen tables":             uint32(0),
-		"repair by sorting":         uint32(0),
-		"repair done":               uint32(0),
-		"repair with keycache":      uint32(0),
-		"replication master":        uint32(0),
-		"rolling back":              uint32(0),
-		"searching rows for update": uint32(0),
-		"sending data":              uint32(0),
-		"sorting for group":         uint32(0),
-		"sorting for order":         uint32(0),
-		"sorting index":             uint32(0),
-		"sorting result":            uint32(0),
-		"statistics":                uint32(0),
-		"updating":                  uint32(0),
-		"waiting for tables":        uint32(0),
-		"waiting for table flush":   uint32(0),
-		"waiting on cond":           uint32(0),
-		"writing to net":            uint32(0),
-		"other":                     uint32(0),
-	}
-	threadStateMapping = map[string]string{
-		"user sleep":                               "idle",
-		"creating index":                           "altering table",
-		"committing alter table to storage engine": "altering table",
-		"discard or import tablespace":             "altering table",
-		"rename":                                   "altering table",
-		"setup":                                    "altering table",
-		"renaming result table":                    "altering table",
-		"preparing for alter table":                "altering table",
-		"copying to group table":                   "copying to tmp table",
-		"copy to tmp table":                        "copying to tmp table",
-		"query end":                                "end",
-		"update":                                   "updating",
-		"updating main table":                      "updating",
-		"updating reference tables":                "updating",
-		"system lock":                              "waiting for lock",
-		"user lock":                                "waiting for lock",
-		"table lock":                               "waiting for lock",
-		"deleting from main table":                 "deleting",
-		"deleting from reference tables":           "deleting",
-	}
-	processlistCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "threads"),
-		"The number of threads (connections) split by current state.",
-		[]string{"state"}, nil)
-	processlistTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
-		"The number of seconds threads (connections) have used split by current state.",
-		[]string{"state"}, nil)
 )
 
 // Various regexps.
@@ -801,25 +494,25 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectProcesslist {
-		if err = scrapeProcesslist(db, ch); err != nil {
+		if err = collector.ScrapeProcesslist(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.processlist:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
 	if *collectTableSchema {
-		if err = scrapeTableSchema(db, ch); err != nil {
+		if err = collector.ScrapeTableSchema(db, ch); err != nil {
 			log.Errorln("Error scraping collect.info_schema.tables:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
 		}
 	}
 	if *innodbMetrics {
-		if err = scrapeInnodbMetrics(db, ch); err != nil {
+		if err = collector.ScrapeInnodbMetrics(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
 	if *collectAutoIncrementColumns {
-		if err = scrapeInformationSchema(db, ch); err != nil {
+		if err = collector.ScrapeAutoIncrementColumns(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.auto_increment.columns:", err)
 			e.scrapeErrors.WithLabelValues("collect.auto_increment.columns").Inc()
 		}
@@ -867,19 +560,19 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		}
 	}
 	if *collectUserStat {
-		if err = scrapeUserStat(db, ch); err != nil {
+		if err = collector.ScrapeUserStat(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.userstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
 		}
 	}
 	if *collectTableStat {
-		if err = scrapeTableStat(db, ch); err != nil {
+		if err = collector.ScrapeTableStat(db, ch); err != nil {
 			log.Errorln("Error scraping table stat:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
 	if *collectQueryResponseTime {
-		if err = scrapeQueryResponseTime(db, ch); err != nil {
+		if err = collector.ScrapeQueryResponseTime(db, ch); err != nil {
 			log.Errorln("Error scraping query response time:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
@@ -890,36 +583,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
 		}
 	}
-}
-
-func scrapeInformationSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
-	autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
-	if err != nil {
-		return err
-	}
-	defer autoIncrementRows.Close()
-
-	var (
-		schema, table, column string
-		value, max            float64
-	)
-
-	for autoIncrementRows.Next() {
-		if err := autoIncrementRows.Scan(
-			&schema, &table, &column, &value, &max,
-		); err != nil {
-			return err
-		}
-		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, value,
-			schema, table, column,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, max,
-			schema, table, column,
-		)
-	}
-	return nil
 }
 
 func scrapePerfTableIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
@@ -1352,365 +1015,6 @@ func scrapePerfFileEvents(db *sql.DB, ch chan<- prometheus.Metric) error {
 			performanceSchemaFileEventsTimeDesc, prometheus.CounterValue, float64(timeMisc)/picoSeconds,
 			eventName, "misc",
 		)
-	}
-	return nil
-}
-
-func scrapeUserStat(db *sql.DB, ch chan<- prometheus.Metric) error {
-	informationSchemaUserStatisticsRows, err := db.Query(userStatQuery)
-	if err != nil {
-		return err
-	}
-	defer informationSchemaUserStatisticsRows.Close()
-
-	// The user column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
-	// Because of the user column, userStatData[0] maps to columnNames[1] when reading off the metrics
-	// (because userStatScanArgs is mapped as [ &user, &userData[0], &userData[1] ... &userdata[n] ]
-	// To map metrics to names therefore we always range over columnNames[1:]
-	var columnNames []string
-	columnNames, err = informationSchemaUserStatisticsRows.Columns()
-	if err != nil {
-		return err
-	}
-
-	var user string                                        // Holds the username, which should be in column 0.
-	var userStatData = make([]float64, len(columnNames)-1) // 1 less because of the user column.
-	var userStatScanArgs = make([]interface{}, len(columnNames))
-	userStatScanArgs[0] = &user
-	for i := range userStatData {
-		userStatScanArgs[i+1] = &userStatData[i]
-	}
-
-	for informationSchemaUserStatisticsRows.Next() {
-		err = informationSchemaUserStatisticsRows.Scan(userStatScanArgs...)
-		if err != nil {
-			return err
-		}
-
-		// Loop over column names, and match to scan data. Unknown columns
-		// will be filled with an untyped metric number. We assume other then
-		// user, that we'll only get numbers.
-		for idx, columnName := range columnNames[1:] {
-			if metricType, ok := informationSchemaUserStatisticsTypes[columnName]; ok {
-				ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(userStatData[idx]), user)
-			} else {
-				// Unknown metric. Report as untyped.
-				desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("user_statistics_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"user"}, nil)
-				ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(userStatData[idx]), user)
-			}
-		}
-	}
-	return nil
-}
-
-func scrapeTableStat(db *sql.DB, ch chan<- prometheus.Metric) error {
-	informationSchemaTableStatisticsRows, err := db.Query(tableStatQuery)
-	if err != nil {
-		return err
-	}
-	defer informationSchemaTableStatisticsRows.Close()
-
-	var (
-		tableSchema         string
-		tableName           string
-		rowsRead            uint64
-		rowsChanged         uint64
-		rowsChangedXIndexes uint64
-	)
-
-	for informationSchemaTableStatisticsRows.Next() {
-		err = informationSchemaTableStatisticsRows.Scan(
-			&tableSchema,
-			&tableName,
-			&rowsRead,
-			&rowsChanged,
-			&rowsChangedXIndexes,
-		)
-		if err != nil {
-			return err
-		}
-		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsReadDesc, prometheus.CounterValue, float64(rowsRead),
-			tableSchema, tableName,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsChangedDesc, prometheus.CounterValue, float64(rowsChanged),
-			tableSchema, tableName,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsChangedXIndexesDesc, prometheus.CounterValue, float64(rowsChangedXIndexes),
-			tableSchema, tableName,
-		)
-	}
-	return nil
-}
-
-func scrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var queryStats uint8
-	err := db.QueryRow(queryResponseCheckQuery).Scan(&queryStats)
-	if err != nil {
-		log.Debugln("Query response time distribution is not present.")
-		return nil
-	}
-	if queryStats == 0 {
-		log.Debugln("query_response_time_stats is OFF.")
-		return nil
-	}
-
-	queryDistributionRows, err := db.Query(queryResponseTimeQuery)
-	if err != nil {
-		return err
-	}
-	defer queryDistributionRows.Close()
-
-	var (
-		length       string
-		count        uint64
-		total        string
-		histogramCnt uint64
-		histogramSum float64
-		countBuckets = map[float64]uint64{}
-	)
-
-	for queryDistributionRows.Next() {
-		err = queryDistributionRows.Scan(
-			&length,
-			&count,
-			&total,
-		)
-		if err != nil {
-			return err
-		}
-
-		length, _ := strconv.ParseFloat(strings.TrimSpace(length), 64)
-		total, _ := strconv.ParseFloat(strings.TrimSpace(total), 64)
-		histogramCnt += count
-		histogramSum += total
-		// Special case for "TOO LONG" row where we take into account the count field which is the only available
-		// and do not add it as a part of histogram or metric
-		if length == 0 {
-			continue
-		}
-		countBuckets[length] = histogramCnt
-		// No histogram with query total times because they are float
-		ch <- prometheus.MustNewConstMetric(
-			infoSchemaQueryResponseTimeTotalDesc, prometheus.CounterValue, histogramSum,
-			fmt.Sprintf("%v", length),
-		)
-	}
-	ch <- prometheus.MustNewConstMetric(
-		infoSchemaQueryResponseTimeTotalDesc, prometheus.CounterValue, histogramSum,
-		"+Inf",
-	)
-	// Create histogram with query counts
-	ch <- prometheus.MustNewConstHistogram(
-		infoSchemaQueryResponseTimeCountDesc, histogramCnt, histogramSum, countBuckets,
-	)
-	return nil
-}
-
-func deriveThreadState(command string, state string) string {
-	var normCmd = strings.Replace(strings.ToLower(command), "_", " ", -1)
-	var normState = strings.Replace(strings.ToLower(state), "_", " ", -1)
-	// check if it's already a valid state
-	_, knownState := threadStateCounterMap[normState]
-	if knownState {
-		return normState
-	}
-	// check if plain mapping applies
-	mappedState, canMap := threadStateMapping[normState]
-	if canMap {
-		return mappedState
-	}
-	// check special waiting for XYZ lock
-	if strings.Contains(normState, "waiting for") && strings.Contains(normState, "lock") {
-		return "waiting for lock"
-	}
-	if normCmd == "sleep" && normState == "" {
-		return "idle"
-	}
-	if normCmd == "query" {
-		return "executing"
-	}
-	if normCmd == "binlog dump" {
-		return "replication master"
-	}
-	return "other"
-}
-
-func scrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
-	processQuery := fmt.Sprintf(
-		infoSchemaProcesslistQuery,
-		*processlistMinTime,
-	)
-	processlistRows, err := db.Query(processQuery)
-	if err != nil {
-		return err
-	}
-	defer processlistRows.Close()
-
-	var (
-		command string
-		state   string
-		count   uint32
-		time    uint32
-	)
-	stateCounts := make(map[string]uint32, len(threadStateCounterMap))
-	stateTime := make(map[string]uint32, len(threadStateCounterMap))
-	for k, v := range threadStateCounterMap {
-		stateCounts[k] = v
-		stateTime[k] = v
-	}
-
-	for processlistRows.Next() {
-		err = processlistRows.Scan(&command, &state, &count, &time)
-		if err != nil {
-			return err
-		}
-		realState := deriveThreadState(command, state)
-		stateCounts[realState] += count
-		stateTime[realState] += time
-	}
-
-	for state, count := range stateCounts {
-		ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(count), state)
-	}
-	for state, time := range stateTime {
-		ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(time), state)
-	}
-
-	return nil
-}
-
-func scrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var dbList []string
-	if *tableSchemaDatabases == "*" {
-		dbListRows, err := db.Query(dbListQuery)
-		if err != nil {
-			return err
-		}
-		defer dbListRows.Close()
-
-		var database string
-
-		for dbListRows.Next() {
-			if err := dbListRows.Scan(
-				&database,
-			); err != nil {
-				return err
-			}
-			dbList = append(dbList, database)
-		}
-	} else {
-		dbList = strings.Split(*tableSchemaDatabases, ",")
-	}
-
-	for _, database := range dbList {
-		tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, database))
-		if err != nil {
-			return err
-		}
-		defer tableSchemaRows.Close()
-
-		var (
-			tableSchema   string
-			tableName     string
-			tableType     string
-			engine        string
-			version       uint64
-			rowFormat     string
-			tableRows     uint64
-			dataLength    uint64
-			indexLength   uint64
-			dataFree      uint64
-			createOptions string
-		)
-
-		for tableSchemaRows.Next() {
-			err = tableSchemaRows.Scan(
-				&tableSchema,
-				&tableName,
-				&tableType,
-				&engine,
-				&version,
-				&rowFormat,
-				&tableRows,
-				&dataLength,
-				&indexLength,
-				&dataFree,
-				&createOptions,
-			)
-			if err != nil {
-				return err
-			}
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesVersionDesc, prometheus.GaugeValue, float64(version),
-				tableSchema, tableName, tableType, engine, rowFormat, createOptions,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesRowsDesc, prometheus.GaugeValue, float64(tableRows),
-				tableSchema, tableName,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataLength),
-				tableSchema, tableName, "data_length",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(indexLength),
-				tableSchema, tableName, "index_length",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataFree),
-				tableSchema, tableName, "data_free",
-			)
-		}
-	}
-
-	return nil
-}
-
-func scrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
-	innodbMetricsRows, err := db.Query(infoSchemaInnodbMetricsQuery)
-	if err != nil {
-		return err
-	}
-	defer innodbMetricsRows.Close()
-
-	var (
-		name, subsystem, metricType, comment string
-		value                                int64
-	)
-
-	for innodbMetricsRows.Next() {
-		if err := innodbMetricsRows.Scan(
-			&name, &subsystem, &metricType, &comment, &value,
-		); err != nil {
-			return err
-		}
-		metricName := "innodb_metrics_" + subsystem + "_" + name
-		// MySQL returns counters named two different ways. "counter" and "status_counter"
-		// value >= 0 is necessary due to upstream bugs: http://bugs.mysql.com/bug.php?id=75966
-		if (metricType == "counter" || metricType == "status_counter") && value >= 0 {
-			description := prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, informationSchema, metricName+"_total"),
-				comment, nil, nil,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				description,
-				prometheus.CounterValue,
-				float64(value),
-			)
-		} else {
-			description := prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, informationSchema, metricName),
-				comment, nil, nil,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				description,
-				prometheus.GaugeValue,
-				float64(value),
-			)
-		}
 	}
 	return nil
 }

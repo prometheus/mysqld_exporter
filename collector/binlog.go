@@ -30,6 +30,7 @@ var (
 	)
 )
 
+// ScrapeBinlogSize colects from `SHOW BINARY LOGS`.
 func ScrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var logBin uint8
 	err := db.QueryRow(logbinQuery).Scan(&logBin)

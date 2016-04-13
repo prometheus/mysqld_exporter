@@ -1,4 +1,4 @@
-// Scrape `SHOW GLOBAL VARIABLES`
+// Scrape `SHOW GLOBAL VARIABLES`.
 
 package collector
 
@@ -16,6 +16,7 @@ const (
 	globalVariablesQuery = `SHOW GLOBAL VARIABLES`
 )
 
+// ScrapeGlobalVariables collects from `SHOW GLOBAL VARIABLES`.
 func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalVariablesRows, err := db.Query(globalVariablesQuery)
 	if err != nil {

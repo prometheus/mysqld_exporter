@@ -1,4 +1,4 @@
-// Scrape 'SHOW GLOBAL STATUS'
+// Scrape `SHOW GLOBAL STATUS`.
 
 package collector
 
@@ -58,6 +58,7 @@ var (
 	)
 )
 
+// ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
 func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalStatusRows, err := db.Query(globalStatusQuery)
 	if err != nil {

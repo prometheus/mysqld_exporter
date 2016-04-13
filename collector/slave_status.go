@@ -1,4 +1,4 @@
-// Scrape `SHOW SLAVE STATUS`
+// Scrape `SHOW SLAVE STATUS`.
 
 package collector
 
@@ -19,6 +19,7 @@ const (
 
 var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
+// ScrapeSlaveStatus collects from `SHOW SLAVE STATUS`.
 func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var (
 		slaveStatusRows *sql.Rows

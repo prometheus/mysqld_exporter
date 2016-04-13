@@ -862,7 +862,7 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 	defer perfSchemaEventsStatementsRows.Close()
 
 	var (
-		schemaName, digest, digest_text      string
+		schemaName, digest, digestText       string
 		count, queryTime, errors, warnings   uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
@@ -872,57 +872,57 @@ func scrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	for perfSchemaEventsStatementsRows.Next() {
 		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digest_text, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables, &sortMergePasses, &sortRows, &noIndexUsed,
+			&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables, &sortMergePasses, &sortRows, &noIndexUsed,
 		); err != nil {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/picoSeconds,
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsErrorsDesc, prometheus.CounterValue, float64(errors),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsWarningsDesc, prometheus.CounterValue, float64(warnings),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTmpTablesDesc, prometheus.CounterValue, float64(tmpTables),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsSortMergePassesDesc, prometheus.CounterValue, float64(sortMergePasses),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsSortRowsDesc, prometheus.CounterValue, float64(sortRows),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
-			schemaName, digest, digest_text,
+			schemaName, digest, digestText,
 		)
 	}
 	return nil

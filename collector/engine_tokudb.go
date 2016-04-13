@@ -1,4 +1,4 @@
-// Scrape `SHOW ENGINE TOKUDB STATUS`
+// Scrape `SHOW ENGINE TOKUDB STATUS`.
 
 package collector
 
@@ -34,6 +34,7 @@ func sanitizeTokudbMetric(metricName string) string {
 	return metricName
 }
 
+// ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
 func ScrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tokudbRows, err := db.Query(engineTokudbStatusQuery)
 	if err != nil {

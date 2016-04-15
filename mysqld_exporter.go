@@ -42,6 +42,10 @@ var (
 		"collect.info_schema.tables", true,
 		"Collect metrics from information_schema.tables",
 	)
+	collectInnodbTablespaces = flag.Bool(
+		"collect.info_schema.innodb_tablespaces", true,
+		"Collect metrics from information_schema.innodb_sys_tablepaces",
+	)
 	innodbMetrics = flag.Bool(
 		"collect.info_schema.innodb_metrics", false,
 		"Collect metrics from information_schema.innodb_metrics",
@@ -277,6 +281,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapeTableSchema(db, ch); err != nil {
 			log.Errorln("Error scraping collect.info_schema.tables:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
+		}
+	}
+	if *collectInnodbTablespaces {
+		if err = collector.ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
 		}
 	}
 	if *innodbMetrics {

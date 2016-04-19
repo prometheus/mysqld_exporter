@@ -1,3 +1,18 @@
+## 0.8.0 / 2016-04-19
+
+BREAKING CHANGES:
+* global status `innodb_buffer_pool_pages` have been renamed/labeled.
+* innodb metrics `buffer_page_io` have been renamed/labeled.
+
+* [MISC] Add Travis CI automatic testing.
+* [MISC] Refactor mysqld_exporter.go into collector package.
+* [FEATURE] Add `mysql_up` metric (PR #99)
+* [FEATURE] Collect time metrics for processlist (PR #87)
+* [CHANGE] Separate innodb_buffer_pool_pages status metrics (PR #101)
+* [FEATURE] Added metrics from SHOW ENGINE TOKUDB STATUS (PR #103)
+* [CHANGE] Add special handling of "buffer_page_io" subsystem (PR #115)
+* [FEATURE] Add collector for innodb_sys_tablespaces (PR #116)
+
 ## 0.7.1 / 2016-02-16
 
 * [IMPROVEMENT] Soft error on collector failure (PR #84)

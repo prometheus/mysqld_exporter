@@ -2,17 +2,8 @@ sudo: false
 
 language: go
 go:
-- 1.5.3
-
-install:
-- go get github.com/go-sql-driver/mysql
-- go get github.com/prometheus/client_golang/prometheus
-- go get github.com/prometheus/log
-- go get github.com/smartystreets/goconvey/convey
-- go get gopkg.in/ini.v1
-- go get gopkg.in/DATA-DOG/go-sqlmock.v1
+- 1.5.4
+- 1.6.2
 
 script:
-- "! gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print) | read nothing"
-- go test -race -v ./ ./collector
-- go build
+- make

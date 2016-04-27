@@ -428,6 +428,6 @@ func main() {
 		w.Write(landingPage)
 	})
 
-	log.Infof("Starting Server: %s", *listenAddress)
+	log.Infoln("Listening on", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }

@@ -39,6 +39,7 @@ collect.info_schema.innodb_metrics                     | 5.6           | Collect
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
 collect.engine_tokudb_status                           | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.info_schema.userstats                          | 5.1           | If running with userstat=1, set to true to collect user statistics.
+collect.info_schema.innodb_tablespaces                 | 5.7           | Collect metrics from information_schema.innodb_sys_tablepaces.
 collect.info_schema.tablestats                         | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.tables                             | 5.1           | Collect metrics from information_schema.tables.
 collect.info_schema.tables.databases                   | 5.1           | The list of databases to collect table stats for, or '`*`' for all.

@@ -43,7 +43,7 @@ var (
 		"Collect metrics from information_schema.tables",
 	)
 	collectInnodbTablespaces = flag.Bool(
-		"collect.info_schema.innodb_tablespaces", true,
+		"collect.info_schema.innodb_tablespaces", false,
 		"Collect metrics from information_schema.innodb_sys_tablepaces",
 	)
 	innodbMetrics = flag.Bool(

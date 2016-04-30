@@ -23,6 +23,12 @@
 			"revisionTime": "2016-02-26T12:45:00+11:00"
 		},
 		{
+			"checksumSHA1": "tewA7jXVGCw1zb5mA0BDecWi4iQ=",
+			"path": "github.com/jtolds/gls",
+			"revision": "8ddce2a84170772b95dd5d576c48d517b22cac63",
+			"revisionTime": "2016-01-05T22:08:40Z"
+		},
+		{
 			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"revision": "d0c3fe89de86839aecf2e0579c40ba3bb336a453",
 			"revisionTime": "2015-10-11T12:25:29+02:00"
@@ -63,6 +69,42 @@
 			"revisionTime": "2015-10-29T15:50:50-04:00"
 		},
 		{
+			"checksumSHA1": "6AYg4fjEvFuAVN3wHakGApjhZAM=",
+			"path": "github.com/smartystreets/assertions",
+			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
+			"revisionTime": "2016-04-22T19:53:51Z"
+		},
+		{
+			"checksumSHA1": "Vzb+dEH/LTYbvr8RXHmt6xJHz04=",
+			"path": "github.com/smartystreets/assertions/internal/go-render/render",
+			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
+			"revisionTime": "2016-04-22T19:53:51Z"
+		},
+		{
+			"checksumSHA1": "SLC6TfV4icQA9l8YJQu8acJYbuo=",
+			"path": "github.com/smartystreets/assertions/internal/oglematchers",
+			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
+			"revisionTime": "2016-04-22T19:53:51Z"
+		},
+		{
+			"checksumSHA1": "/mwAihy9AmznMzmbPQ5nWJXBiRU=",
+			"path": "github.com/smartystreets/goconvey/convey",
+			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
+			"revisionTime": "2016-04-08T04:14:08Z"
+		},
+		{
+			"checksumSHA1": "9LakndErFi5uCXtY1KWl0iRnT4c=",
+			"path": "github.com/smartystreets/goconvey/convey/gotest",
+			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
+			"revisionTime": "2016-04-08T04:14:08Z"
+		},
+		{
+			"checksumSHA1": "FWDhk37bhAwZ2363D/L2xePwR64=",
+			"path": "github.com/smartystreets/goconvey/convey/reporting",
+			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
+			"revisionTime": "2016-04-08T04:14:08Z"
+		},
+		{
 			"path": "golang.org/x/sys/unix",
 			"revision": "19ced1583f732e8ff9d7d84de773dc621557df99",
 			"revisionTime": "2015-11-16T22:15:20-05:00"
@@ -77,5 +119,6 @@
 			"revision": "776aa739ce9373377cd16f526cdf06cb4c89b40f",
 			"revisionTime": "2016-02-22T18:24:41-05:00"
 		}
-	]
+	],
+	"rootPath": "github.com/prometheus/mysqld_exporter"
 }

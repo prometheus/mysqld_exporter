@@ -44,7 +44,7 @@ var (
 	)
 	collectInnodbTablespaces = flag.Bool(
 		"collect.info_schema.innodb_tablespaces", false,
-		"Collect metrics from information_schema.innodb_sys_tablepaces",
+		"Collect metrics from information_schema.innodb_sys_tablespaces",
 	)
 	innodbMetrics = flag.Bool(
 		"collect.info_schema.innodb_metrics", false,

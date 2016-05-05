@@ -32,6 +32,10 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
 		return 0, true
 	}
+	// SHOW SLAVE STATUS Slave_IO_Running can return "Connecting" which is a non-running state.
+	if bytes.Compare(data, []byte("Connecting")) == 0 {
+		return 0, true
+	}
 	if logNum := logRE.Find(data); logNum != nil {
 		value, err := strconv.ParseFloat(string(logNum), 64)
 		return value, err == nil

@@ -69,6 +69,7 @@ log.level                                  | Logging verbosity (default: info)
 log_slow_filter                            | Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
+version                                    | Print the version information.
 
 ### Setting the MySQL server's data source name
 

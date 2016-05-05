@@ -1,5 +1,8 @@
-.build
-mysqld_exporter
+/.build
+/mysqld_exporter
+/.release
+/.tarballs
+
 *.tar.gz
 *.test
 *-stamp

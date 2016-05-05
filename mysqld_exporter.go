@@ -12,12 +12,17 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/version"
 	"gopkg.in/ini.v1"
 
 	"github.com/prometheus/mysqld_exporter/collector"
 )
 
 var (
+	showVersion = flag.Bool(
+		"version", false,
+		"Print version information.",
+	)
 	listenAddress = flag.String(
 		"web.listen-address", ":9104",
 		"Address to listen on for web interface and telemetry.",
@@ -392,8 +397,20 @@ func parseMycnf(config interface{}) (string, error) {
 	return dsn, nil
 }
 
+func init() {
+	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
+}
+
 func main() {
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.Print("mysqld_exporter"))
+		os.Exit(0)
+	}
+
+	log.Infoln("Starting mysqld_exporter", version.Info())
+	log.Infoln("Build context", version.BuildContext())
 
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
@@ -411,6 +428,6 @@ func main() {
 		w.Write(landingPage)
 	})
 
-	log.Infof("Starting Server: %s", *listenAddress)
+	log.Infoln("Listening on", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }

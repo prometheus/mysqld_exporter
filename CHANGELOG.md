@@ -1,3 +1,10 @@
+## 0.8.1 / 2016-05-05
+
+* [BUGFIX] Fix collect.info_schema.innodb_tablespaces #119
+* [BUGFIX] Fix SLAVE STATUS "Connecting" #125
+* [MISC] New release process using docker, circleci and a centralized building tool #120
+* [MISC] Typos #121
+
 ## 0.8.0 / 2016-04-19
 
 BREAKING CHANGES:

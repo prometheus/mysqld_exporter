@@ -30,10 +30,23 @@ var (
 		"Total number of buffer pages written total.",
 		[]string{"type"}, nil,
 	)
+	infoSchemaBufferPoolPagesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "innodb_metrics_buffer_pool_pages"),
+		"Total number of buffer pool pages by state.",
+		[]string{"state"}, nil,
+	)
+	infoSchemaBufferPoolPagesDirtyDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "innodb_metrics_buffer_pool_dirty_pages"),
+		"Total number of dirty pages in the buffer pool.",
+		nil, nil,
+	)
 )
 
 // Regexp for matching metric aggregations.
-var bufferPageRE = regexp.MustCompile(`^buffer_page_(read|written)_(.*)$`)
+var (
+	bufferRE     = regexp.MustCompile(`^buffer_(pool_pages)_(.*)$`)
+	bufferPageRE = regexp.MustCompile(`^buffer_page_(read|written)_(.*)$`)
+)
 
 // ScrapeInnodbMetrics collects from `information_schema.innodb_metrics`.
 func ScrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
@@ -72,6 +85,30 @@ func ScrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
 				)
 			}
 			continue
+		}
+		if subsystem == "buffer" {
+			match := bufferRE.FindStringSubmatch(name)
+			// Many buffer subsystem metrics are not matched, fall through to generic metric.
+			if match != nil {
+				switch match[1] {
+				case "pool_pages":
+					switch match[2] {
+					case "total":
+						// Ignore total, it is an aggregation of the rest.
+						continue
+					case "dirty":
+						// Dirty pages are a separate metric, not in the total.
+						ch <- prometheus.MustNewConstMetric(
+							infoSchemaBufferPoolPagesDirtyDesc, prometheus.GaugeValue, value,
+						)
+					default:
+						ch <- prometheus.MustNewConstMetric(
+							infoSchemaBufferPoolPagesDesc, prometheus.GaugeValue, value, match[2],
+						)
+					}
+				}
+				continue
+			}
 		}
 		metricName := "innodb_metrics_" + subsystem + "_" + name
 		// MySQL returns counters named two different ways. "counter" and "status_counter"

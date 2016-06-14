@@ -30,10 +30,10 @@ func TestScrapeSlaveStatus(t *testing.T) {
 	}()
 
 	counterExpected := []MetricResult{
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 2, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"channel_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 1, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"channel_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 0, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"channel_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 1, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"channel_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 2, metricType: dto.MetricType_UNTYPED},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

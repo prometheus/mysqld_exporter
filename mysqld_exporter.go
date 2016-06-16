@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/common/version"
 	"gopkg.in/ini.v1"
 
-	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/mfouilleul/mysqld_exporter/collector"
 )
 
 var (
@@ -101,6 +101,9 @@ var (
 	)
 	collectUserStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics",
+	)
+	collectClientStat = flag.Bool("collect.info_schema.clientstats", false,
+		"If running with userstat=1, set to true to collect client statistics",
 	)
 	collectTableStat = flag.Bool("collect.info_schema.tablestats", false,
 		"If running with userstat=1, set to true to collect table statistics",
@@ -352,6 +355,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapeUserStat(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.userstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
+		}
+	}
+	if *collectClientStat {
+		if err = collector.ScrapeClientStat(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
 		}
 	}
 	if *collectTableStat {

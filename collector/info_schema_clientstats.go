@@ -10,7 +10,32 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const clientStatQuery = `SELECT * FROM information_schema.client_statistics`
+const clientStatQuery = `
+			SELECT
+				CLIENT,
+				TOTAL_CONNECTIONS,
+				CONCURRENT_CONNECTIONS,
+				CONNECTED_TIME,
+				BUSY_TIME,
+				CPU_TIME,
+				BYTES_RECEIVED,
+				BYTES_SENT,
+				BINLOG_BYTES_WRITTEN,
+				ROWS_READ,
+				ROWS_SENT,
+				ROWS_DELETED,
+				ROWS_INSERTED,
+				ROWS_UPDATED,
+				SELECT_COMMANDS,
+				UPDATE_COMMANDS,
+				OTHER_COMMANDS,
+				COMMIT_TRANSACTIONS,
+				ROLLBACK_TRANSACTIONS,
+				DENIED_CONNECTIONS,
+				LOST_CONNECTIONS,
+				ACCESS_DENIED,
+				EMPTY_QUERIES
+			FROM information_schema.client_statistics`
 
 var (
 	// Map known client-statistics values to types. Unknown types will be mapped as
@@ -108,18 +133,18 @@ var (
 
 // ScrapeClientStat collects from `information_schema.client_statistics`.
 func ScrapeClientStat(db *sql.DB, ch chan<- prometheus.Metric) error {
-	informationSchemaClientStatisticsRowsg, err := db.Query(clientStatQuery)
+	informationSchemaClientStatisticsRows, err := db.Query(clientStatQuery)
 	if err != nil {
 		return err
 	}
-	defer informationSchemaClientStatisticsRowsg.Close()
+	defer informationSchemaClientStatisticsRows.Close()
 
 	// The client column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
 	// Because of the client column, clientStatData[0] maps to columnNames[1] when reading off the metrics
 	// (because clientStatScanArgs is mapped as [ &client, &clientData[0], &clientData[1] ... &clientdata[n] ]
 	// To map metrics to names therefore we always range over columnNames[1:]
 	var columnNames []string
-	columnNames, err = informationSchemaClientStatisticsRowsg.Columns()
+	columnNames, err = informationSchemaClientStatisticsRows.Columns()
 	if err != nil {
 		return err
 	}
@@ -132,8 +157,8 @@ func ScrapeClientStat(db *sql.DB, ch chan<- prometheus.Metric) error {
 		clientStatScanArgs[i+1] = &clientStatData[i]
 	}
 
-	for informationSchemaClientStatisticsRowsg.Next() {
-		err = informationSchemaClientStatisticsRowsg.Scan(clientStatScanArgs...)
+	for informationSchemaClientStatisticsRows.Next() {
+		err = informationSchemaClientStatisticsRows.Scan(clientStatScanArgs...)
 		if err != nil {
 			return err
 		}

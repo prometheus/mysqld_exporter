@@ -139,7 +139,7 @@ func ScrapeClientStat(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	defer informationSchemaClientStatisticsRows.Close()
 
-	// The client
+	// The client column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
 	// Because of the client column, clientStatData[0] maps to columnNames[1] when reading off the metrics
 	// (because clientStatScanArgs is mapped as [ &client, &clientData[0], &clientData[1] ... &clientdata[n] ]
 	// To map metrics to names therefore we always range over columnNames[1:]
@@ -160,10 +160,6 @@ func ScrapeClientStat(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	for informationSchemaClientStatisticsRows.Next() {
-		// err = informationSchemaClientStatisticsRows.Scan(clientStatScanArgs...)
-		// if err != nil {
-		// 	return err
-		// }
 		if err := informationSchemaClientStatisticsRows.Scan(clientStatScanArgs...); err != nil {
 			return err
 		}

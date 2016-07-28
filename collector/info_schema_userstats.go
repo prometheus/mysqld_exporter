@@ -10,7 +10,32 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const userStatQuery = `SELECT * FROM information_schema.user_statistics`
+const userStatQuery = `
+			SELECT
+				USER,
+				TOTAL_CONNECTIONS,
+				CONCURRENT_CONNECTIONS,
+				CONNECTED_TIME,
+				BUSY_TIME,
+				CPU_TIME,
+				BYTES_RECEIVED,
+				BYTES_SENT,
+				BINLOG_BYTES_WRITTEN,
+				ROWS_READ,
+				ROWS_SENT,
+				ROWS_DELETED,
+				ROWS_INSERTED,
+				ROWS_UPDATED,
+				SELECT_COMMANDS,
+				UPDATE_COMMANDS,
+				OTHER_COMMANDS,
+				COMMIT_TRANSACTIONS,
+				ROLLBACK_TRANSACTIONS,
+				DENIED_CONNECTIONS,
+				LOST_CONNECTIONS,
+				ACCESS_DENIED,
+				EMPTY_QUERIES
+			FROM information_schema.user_statistics`
 
 var (
 	// Map known user-statistics values to types. Unknown types will be mapped as

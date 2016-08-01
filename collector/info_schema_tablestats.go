@@ -6,6 +6,7 @@ import (
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 )
 
 const tableStatQuery = `
@@ -38,6 +39,17 @@ var (
 
 // ScrapeTableStat collects from `information_schema.table_statistics`.
 func ScrapeTableStat(db *sql.DB, ch chan<- prometheus.Metric) error {
+	var userstat uint8
+	err := db.QueryRow(userstatCheckQuery).Scan(&userstat)
+	if err != nil {
+		log.Debugln("Detailed table stats are not available.")
+		return nil
+	}
+	if userstat == 0 {
+		log.Debugln("MySQL @@userstat is OFF.")
+		return nil
+	}
+
 	informationSchemaTableStatisticsRows, err := db.Query(tableStatQuery)
 	if err != nil {
 		return err

@@ -15,6 +15,8 @@ func TestScrapeTableStat(t *testing.T) {
 	}
 	defer db.Close()
 
+	mock.ExpectQuery(userstatCheckQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
+
 	columns := []string{"TABLE_SCHEMA", "TABLE_NAME", "ROWS_READ", "ROWS_CHANGED", "ROWS_CHANGED_X_INDEXES"}
 	rows := sqlmock.NewRows(columns).
 		AddRow("mysql", "db", 238, 0, 8).

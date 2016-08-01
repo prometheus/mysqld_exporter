@@ -11,32 +11,7 @@ import (
 	"github.com/prometheus/common/log"
 )
 
-const userStatQuery = `
-			SELECT
-				USER,
-				TOTAL_CONNECTIONS,
-				CONCURRENT_CONNECTIONS,
-				CONNECTED_TIME,
-				BUSY_TIME,
-				CPU_TIME,
-				BYTES_RECEIVED,
-				BYTES_SENT,
-				BINLOG_BYTES_WRITTEN,
-				ROWS_READ,
-				ROWS_SENT,
-				ROWS_DELETED,
-				ROWS_INSERTED,
-				ROWS_UPDATED,
-				SELECT_COMMANDS,
-				UPDATE_COMMANDS,
-				OTHER_COMMANDS,
-				COMMIT_TRANSACTIONS,
-				ROLLBACK_TRANSACTIONS,
-				DENIED_CONNECTIONS,
-				LOST_CONNECTIONS,
-				ACCESS_DENIED,
-				EMPTY_QUERIES
-			FROM information_schema.user_statistics`
+const userStatQuery = `SELECT * FROM information_schema.user_statistics`
 
 var (
 	// Map known user-statistics values to types. Unknown types will be mapped as
@@ -76,6 +51,22 @@ var (
 		"BINLOG_BYTES_WRITTEN": {prometheus.CounterValue,
 			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_binlog_bytes_written_total"),
 				"The number of bytes written to the binary log from this user’s connections.",
+				[]string{"user"}, nil)},
+		"ROWS_READ": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_read_total"),
+				"The number of rows read by this user's connections.",
+				[]string{"user"}, nil)},
+		"ROWS_SENT": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_sent_total"),
+				"The number of rows sent by this user's connections.",
+				[]string{"user"}, nil)},
+		"ROWS_DELETED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_deleted_total"),
+				"The number of rows deleted by this user's connections.",
+				[]string{"user"}, nil)},
+		"ROWS_INSERTED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_inserted_total"),
+				"The number of rows inserted by this user's connections.",
 				[]string{"user"}, nil)},
 		"ROWS_FETCHED": {prometheus.CounterValue,
 			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "user_statistics_rows_fetched_total"),
@@ -134,14 +125,14 @@ var (
 
 // ScrapeUserStat collects from `information_schema.user_statistics`.
 func ScrapeUserStat(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var userstat uint8
-	err := db.QueryRow(userstatCheckQuery).Scan(&userstat)
+	var varName, varVal string
+	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed user stats are not available.")
 		return nil
 	}
-	if userstat == 0 {
-		log.Debugln("MySQL @@userstat is OFF.")
+	if varVal == "OFF" {
+		log.Debugf("MySQL @@%s is OFF.", varName)
 		return nil
 	}
 

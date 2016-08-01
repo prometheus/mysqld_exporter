@@ -39,14 +39,14 @@ var (
 
 // ScrapeTableStat collects from `information_schema.table_statistics`.
 func ScrapeTableStat(db *sql.DB, ch chan<- prometheus.Metric) error {
-	var userstat uint8
-	err := db.QueryRow(userstatCheckQuery).Scan(&userstat)
+	var varName, varVal string
+	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed table stats are not available.")
 		return nil
 	}
-	if userstat == 0 {
-		log.Debugln("MySQL @@userstat is OFF.")
+	if varVal == "OFF" {
+		log.Debugf("MySQL @@%s is OFF.", varName)
 		return nil
 	}
 

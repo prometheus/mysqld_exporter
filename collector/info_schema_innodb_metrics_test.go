@@ -30,7 +30,10 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 		AddRow("buffer_pool_size", "server", "value", "Server buffer pool size (all buffer pools) in bytes", 2).
 		AddRow("buffer_page_read_system_page", "buffer_page_io", "counter", "Number of System Pages read", 3).
 		AddRow("buffer_page_written_undo_log", "buffer_page_io", "counter", "Number of Undo Log Pages written", 4).
-		AddRow("NOPE", "buffer_page_io", "counter", "An invalid buffer_page_io metric", 5)
+		AddRow("buffer_pool_pages_dirty", "buffer", "gauge", "Number of dirt buffer pool pages", 5).
+		AddRow("buffer_pool_pages_data", "buffer", "gauge", "Number of data buffer pool pages", 6).
+		AddRow("buffer_pool_pages_total", "buffer", "gauge", "Number of total buffer pool pages", 7).
+		AddRow("NOPE", "buffer_page_io", "counter", "An invalid buffer_page_io metric", 999)
 	mock.ExpectQuery(sanitizeQuery(infoSchemaInnodbMetricsQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -47,6 +50,8 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 		{labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"type": "system_page"}, value: 3, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"type": "undo_log"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 5, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "data"}, value: 6, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

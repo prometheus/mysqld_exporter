@@ -43,7 +43,7 @@ func ScrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 	if queryStats == 0 {
-		log.Debugln("query_response_time_stats is OFF.")
+		log.Debugln("MySQL @@query_response_time_stats is OFF.")
 		return nil
 	}
 

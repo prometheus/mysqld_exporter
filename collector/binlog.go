@@ -4,6 +4,8 @@ package collector
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -26,6 +28,11 @@ var (
 	binlogFilesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, binlog, "files"),
 		"Number of registered binlog files.",
+		[]string{}, nil,
+	)
+	binlogFileNumberDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, binlog, "file_number"),
+		"The last binlog file number.",
 		[]string{}, nil,
 	)
 )
@@ -70,6 +77,11 @@ func ScrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
 	)
 	ch <- prometheus.MustNewConstMetric(
 		binlogFilesDesc, prometheus.GaugeValue, float64(count),
+	)
+	// The last row contains the last binlog file number.
+	value, _ := strconv.ParseFloat(strings.Split(filename, ".")[1], 64)
+	ch <- prometheus.MustNewConstMetric(
+		binlogFileNumberDesc, prometheus.GaugeValue, value,
 	)
 
 	return nil

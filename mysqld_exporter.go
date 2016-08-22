@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/ini.v1"
@@ -27,14 +28,11 @@ var (
 		"web.listen-address", ":9104",
 		"Address to listen on for web interface and telemetry.",
 	)
-	metricPath = flag.String(
-		"web.telemetry-path", "/metrics",
-		"Path under which to expose metrics.",
-	)
 	configMycnf = flag.String(
 		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
 		"Path to .my.cnf file to read MySQL credentials from.",
 	)
+
 	slowLogFilter = flag.Bool(
 		"log_slow_filter", false,
 		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
@@ -44,7 +42,7 @@ var (
 		"Collect current thread state counts from the information_schema.processlist",
 	)
 	collectTableSchema = flag.Bool(
-		"collect.info_schema.tables", true,
+		"collect.info_schema.tables", false,
 		"Collect metrics from information_schema.tables",
 	)
 	collectInnodbTablespaces = flag.Bool(
@@ -56,15 +54,15 @@ var (
 		"Collect metrics from information_schema.innodb_metrics",
 	)
 	collectGlobalStatus = flag.Bool(
-		"collect.global_status", true,
+		"collect.global_status", false,
 		"Collect from SHOW GLOBAL STATUS",
 	)
 	collectGlobalVariables = flag.Bool(
-		"collect.global_variables", true,
+		"collect.global_variables", false,
 		"Collect from SHOW GLOBAL VARIABLES",
 	)
 	collectSlaveStatus = flag.Bool(
-		"collect.slave_status", true,
+		"collect.slave_status", false,
 		"Collect from SHOW SLAVE STATUS",
 	)
 	collectAutoIncrementColumns = flag.Bool(
@@ -109,17 +107,17 @@ var (
 		"If running with userstat=1, set to true to collect table statistics",
 	)
 	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
-		"Collect query response time distribution if query_response_time_stats is ON.")
+		"Collect query response time distribution if query_response_time_stats is ON.",
+	)
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
-		"Collect from SHOW ENGINE TOKUDB STATUS")
+		"Collect from SHOW ENGINE TOKUDB STATUS",
+	)
 )
 
 // Metric name parts.
 const (
 	// Namespace for all metrics.
 	namespace = "mysql"
-	// Subsystem(s).
-	exporter = "exporter"
 )
 
 // SQL Queries.
@@ -129,12 +127,13 @@ const (
 )
 
 // landingPage contains the HTML served at '/'.
-// TODO: Make this nicer and more informative.
 var landingPage = []byte(`<html>
-<head><title>MySQLd exporter</title></head>
+<head><title>MySQL 3-in-1 exporter</title></head>
 <body>
-<h1>MySQLd exporter</h1>
-<p><a href='` + *metricPath + `'>Metrics</a></p>
+<h1>MySQL 3-in-1 exporter</h1>
+<li><a href="/metrics-hr">high-res metrics</a></li>
+<li><a href="/metrics-mr">medium-res metrics</a></li>
+<li><a href="/metrics-lr">low-res metrics</a></li>
 </body>
 </html>
 `)
@@ -148,8 +147,23 @@ type Exporter struct {
 	mysqldUp        prometheus.Gauge
 }
 
+type ExporterMr struct {
+	dsn             string
+	duration, error prometheus.Gauge
+	totalScrapes    prometheus.Counter
+	scrapeErrors    *prometheus.CounterVec
+}
+
+type ExporterLr struct {
+	dsn             string
+	duration, error prometheus.Gauge
+	totalScrapes    prometheus.Counter
+	scrapeErrors    *prometheus.CounterVec
+}
+
 // NewExporter returns a new MySQL exporter for the provided DSN.
 func NewExporter(dsn string) *Exporter {
+	exporter := "exporter_hr"
 	return &Exporter{
 		dsn: dsn,
 		duration: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -184,19 +198,102 @@ func NewExporter(dsn string) *Exporter {
 	}
 }
 
+func NewExporterMr(dsn string) *ExporterMr {
+	exporter := "exporter_mr"
+	return &ExporterMr{
+		dsn: dsn,
+		duration: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "last_scrape_duration_seconds",
+			Help:      "Duration of the last scrape of metrics from MySQL.",
+		}),
+		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "scrapes_total",
+			Help:      "Total number of times MySQL was scraped for metrics.",
+		}),
+		scrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "scrape_errors_total",
+			Help:      "Total number of times an error occured scraping a MySQL.",
+		}, []string{"collector"}),
+		error: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "last_scrape_error",
+			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
+	}
+}
+
+func NewExporterLr(dsn string) *ExporterLr {
+	exporter := "exporter_lr"
+	return &ExporterLr{
+		dsn: dsn,
+		duration: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "last_scrape_duration_seconds",
+			Help:      "Duration of the last scrape of metrics from MySQL.",
+		}),
+		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "scrapes_total",
+			Help:      "Total number of times MySQL was scraped for metrics.",
+		}),
+		scrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "scrape_errors_total",
+			Help:      "Total number of times an error occured scraping a MySQL.",
+		}, []string{"collector"}),
+		error: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: exporter,
+			Name:      "last_scrape_error",
+			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
+	}
+}
+
 // Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	// We cannot know in advance what metrics the exporter will generate
-	// from MySQL. So we use the poor man's describe method: Run a collect
-	// and send the descriptors of all the collected metrics. The problem
-	// here is that we need to connect to the MySQL DB. If it is currently
-	// unavailable, the descriptors will be incomplete. Since this is a
-	// stand-alone exporter and not used as a library within other code
-	// implementing additional metrics, the worst that can happen is that we
-	// don't detect inconsistent metrics created by this exporter
-	// itself. Also, a change in the monitored MySQL instance may change the
-	// exported metrics during the runtime of the exporter.
+	metricCh := make(chan prometheus.Metric)
+	doneCh := make(chan struct{})
 
+	go func() {
+		for m := range metricCh {
+			ch <- m.Desc()
+		}
+		close(doneCh)
+	}()
+
+	e.Collect(metricCh)
+	close(metricCh)
+	<-doneCh
+}
+
+func (e *ExporterMr) Describe(ch chan<- *prometheus.Desc) {
+	metricCh := make(chan prometheus.Metric)
+	doneCh := make(chan struct{})
+
+	go func() {
+		for m := range metricCh {
+			ch <- m.Desc()
+		}
+		close(doneCh)
+	}()
+
+	e.Collect(metricCh)
+	close(metricCh)
+	<-doneCh
+}
+
+func (e *ExporterLr) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})
 
@@ -221,6 +318,24 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.error
 	e.scrapeErrors.Collect(ch)
 	ch <- e.mysqldUp
+}
+
+func (e *ExporterMr) Collect(ch chan<- prometheus.Metric) {
+	e.scrape(ch)
+
+	ch <- e.duration
+	ch <- e.totalScrapes
+	ch <- e.error
+	e.scrapeErrors.Collect(ch)
+}
+
+func (e *ExporterLr) Collect(ch chan<- prometheus.Metric) {
+	e.scrape(ch)
+
+	ch <- e.duration
+	ch <- e.totalScrapes
+	ch <- e.error
+	e.scrapeErrors.Collect(ch)
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
@@ -267,12 +382,42 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
-	if *collectGlobalVariables {
-		if err = collector.ScrapeGlobalVariables(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.global_variables:", err)
-			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
+	if *innodbMetrics {
+		if err = collector.ScrapeInnodbMetrics(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
+}
+
+func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
+	e.totalScrapes.Inc()
+	var err error
+	defer func(begun time.Time) {
+		e.duration.Set(time.Since(begun).Seconds())
+		if err == nil {
+			e.error.Set(0)
+		} else {
+			e.error.Set(1)
+		}
+	}(time.Now())
+
+	db, err := sql.Open("mysql", e.dsn)
+	if err != nil {
+		log.Errorln("Error opening connection to database:", err)
+		return
+	}
+	defer db.Close()
+
+	if *slowLogFilter {
+		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
+		if err != nil {
+			log.Errorln("Error setting log_slow_filter:", err)
+			return
+		}
+		sessionSettingsRows.Close()
+	}
+
 	if *collectSlaveStatus {
 		if err = collector.ScrapeSlaveStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.slave_status:", err)
@@ -285,22 +430,71 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
+	if *collectPerfEventsWaits {
+		if err = collector.ScrapePerfEventsWaits(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
+		}
+	}
+	if *collectPerfFileEvents {
+		if err = collector.ScrapePerfFileEvents(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
+		}
+	}
+	if *collectPerfTableLockWaits {
+		if err = collector.ScrapePerfTableLockWaits(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
+		}
+	}
+	if *collectQueryResponseTime {
+		if err = collector.ScrapeQueryResponseTime(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.query_response_time:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
+		}
+	}
+
+}
+
+func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
+	e.totalScrapes.Inc()
+	var err error
+	defer func(begun time.Time) {
+		e.duration.Set(time.Since(begun).Seconds())
+		if err == nil {
+			e.error.Set(0)
+		} else {
+			e.error.Set(1)
+		}
+	}(time.Now())
+
+	db, err := sql.Open("mysql", e.dsn)
+	if err != nil {
+		log.Errorln("Error opening connection to database:", err)
+		return
+	}
+	defer db.Close()
+
+	if *slowLogFilter {
+		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
+		if err != nil {
+			log.Errorln("Error setting log_slow_filter:", err)
+			return
+		}
+		sessionSettingsRows.Close()
+	}
+
+	if *collectGlobalVariables {
+		if err = collector.ScrapeGlobalVariables(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.global_variables:", err)
+			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
+		}
+	}
 	if *collectTableSchema {
 		if err = collector.ScrapeTableSchema(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.tables:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
-		}
-	}
-	if *collectInnodbTablespaces {
-		if err = collector.ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
-		}
-	}
-	if *innodbMetrics {
-		if err = collector.ScrapeInnodbMetrics(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
 		}
 	}
 	if *collectAutoIncrementColumns {
@@ -327,40 +521,10 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
 		}
 	}
-	if *collectPerfTableLockWaits {
-		if err = collector.ScrapePerfTableLockWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
-		}
-	}
-	if *collectPerfEventsStatements {
-		if err = collector.ScrapePerfEventsStatements(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
-		}
-	}
-	if *collectPerfEventsWaits {
-		if err = collector.ScrapePerfEventsWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
-		}
-	}
-	if *collectPerfFileEvents {
-		if err = collector.ScrapePerfFileEvents(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
-		}
-	}
 	if *collectUserStat {
 		if err = collector.ScrapeUserStat(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.userstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
-		}
-	}
-	if *collectClientStat {
-		if err = collector.ScrapeClientStat(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
 		}
 	}
 	if *collectTableStat {
@@ -369,10 +533,23 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
-	if *collectQueryResponseTime {
-		if err = collector.ScrapeQueryResponseTime(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.query_response_time:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
+
+	if *collectPerfEventsStatements {
+		if err = collector.ScrapePerfEventsStatements(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
+		}
+	}
+	if *collectClientStat {
+		if err = collector.ScrapeClientStat(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
+		}
+	}
+	if *collectInnodbTablespaces {
+		if err = collector.ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
 		}
 	}
 	if *collectEngineTokudbStatus {
@@ -429,10 +606,26 @@ func main() {
 		}
 	}
 
-	exporter := NewExporter(dsn)
-	prometheus.MustRegister(exporter)
+	var reg *prometheus.Registry
 
-	http.Handle(*metricPath, prometheus.Handler())
+	reg = prometheus.NewRegistry()
+	reg.MustRegister(NewExporter(dsn))
+	http.Handle("/metrics-hr", promhttp.HandlerFor(
+		reg, promhttp.HandlerOpts{},
+	))
+
+	reg = prometheus.NewRegistry()
+	reg.MustRegister(NewExporterMr(dsn))
+	http.Handle("/metrics-mr", promhttp.HandlerFor(
+		reg, promhttp.HandlerOpts{},
+	))
+
+	reg = prometheus.NewRegistry()
+	reg.MustRegister(NewExporterLr(dsn))
+	http.Handle("/metrics-lr", promhttp.HandlerFor(
+		reg, promhttp.HandlerOpts{},
+	))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})

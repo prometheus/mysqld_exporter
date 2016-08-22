@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/common/version"
 	"gopkg.in/ini.v1"
 
-	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/percona/mysqld_exporter/collector"
 )
 
 var (

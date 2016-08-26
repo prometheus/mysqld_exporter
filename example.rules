@@ -1,0 +1,99 @@
+###
+# Sample prometheus rules/alerts for mysqld.
+#
+# NOTE: Please review these carefully as thresholds and behavior may not meet
+#       your SLOs or labels.
+#
+
+###
+# Recording Rules
+
+# Record slave lag seconds for pre-computed timeseries that takes
+# `mysql_slave_status_sql_delay` into account
+mysql_slave_lag_seconds = mysql_slave_status_seconds_behind_master - mysql_slave_status_sql_delay
+
+
+###
+# Galera Alerts
+
+# Alert: Galera node is not "ready".
+ALERT MySQLGaleraNotReady
+  IF mysql_global_status_wsrep_ready != 1
+  FOR 5m
+  LABELS {
+    severity = "warning"
+  }
+  ANNOTATIONS {
+    summary = "Galera cluster node not ready",
+    description = "{{$labels.job}} on {{$labels.instance}} is not ready.",
+  }
+
+# Alert: Galera node state is not synced.
+ALERT MySQLGaleraOutOfSync
+  IF (mysql_global_status_wsrep_local_state != 4 AND mysql_global_variables_wsrep_desync == 0)
+  FOR 5m
+  LABELS {
+    severity = "warning"
+  }
+  ANNOTATIONS {
+    summary = "Galera cluster node out of sync",
+    description = "{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}} != 4).",
+  }
+
+# Alert: Galera node is in "doner" state, and is behind applying transactions.
+ALERT MySQLGaleraDonorFallingBehind
+  IF (mysql_global_status_wsrep_local_state == 2 AND mysql_global_status_wsrep_local_recv_queue > 100)
+  FOR 5m
+  LABELS {
+    severity = "warning"
+  }
+  ANNOTATIONS {
+    summary = "xtradb cluster donor node falling behind",
+    description = "{{$labels.job}} on {{$labels.instance}} is a donor (hotbackup) and is falling behind (queue size {{$value}}).",
+  }
+
+
+###
+# Replication Alerts
+
+# Alert: The replication IO or SQL threads are stopped.
+ALERT MySQLReplicationNotRunning
+  IF mysql_slave_status_slave_io_running == 0 OR mysql_slave_status_slave_sql_running == 0
+  FOR 2m
+  LABELS {
+    severity = "critical"
+  }
+  ANNOTATIONS {
+    summary = "Slave replication is not running",
+    description = "Slave replication (IO or SQL) has been down for more than 2 minutes.",
+  }
+
+# Alert: The replicaiton lag is non-zero and it predicted to not recover within
+#        2 minutes.  This allows for a small amount of replication lag.
+ALERT MySQLReplicationLag
+  IF
+      (mysql_slave_lag_seconds > 30)
+    AND on (instance)
+      (predict_linear(mysql_slave_lag_seconds[5m], 60*2) > 0)
+  FOR 1m
+  LABELS {
+    severity = "critical"
+  }
+  ANNOTATIONS {
+    summary = "MySQL slave replication is lagging",
+    description = "The mysql slave replication has fallen behind and is not recovering",
+  }
+
+###
+# Performance Alerts
+
+# Alert: InnoDB log writes are stalling.
+ALERT MySQLInnoDBLogWaits
+  IF rate(mysql_global_status_innodb_log_waits[15m]) > 10
+  LABELS {
+    severity = "warning"
+  }
+  ANNOTATIONS {
+    summary = "MySQL innodb log writes stalling",
+    description = "The innodb logs are waiting for disk at a rate of {{$value}} / second",
+  }

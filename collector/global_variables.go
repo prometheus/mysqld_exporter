@@ -26,10 +26,11 @@ func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var key string
 	var val sql.RawBytes
-	var mysqlVersion = map[string]string{
-		"innodb_version":  "",
-		"version":         "",
-		"version_comment": "",
+	var textItems = map[string]string{
+		"innodb_version":     "",
+		"version":            "",
+		"version_comment":    "",
+		"wsrep_cluster_name": "",
 	}
 
 	for globalVariablesRows.Next() {
@@ -44,15 +45,26 @@ func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 				floatVal,
 			)
 			continue
-		} else if _, ok := mysqlVersion[key]; ok {
-			mysqlVersion[key] = string(val)
+		} else if _, ok := textItems[key]; ok {
+			textItems[key] = string(val)
 		}
 	}
-	// Create mysql_version_info metric
+
+	// mysql_version_info metric.
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(prometheus.BuildFQName(namespace, "version", "info"), "MySQL version and distribution.",
 			[]string{"innodb_version", "version", "version_comment"}, nil),
-		prometheus.GaugeValue, 1, mysqlVersion["innodb_version"], mysqlVersion["version"], mysqlVersion["version_comment"],
+		prometheus.GaugeValue, 1, textItems["innodb_version"], textItems["version"], textItems["version_comment"],
 	)
+
+	// mysql_galera_variables_info metric.
+	if textItems["wsrep_cluster_name"] != "" {
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, "galera", "variables_info"), "PXC/Galera variables information.",
+				[]string{"wsrep_cluster_name"}, nil),
+			prometheus.GaugeValue, 1, textItems["wsrep_cluster_name"],
+		)
+	}
+
 	return nil
 }

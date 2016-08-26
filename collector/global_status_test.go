@@ -29,7 +29,10 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		AddRow("Performance_schema_users_lost", "9").
 		AddRow("Slave_running", "OFF").
 		AddRow("Ssl_version", "").
-		AddRow("Uptime", "10")
+		AddRow("Uptime", "10").
+		AddRow("wsrep_local_state_uuid", "6c06e583-686f-11e6-b9e3-8336ad58138c").
+		AddRow("wsrep_cluster_state_uuid", "6c06e583-686f-11e6-b9e3-8336ad58138c").
+		AddRow("wsrep_provider_version", "3.16(r5c765eb)")
 	mock.ExpectQuery(sanitizeQuery(globalStatusQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -52,6 +55,7 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{"instrumentation": "users_lost"}, value: 9, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{}, value: 10, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"wsrep_local_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_cluster_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_provider_version": "3.16(r5c765eb)"}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

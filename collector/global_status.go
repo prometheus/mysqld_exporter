@@ -68,6 +68,11 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	var key string
 	var val sql.RawBytes
+	var textItems = map[string]string{
+		"wsrep_local_state_uuid":   "",
+		"wsrep_cluster_state_uuid": "",
+		"wsrep_provider_version":   "",
+	}
 
 	for globalStatusRows.Next() {
 		if err := globalStatusRows.Scan(&key, &val); err != nil {
@@ -117,7 +122,19 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 					globalPerformanceSchemaLostDesc, prometheus.CounterValue, floatVal, match[2],
 				)
 			}
+		} else if _, ok := textItems[key]; ok {
+			textItems[key] = string(val)
 		}
 	}
+
+	// mysql_galera_variables_info metric.
+	if textItems["wsrep_local_state_uuid"] != "" {
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, "galera", "status_info"), "PXC/Galera status information.",
+				[]string{"wsrep_local_state_uuid", "wsrep_cluster_state_uuid", "wsrep_provider_version"}, nil),
+			prometheus.GaugeValue, 1, textItems["wsrep_local_state_uuid"], textItems["wsrep_cluster_state_uuid"], textItems["wsrep_provider_version"],
+		)
+	}
+
 	return nil
 }

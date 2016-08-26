@@ -93,6 +93,9 @@ docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
         -e DATA_SOURCE_NAME="user:password@(bdd:3306)/database" prom/mysqld-exporter
 ```
 
+## Example Rules
+
+There are some sample rules available in [example.rules](example.rules)
 
 [circleci]: https://circleci.com/gh/prometheus/mysqld_exporter
 [hub]: https://hub.docker.com/r/prom/mysqld-exporter/

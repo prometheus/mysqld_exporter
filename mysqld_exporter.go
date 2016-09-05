@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -124,6 +126,7 @@ const (
 const (
 	sessionSettingsQuery = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
 	upQuery              = `SELECT 1`
+	versionQuery         = `SELECT @@version`
 )
 
 // landingPage contains the HTML served at '/'.
@@ -367,6 +370,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	e.mysqldUp.Set(1)
 
+	version := getMySQLVersion(db)
+
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
@@ -382,7 +387,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
-	if *innodbMetrics {
+	if *innodbMetrics && version >= 5.6 {
 		if err = collector.ScrapeInnodbMetrics(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
@@ -409,6 +414,8 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
+	version := getMySQLVersion(db)
+
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
@@ -430,25 +437,25 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
-	if *collectPerfEventsWaits {
+	if *collectPerfEventsWaits && version >= 5.5 {
 		if err = collector.ScrapePerfEventsWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
 		}
 	}
-	if *collectPerfFileEvents {
+	if *collectPerfFileEvents && version >= 5.6 {
 		if err = collector.ScrapePerfFileEvents(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
 		}
 	}
-	if *collectPerfTableLockWaits {
+	if *collectPerfTableLockWaits && version >= 5.6 {
 		if err = collector.ScrapePerfTableLockWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
 		}
 	}
-	if *collectQueryResponseTime {
+	if *collectQueryResponseTime && version >= 5.5 {
 		if err = collector.ScrapeQueryResponseTime(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.query_response_time:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
@@ -475,6 +482,8 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	defer db.Close()
+
+	version := getMySQLVersion(db)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
@@ -509,13 +518,13 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
 	}
-	if *collectPerfTableIOWaits {
+	if *collectPerfTableIOWaits && version >= 5.6 {
 		if err = collector.ScrapePerfTableIOWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.tableiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
 		}
 	}
-	if *collectPerfIndexIOWaits {
+	if *collectPerfIndexIOWaits && version >= 5.6 {
 		if err = collector.ScrapePerfIndexIOWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.indexiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
@@ -533,26 +542,25 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
-
-	if *collectPerfEventsStatements {
+	if *collectPerfEventsStatements && version >= 5.6 {
 		if err = collector.ScrapePerfEventsStatements(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
 		}
 	}
-	if *collectClientStat {
+	if *collectClientStat && version >= 5.5 {
 		if err = collector.ScrapeClientStat(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
 		}
 	}
-	if *collectInnodbTablespaces {
+	if *collectInnodbTablespaces && version >= 5.7 {
 		if err = collector.ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
 		}
 	}
-	if *collectEngineTokudbStatus {
+	if *collectEngineTokudbStatus && version >= 5.7 {
 		if err = collector.ScrapeEngineTokudbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_tokudb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
@@ -581,6 +589,23 @@ func parseMycnf(config interface{}) (string, error) {
 	}
 	log.Debugln(dsn)
 	return dsn, nil
+}
+
+func getMySQLVersion(db *sql.DB) float64 {
+	var (
+		versionStr string
+		version    float64
+	)
+	err := db.QueryRow(versionQuery).Scan(&versionStr)
+	if err == nil {
+		r, _ := regexp.Compile(`^\d+\.\d+`)
+		version, _ = strconv.ParseFloat(r.FindString(versionStr), 64)
+	}
+	// In case, we can't match/parse the version, let's set it to something big to it matches all the versions.
+	if version == 0 {
+		version = 999
+	}
+	return version
 }
 
 func init() {

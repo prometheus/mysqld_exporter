@@ -39,6 +39,7 @@ Name                                                   | MySQL Version | Descrip
 -------------------------------------------------------|---------------|------------------------------------------------------------------------------------
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
 collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
+collect.engine_innodb_status                           | 5.1           | Collect from SHOW ENGINE INNODB STATUS.
 collect.engine_tokudb_status                           | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                  | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
 collect.global_variables                               | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)

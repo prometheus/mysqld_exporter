@@ -109,9 +109,14 @@ var (
 		"If running with userstat=1, set to true to collect table statistics",
 	)
 	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
-		"Collect query response time distribution if query_response_time_stats is ON.")
+		"Collect query response time distribution if query_response_time_stats is ON.",
+	)
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
-		"Collect from SHOW ENGINE TOKUDB STATUS")
+		"Collect from SHOW ENGINE TOKUDB STATUS",
+	)
+	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
+		"Collect from SHOW ENGINE INNODB STATUS",
+	)
 )
 
 // Metric name parts.
@@ -379,6 +384,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapeEngineTokudbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_tokudb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
+		}
+	}
+	if *collectEngineInnodbStatus {
+		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
+			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
 		}
 	}
 }

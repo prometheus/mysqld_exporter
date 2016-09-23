@@ -114,6 +114,9 @@ var (
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	)
+	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
+		"Collect from SHOW ENGINE INNODB STATUS",
+	)
 )
 
 // Metric name parts.
@@ -461,7 +464,12 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
 	}
-
+	if *collectEngineInnodbStatus && version >= 5.1 {
+		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
+			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
+		}
+	}
 }
 
 func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {

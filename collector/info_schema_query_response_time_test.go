@@ -33,7 +33,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 		AddRow(100000.000000, 0, 0.000000).
 		AddRow(1000000.000000, 0, 0.000000).
 		AddRow("TOO LONG", 0, "TOO LONG")
-	mock.ExpectQuery(sanitizeQuery(queryResponseTimeQuery)).WillReturnRows(rows)
+	mock.ExpectQuery(sanitizeQuery(queryResponseTimeQueries[0])).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
@@ -83,7 +83,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 		100000: 4528,
 		1e+06:  4528,
 	}
-	expectHistogram := prometheus.MustNewConstHistogram(infoSchemaQueryResponseTimeCountDesc,
+	expectHistogram := prometheus.MustNewConstHistogram(infoSchemaQueryResponseTimeCountDescs[0],
 		4528, 1.5773549999999998, expectCounts)
 	expectPb := &dto.Metric{}
 	expectHistogram.Write(expectPb)

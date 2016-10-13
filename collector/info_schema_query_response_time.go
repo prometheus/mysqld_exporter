@@ -4,7 +4,6 @@ package collector
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -25,36 +24,19 @@ var (
 
 	infoSchemaQueryResponseTimeCountDescs = [3]*prometheus.Desc{
 		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_count"),
+			prometheus.BuildFQName(namespace, informationSchema, "query_response_time"),
 			"The number of all queries by duration they took to execute.",
 			[]string{}, nil,
 		),
 		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_read_count"),
+			prometheus.BuildFQName(namespace, informationSchema, "read_query_response_time"),
 			"The number of read queries by duration they took to execute.",
 			[]string{}, nil,
 		),
 		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_write_count"),
+			prometheus.BuildFQName(namespace, informationSchema, "write_query_response_time"),
 			"The number of write queries by duration they took to execute.",
 			[]string{}, nil,
-		),
-	}
-	infoSchemaQueryResponseTimeTotalDescs = [3]*prometheus.Desc{
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_total"),
-			"Total time of all queries by duration they took to execute.",
-			[]string{"le"}, nil,
-		),
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_read_total"),
-			"Total time of read queries by duration they took to execute.",
-			[]string{"le"}, nil,
-		),
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_write_total"),
-			"Total time of write queries by duration they took to execute.",
-			[]string{"le"}, nil,
 		),
 	}
 )
@@ -95,16 +77,7 @@ func processQueryResponseTimeTable(db *sql.DB, ch chan<- prometheus.Metric, quer
 			continue
 		}
 		countBuckets[length] = histogramCnt
-		// No histogram with query total times because they are float
-		ch <- prometheus.MustNewConstMetric(
-			infoSchemaQueryResponseTimeTotalDescs[i], prometheus.CounterValue, histogramSum,
-			fmt.Sprintf("%v", length),
-		)
 	}
-	ch <- prometheus.MustNewConstMetric(
-		infoSchemaQueryResponseTimeTotalDescs[i], prometheus.CounterValue, histogramSum,
-		"+Inf",
-	)
 	// Create histogram with query counts
 	ch <- prometheus.MustNewConstHistogram(
 		infoSchemaQueryResponseTimeCountDescs[i], histogramCnt, histogramSum, countBuckets,
@@ -127,7 +100,7 @@ func ScrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 	for i, query := range queryResponseTimeQueries {
 		err := processQueryResponseTimeTable(db, ch, query, i)
 		// The first query should not fail if query_response_time_stats is ON,
-		// unlike the other two when the tables exist only with Percona Server.
+		// unlike the other two when the read/write tables exist only with Percona Server 5.6/5.7.
 		if i == 0 && err != nil {
 			return err
 		}

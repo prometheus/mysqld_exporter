@@ -43,30 +43,6 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 		close(ch)
 	}()
 
-	// Test counters
-	expectTimes := []MetricResult{
-		{labels: labelMap{"le": "1e-06"}, value: 0},
-		{labels: labelMap{"le": "1e-05"}, value: 0.000797},
-		{labels: labelMap{"le": "0.0001"}, value: 0.108118},
-		{labels: labelMap{"le": "0.001"}, value: 0.443513},
-		{labels: labelMap{"le": "0.01"}, value: 0.9657769999999999},
-		{labels: labelMap{"le": "0.1"}, value: 1.3099859999999999},
-		{labels: labelMap{"le": "1"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "10"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "100"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "1000"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "10000"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "100000"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "1e+06"}, value: 1.5773549999999998},
-		{labels: labelMap{"le": "+Inf"}, value: 1.5773549999999998},
-	}
-	convey.Convey("Metrics comparison", t, func() {
-		for _, expect := range expectTimes {
-			got := readMetric(<-ch)
-			convey.So(expect, convey.ShouldResemble, got)
-		}
-	})
-
 	// Test histogram
 	expectCounts := map[float64]uint64{
 		1e-06:  124,

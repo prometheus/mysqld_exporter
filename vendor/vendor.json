@@ -3,21 +3,25 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "QCAKzv0affIi7mlcGqPR8S3w6s0=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "219c8cb75c258c552e999735be6df753ffc7afdc",
 			"revisionTime": "2016-02-24T16:10:30-05:00"
 		},
 		{
+			"checksumSHA1": "4QnLdmB1kG3N+KlDd1N+G9TWAGQ=",
 			"path": "github.com/beorn7/perks/quantile",
 			"revision": "b965b613227fddccbfffe13eae360ed3fa822f8d",
 			"revisionTime": "2015-02-23T14:51:52+01:00"
 		},
 		{
+			"checksumSHA1": "qhV9cqS2iEvZW5IAICEgk81Vb+s=",
 			"path": "github.com/go-sql-driver/mysql",
 			"revision": "71f003c6e927d2550713e7637affb769977ece78",
 			"revisionTime": "2016-02-24T11:20:26+01:00"
 		},
 		{
+			"checksumSHA1": "Ph3AzJaMHZxUdyqWL+Lx3CufxRw=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "552c7b9542c194800fd493123b3798ef0a832032",
 			"revisionTime": "2016-02-26T12:45:00+11:00"
@@ -29,6 +33,7 @@
 			"revisionTime": "2016-01-05T22:08:40Z"
 		},
 		{
+			"checksumSHA1": "Q2vw4HZBbnU8BLFt8VrzStwqSJg=",
 			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"revision": "d0c3fe89de86839aecf2e0579c40ba3bb336a453",
 			"revisionTime": "2015-10-11T12:25:29+02:00"
@@ -46,26 +51,31 @@
 			"revisionTime": "2016-08-15T11:47:46Z"
 		},
 		{
+			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",
 			"path": "github.com/prometheus/client_model/go",
 			"revision": "fa8ad6fec33561be4280a8f0514318c79d7f6cb6",
 			"revisionTime": "2015-02-12T10:17:44Z"
 		},
 		{
+			"checksumSHA1": "Zsc9IQzQDkOzqiAITqxEm0JXdws=",
 			"path": "github.com/prometheus/common/expfmt",
 			"revision": "23070236b1ebff452f494ae831569545c2b61d26",
 			"revisionTime": "2016-02-11T16:03:55+01:00"
 		},
 		{
+			"checksumSHA1": "GWlM3d2vPYyNATtTFgftS10/A9w=",
 			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
 			"revision": "23070236b1ebff452f494ae831569545c2b61d26",
 			"revisionTime": "2016-02-11T16:03:55+01:00"
 		},
 		{
+			"checksumSHA1": "koBNYQryxAG8hyHBlpn8pcnSVdM=",
 			"path": "github.com/prometheus/common/log",
 			"revision": "23070236b1ebff452f494ae831569545c2b61d26",
 			"revisionTime": "2016-02-11T16:03:55+01:00"
 		},
 		{
+			"checksumSHA1": "ItCsU2tsKlvNqlUZH30Df8byZTw=",
 			"path": "github.com/prometheus/common/model",
 			"revision": "23070236b1ebff452f494ae831569545c2b61d26",
 			"revisionTime": "2016-02-11T16:03:55+01:00"
@@ -77,6 +87,7 @@
 			"revisionTime": "2016-05-03T22:05:32Z"
 		},
 		{
+			"checksumSHA1": "kO2MAzPuortudABaRd7fY+7EaoM=",
 			"path": "github.com/prometheus/procfs",
 			"revision": "406e5b7bfd8201a36e2bb5f7bdae0b03380c2ce8",
 			"revisionTime": "2015-10-29T15:50:50-04:00"
@@ -118,20 +129,23 @@
 			"revisionTime": "2016-04-08T04:14:08Z"
 		},
 		{
+			"checksumSHA1": "HaylhE+ZhMoB6+4yAsvogKvXUrM=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "19ced1583f732e8ff9d7d84de773dc621557df99",
 			"revisionTime": "2015-11-16T22:15:20-05:00"
 		},
 		{
+			"checksumSHA1": "Y35MHhSfkpeVLQuiVQggArnXpQI=",
 			"path": "gopkg.in/DATA-DOG/go-sqlmock.v1",
 			"revision": "9958e5c69de03e97ec215b23f6fcae1f600c3fb6",
 			"revisionTime": "2016-02-26T19:13:42Z"
 		},
 		{
+			"checksumSHA1": "hlEUH5mPHmp0zoyZqxxVTQ2+FwE=",
 			"path": "gopkg.in/ini.v1",
 			"revision": "776aa739ce9373377cd16f526cdf06cb4c89b40f",
 			"revisionTime": "2016-02-22T18:24:41-05:00"
 		}
 	],
-	"rootPath": "github.com/prometheus/mysqld_exporter"
+	"rootPath": "github.com/percona/mysqld_exporter"
 }

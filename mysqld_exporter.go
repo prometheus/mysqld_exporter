@@ -368,7 +368,6 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	e.mysqldUp.Set(1)
-
 	version := getMySQLVersion(db)
 
 	if *slowLogFilter {
@@ -413,6 +412,10 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
+	if err = db.Ping(); err != nil {
+		log.Errorln("Error pinging mysqld:", err)
+		return
+	}
 	version := getMySQLVersion(db)
 
 	if *slowLogFilter {
@@ -487,6 +490,10 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
+	if err = db.Ping(); err != nil {
+		log.Errorln("Error pinging mysqld:", err)
+		return
+	}
 	version := getMySQLVersion(db)
 
 	if *slowLogFilter {

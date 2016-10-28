@@ -128,7 +128,6 @@ const (
 // SQL Queries.
 const (
 	sessionSettingsQuery = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	upQuery              = `SELECT 1`
 	versionQuery         = `SELECT @@version`
 )
 
@@ -363,14 +362,11 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
-	isUpRows, err := db.Query(upQuery)
-	if err != nil {
+	if err = db.Ping(); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.mysqldUp.Set(0)
 		return
 	}
-	isUpRows.Close()
-
 	e.mysqldUp.Set(1)
 
 	version := getMySQLVersion(db)
@@ -464,7 +460,7 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
 	}
-	if *collectEngineInnodbStatus && version >= 5.1 {
+	if *collectEngineInnodbStatus {
 		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()

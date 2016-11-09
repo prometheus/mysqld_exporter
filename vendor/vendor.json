@@ -25,9 +25,10 @@
 			"revisionTime": "2016-11-09T07:18:33Z"
 		},
 		{
+			"checksumSHA1": "oJGkod8y/3GTbKfazzQM+nQOPR0=",
 			"path": "github.com/golang/protobuf/proto",
-			"revision": "552c7b9542c194800fd493123b3798ef0a832032",
-			"revisionTime": "2016-02-26T12:45:00+11:00"
+			"revision": "4bd1920723d7b7c925de087aa32e2187708897f7",
+			"revisionTime": "2016-11-09T07:27:36Z"
 		},
 		{
 			"checksumSHA1": "tewA7jXVGCw1zb5mA0BDecWi4iQ=",

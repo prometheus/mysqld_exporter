@@ -3,6 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
+			"path": "appengine/cloudsql",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "yRNw/uu/4N7XHVe1PHtKPl6xtDg=",
 			"path": "github.com/Sirupsen/logrus",
 			"revision": "1445b7a38228c041834afc69231b7966b9943397",
@@ -15,9 +19,10 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
+			"checksumSHA1": "B4ms07W5j46/O57fJwGPpFcgM1I=",
 			"path": "github.com/go-sql-driver/mysql",
-			"revision": "71f003c6e927d2550713e7637affb769977ece78",
-			"revisionTime": "2016-02-24T11:20:26+01:00"
+			"revision": "8f6c67f0228a4a6a962008d6c3d1e694e4532e71",
+			"revisionTime": "2016-11-09T07:18:33Z"
 		},
 		{
 			"path": "github.com/golang/protobuf/proto",

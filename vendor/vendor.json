@@ -97,40 +97,40 @@
 			"revisionTime": "2016-04-11T19:08:41Z"
 		},
 		{
-			"checksumSHA1": "6AYg4fjEvFuAVN3wHakGApjhZAM=",
+			"checksumSHA1": "BJVAhjaIKUqfwo62NFHXhtSWbdY=",
 			"path": "github.com/smartystreets/assertions",
-			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
-			"revisionTime": "2016-04-22T19:53:51Z"
+			"revision": "cc1e98f7d3caee8feedb0468525b80a59556d6e5",
+			"revisionTime": "2016-11-08T18:24:08Z"
 		},
 		{
 			"checksumSHA1": "Vzb+dEH/LTYbvr8RXHmt6xJHz04=",
 			"path": "github.com/smartystreets/assertions/internal/go-render/render",
-			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
-			"revisionTime": "2016-04-22T19:53:51Z"
+			"revision": "cc1e98f7d3caee8feedb0468525b80a59556d6e5",
+			"revisionTime": "2016-11-08T18:24:08Z"
 		},
 		{
-			"checksumSHA1": "SLC6TfV4icQA9l8YJQu8acJYbuo=",
+			"checksumSHA1": "dSZQzhiGN0tEILHxUZcrFFNW2Xw=",
 			"path": "github.com/smartystreets/assertions/internal/oglematchers",
-			"revision": "40711f7748186bbf9c99977cd89f21ce1a229447",
-			"revisionTime": "2016-04-22T19:53:51Z"
+			"revision": "cc1e98f7d3caee8feedb0468525b80a59556d6e5",
+			"revisionTime": "2016-11-08T18:24:08Z"
 		},
 		{
 			"checksumSHA1": "/mwAihy9AmznMzmbPQ5nWJXBiRU=",
 			"path": "github.com/smartystreets/goconvey/convey",
-			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
-			"revisionTime": "2016-04-08T04:14:08Z"
+			"revision": "019319c870f8f1d61dc9c34291abff5cd128b6e8",
+			"revisionTime": "2016-11-03T17:15:00Z"
 		},
 		{
 			"checksumSHA1": "9LakndErFi5uCXtY1KWl0iRnT4c=",
 			"path": "github.com/smartystreets/goconvey/convey/gotest",
-			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
-			"revisionTime": "2016-04-08T04:14:08Z"
+			"revision": "019319c870f8f1d61dc9c34291abff5cd128b6e8",
+			"revisionTime": "2016-11-03T17:15:00Z"
 		},
 		{
 			"checksumSHA1": "FWDhk37bhAwZ2363D/L2xePwR64=",
 			"path": "github.com/smartystreets/goconvey/convey/reporting",
-			"revision": "cc5d85f4f15bd2163abf0fe6e6753356dde72aa2",
-			"revisionTime": "2016-04-08T04:14:08Z"
+			"revision": "019319c870f8f1d61dc9c34291abff5cd128b6e8",
+			"revisionTime": "2016-11-03T17:15:00Z"
 		},
 		{
 			"path": "golang.org/x/sys/unix",

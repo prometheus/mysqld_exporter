@@ -43,6 +43,8 @@ func (s *Section) Name() string {
 func (s *Section) NewKey(name, val string) (*Key, error) {
 	if len(name) == 0 {
 		return nil, errors.New("error creating new key: empty key name")
+	} else if s.f.options.Insensitive {
+		name = strings.ToLower(name)
 	}
 
 	if s.f.BlockMode {
@@ -56,7 +58,11 @@ func (s *Section) NewKey(name, val string) (*Key, error) {
 	}
 
 	s.keyList = append(s.keyList, name)
-	s.keys[name] = &Key{s, "", name, val, false}
+	s.keys[name] = &Key{
+		s:     s,
+		name:  name,
+		value: val,
+	}
 	s.keysHash[name] = val
 	return s.keys[name], nil
 }
@@ -66,6 +72,9 @@ func (s *Section) GetKey(name string) (*Key, error) {
 	// FIXME: change to section level lock?
 	if s.f.BlockMode {
 		s.f.lock.RLock()
+	}
+	if s.f.options.Insensitive {
+		name = strings.ToLower(name)
 	}
 	key := s.keys[name]
 	if s.f.BlockMode {
@@ -137,6 +146,26 @@ func (s *Section) Keys() []*Key {
 		keys[i] = s.Key(s.keyList[i])
 	}
 	return keys
+}
+
+// ParentKeys returns list of keys of parent section.
+func (s *Section) ParentKeys() []*Key {
+	var parentKeys []*Key
+	sname := s.name
+	for {
+		if i := strings.LastIndex(sname, "."); i > -1 {
+			sname = sname[:i]
+			sec, err := s.f.GetSection(sname)
+			if err != nil {
+				continue
+			}
+			parentKeys = append(parentKeys, sec.Keys()...)
+		} else {
+			break
+		}
+
+	}
+	return parentKeys
 }
 
 // KeyStrings returns list of key names of section.

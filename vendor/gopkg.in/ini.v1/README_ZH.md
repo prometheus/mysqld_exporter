@@ -63,6 +63,42 @@ cfg, err := ini.LooseLoad("filename", "filename_404")
 
 更牛逼的是，当那些之前不存在的文件在重新调用 `Reload` 方法的时候突然出现了，那么它们会被正常加载。
 
+#### 忽略键名的大小写
+
+有时候分区和键的名称大小写混合非常烦人，这个时候就可以通过 `InsensitiveLoad` 将所有分区和键名在读取里强制转换为小写：
+
+```go
+cfg, err := ini.InsensitiveLoad("filename")
+//...
+
+// sec1 和 sec2 指向同一个分区对象
+sec1, err := cfg.GetSection("Section")
+sec2, err := cfg.GetSection("SecTIOn")
+
+// key1 和 key2 指向同一个键对象
+key1, err := cfg.GetKey("Key")
+key2, err := cfg.GetKey("KeY")
+```
+
+#### 类似 MySQL 配置中的布尔值键
+
+MySQL 的配置文件中会出现没有具体值的布尔类型的键：
+
+```ini
+[mysqld]
+...
+skip-host-cache
+skip-name-resolve
+```
+
+默认情况下这被认为是缺失值而无法完成解析，但可以通过高级的加载选项对它们进行处理：
+
+```go
+cfg, err := LoadSources(LoadOptions{AllowBooleanKeys: true}, "my.cnf"))
+```
+
+这些键的值永远为 `true`，且在保存到文件时也只会输出键名。
+
 ### 操作分区（Section）
 
 获取指定分区：
@@ -134,7 +170,7 @@ names := cfg.Section("").KeyStrings()
 获取分区下的所有键值对的克隆：
 
 ```go
-hash := cfg.GetSection("").KeysHash()
+hash := cfg.Section("").KeysHash()
 ```
 
 ### 操作键值（Value）
@@ -246,6 +282,16 @@ lots_of_lines = 1 \
 cfg.Section("advance").Key("two_lines").String() // how about continuation lines?
 cfg.Section("advance").Key("lots_of_lines").String() // 1 2 3 4
 ```
+
+可是我有时候觉得两行连在一起特别没劲，怎么才能不自动连接两行呢？
+
+```go
+cfg, err := ini.LoadSources(ini.LoadOptions{
+	IgnoreContinuation: true,
+}, "filename")
+```
+
+哇靠给力啊！
 
 需要注意的是，值两侧的单引号会被自动剔除：
 
@@ -388,6 +434,12 @@ CLONE_URL = https://%(IMPORT_PATH)s
 cfg.Section("package.sub").Key("CLONE_URL").String()	// https://gopkg.in/ini.v1
 ```
 
+#### 获取上级父分区下的所有键名
+
+```go
+cfg.Section("package.sub").ParentKeys() // ["CLONE_URL"]
+```
+
 #### 读取自增键名
 
 如果数据源中的键名为 `-`，则认为该键使用了自增键名的特殊语法。计数器从 1 开始，并且分区之间是相互独立的。
@@ -470,8 +522,8 @@ p := &Person{
 ```go
 type Embeded struct {
 	Dates  []time.Time `delim:"|"`
-	Places []string
-	None   []int
+	Places []string    `ini:"places,omitempty"`
+	None   []int       `ini:",omitempty"`
 }
 
 type Author struct {
@@ -506,8 +558,7 @@ GPA = 2.8
 
 [Embeded]
 Dates = 2015-08-07T22:14:22+08:00|2015-08-07T22:14:22+08:00
-Places = HangZhou,Boston
-None =
+places = HangZhou,Boston
 ```
 
 #### 名称映射器（Name Mapper）
@@ -540,6 +591,26 @@ func main() {
 ```
 
 使用函数 `ini.ReflectFromWithMapper` 时也可应用相同的规则。
+
+#### 值映射器（Value Mapper）
+
+值映射器允许使用一个自定义函数自动展开值的具体内容，例如：运行时获取环境变量：
+
+```go
+type Env struct {
+	Foo string `ini:"foo"`
+}
+
+func main() {
+	cfg, err := ini.Load([]byte("[env]\nfoo = ${MY_VAR}\n")
+	cfg.ValueMapper = os.ExpandEnv
+	// ...
+	env := &Env{}
+	err = cfg.Section("env").MapTo(env)
+}
+```
+
+本例中，`env.Foo` 将会是运行时所获取到环境变量 `MY_VAR` 的值。
 
 #### 映射/反射的其它说明
 

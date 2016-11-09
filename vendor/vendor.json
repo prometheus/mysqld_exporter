@@ -133,9 +133,10 @@
 			"revisionTime": "2016-11-03T17:15:00Z"
 		},
 		{
+			"checksumSHA1": "2e4afOQfHP7YB4P68v6SlnAVJDk=",
 			"path": "golang.org/x/sys/unix",
-			"revision": "19ced1583f732e8ff9d7d84de773dc621557df99",
-			"revisionTime": "2015-11-16T22:15:20-05:00"
+			"revision": "9a2e24c3733eddc63871eda99f253e2db29bd3b9",
+			"revisionTime": "2016-11-08T14:26:43Z"
 		},
 		{
 			"checksumSHA1": "fpW2dhGFC6SrVzipJx7fjg2DIH8=",

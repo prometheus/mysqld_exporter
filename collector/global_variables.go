@@ -4,6 +4,8 @@ package collector
 
 import (
 	"database/sql"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,10 +29,11 @@ func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var key string
 	var val sql.RawBytes
 	var textItems = map[string]string{
-		"innodb_version":     "",
-		"version":            "",
-		"version_comment":    "",
-		"wsrep_cluster_name": "",
+		"innodb_version":         "",
+		"version":                "",
+		"version_comment":        "",
+		"wsrep_cluster_name":     "",
+		"wsrep_provider_options": "",
 	}
 
 	for globalVariablesRows.Next() {
@@ -66,5 +69,34 @@ func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 		)
 	}
 
+	// mysql_galera_variables_gcache_size_bytes metric.
+	if textItems["wsrep_provider_options"] != "" {
+		ch <- prometheus.MustNewConstMetric(
+			newDesc(namespace, "galera_variables_gcache_size_bytes", "PXC/Galera gcache size."),
+			prometheus.GaugeValue,
+			parseWsrepProviderOptions(textItems["wsrep_provider_options"]),
+		)
+	}
+
 	return nil
+}
+
+// parseWsrepProviderOptions parse wsrep_provider_options to get gcache.size in bytes.
+func parseWsrepProviderOptions(opts string) float64 {
+	var val float64
+	r, _ := regexp.Compile(`gcache.size = (\d+)([MG]?);`)
+	data := r.FindStringSubmatch(opts)
+	if data == nil {
+		return 0
+	}
+
+	val, _ = strconv.ParseFloat(data[1], 64)
+	switch data[2] {
+	case "M":
+		val = val * 1024 * 1024
+	case "G":
+		val = val * 1024 * 1024 * 1024
+	}
+
+	return val
 }

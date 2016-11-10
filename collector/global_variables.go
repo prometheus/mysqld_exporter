@@ -69,10 +69,10 @@ func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
 		)
 	}
 
-	// mysql_galera_variables_gcache_size_bytes metric.
+	// mysql_galera_gcache_size_bytes metric.
 	if textItems["wsrep_provider_options"] != "" {
 		ch <- prometheus.MustNewConstMetric(
-			newDesc(namespace, "galera_variables_gcache_size_bytes", "PXC/Galera gcache size."),
+			newDesc("galera", "gcache_size_bytes", "PXC/Galera gcache size."),
 			prometheus.GaugeValue,
 			parseWsrepProviderOptions(textItems["wsrep_provider_options"]),
 		)

@@ -9,6 +9,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -142,6 +143,22 @@ var landingPage = []byte(`<html>
 </body>
 </html>
 `)
+
+type basicAuthHandler struct {
+	handler  http.HandlerFunc
+	user     string
+	password string
+}
+
+func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	user, password, ok := r.BasicAuth()
+	if !ok || password != h.password || user != h.user {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"metrics\"")
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		return
+	}
+	h.handler(w, r)
+}
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
@@ -642,25 +659,41 @@ func main() {
 		}
 	}
 
-	var reg *prometheus.Registry
+	var authUser, authPass string
+	httpAuth := os.Getenv("HTTP_AUTH")
+	if httpAuth != "" {
+		data := strings.SplitN(httpAuth, ":", 2)
+		if len(data) != 2 || data[0] == "" || data[1] == "" {
+			log.Fatal("HTTP_AUTH should be formatted as user:password")
+		}
+		authUser = data[0]
+		authPass = data[1]
+		log.Infoln("HTTP basic authentication is enabled")
+	}
 
-	reg = prometheus.NewRegistry()
+	reg := prometheus.NewRegistry()
 	reg.MustRegister(NewExporter(dsn))
-	http.Handle("/metrics-hr", promhttp.HandlerFor(
-		reg, promhttp.HandlerOpts{},
-	))
+	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	if authUser != "" && authPass != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	}
+	http.Handle("/metrics-hr", handler)
 
 	reg = prometheus.NewRegistry()
 	reg.MustRegister(NewExporterMr(dsn))
-	http.Handle("/metrics-mr", promhttp.HandlerFor(
-		reg, promhttp.HandlerOpts{},
-	))
+	handler = promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	if authUser != "" && authPass != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	}
+	http.Handle("/metrics-mr", handler)
 
 	reg = prometheus.NewRegistry()
 	reg.MustRegister(NewExporterLr(dsn))
-	http.Handle("/metrics-lr", promhttp.HandlerFor(
-		reg, promhttp.HandlerOpts{},
-	))
+	handler = promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	if authUser != "" && authPass != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	}
+	http.Handle("/metrics-lr", handler)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)

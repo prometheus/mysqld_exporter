@@ -220,6 +220,7 @@ func NewExporter(dsn string) *Exporter {
 	}
 }
 
+// NewExporterMr returns a new MySQL exporter for the provided DSN.
 func NewExporterMr(dsn string) *ExporterMr {
 	exporter := "exporter_mr"
 	return &ExporterMr{
@@ -240,7 +241,7 @@ func NewExporterMr(dsn string) *ExporterMr {
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "scrape_errors_total",
-			Help:      "Total number of times an error occured scraping a MySQL.",
+			Help:      "Total number of times an error occurred scraping a MySQL.",
 		}, []string{"collector"}),
 		error: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
@@ -251,6 +252,7 @@ func NewExporterMr(dsn string) *ExporterMr {
 	}
 }
 
+// NewExporterLr returns a new MySQL exporter for the provided DSN.
 func NewExporterLr(dsn string) *ExporterLr {
 	exporter := "exporter_lr"
 	return &ExporterLr{
@@ -271,7 +273,7 @@ func NewExporterLr(dsn string) *ExporterLr {
 			Namespace: namespace,
 			Subsystem: exporter,
 			Name:      "scrape_errors_total",
-			Help:      "Total number of times an error occured scraping a MySQL.",
+			Help:      "Total number of times an error occurred scraping a MySQL.",
 		}, []string{"collector"}),
 		error: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
@@ -299,6 +301,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	<-doneCh
 }
 
+// Describe implements prometheus.Collector.
 func (e *ExporterMr) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})
@@ -315,6 +318,7 @@ func (e *ExporterMr) Describe(ch chan<- *prometheus.Desc) {
 	<-doneCh
 }
 
+// Describe implements prometheus.Collector.
 func (e *ExporterLr) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})
@@ -342,6 +346,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.mysqldUp
 }
 
+// Collect implements prometheus.Collector.
 func (e *ExporterMr) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
 
@@ -351,6 +356,7 @@ func (e *ExporterMr) Collect(ch chan<- prometheus.Metric) {
 	e.scrapeErrors.Collect(ch)
 }
 
+// Collect implements prometheus.Collector.
 func (e *ExporterLr) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
 

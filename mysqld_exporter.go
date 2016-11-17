@@ -169,6 +169,7 @@ type Exporter struct {
 	mysqldUp        prometheus.Gauge
 }
 
+// ExporterMr collects MySQL metrics. It implements prometheus.Collector.
 type ExporterMr struct {
 	dsn             string
 	duration, error prometheus.Gauge
@@ -176,6 +177,7 @@ type ExporterMr struct {
 	scrapeErrors    *prometheus.CounterVec
 }
 
+// ExporterLr collects MySQL metrics. It implements prometheus.Collector.
 type ExporterLr struct {
 	dsn             string
 	duration, error prometheus.Gauge

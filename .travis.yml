@@ -1,9 +1,12 @@
-sudo: false
-
 language: go
+
 go:
-- 1.5.4
-- 1.6.2
+  - 1.7.1
+
+notifications:
+  email: false
 
 script:
-- make
+  - go get github.com/kardianos/govendor
+  - govendor sync
+  - go test -v

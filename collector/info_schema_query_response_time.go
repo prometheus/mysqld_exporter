@@ -85,6 +85,7 @@ func processQueryResponseTimeTable(db *sql.DB, ch chan<- prometheus.Metric, quer
 	return nil
 }
 
+// ScrapeQueryResponseTime collects from `information_schema.query_response_time`.
 func ScrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var queryStats uint8
 	err := db.QueryRow(queryResponseCheckQuery).Scan(&queryStats)

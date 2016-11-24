@@ -23,12 +23,17 @@ import (
 
 // Key represents a key under a section.
 type Key struct {
-	s          *Section
-	Comment    string
-	name       string
-	value      string
-	isAutoIncr bool
+	s               *Section
+	name            string
+	value           string
+	isAutoIncrement bool
+	isBooleanType   bool
+
+	Comment string
 }
+
+// ValueMapper represents a mapping function for values, e.g. os.ExpandEnv
+type ValueMapper func(string) string
 
 // Name returns name of key.
 func (k *Key) Name() string {
@@ -43,6 +48,9 @@ func (k *Key) Value() string {
 // String returns string representation of value.
 func (k *Key) String() string {
 	val := k.value
+	if k.s.f.ValueMapper != nil {
+		val = k.s.f.ValueMapper(val)
+	}
 	if strings.Index(val, "%") == -1 {
 		return val
 	}
@@ -141,6 +149,7 @@ func (k *Key) Time() (time.Time, error) {
 func (k *Key) MustString(defaultVal string) string {
 	val := k.String()
 	if len(val) == 0 {
+		k.value = defaultVal
 		return defaultVal
 	}
 	return val
@@ -151,6 +160,7 @@ func (k *Key) MustString(defaultVal string) string {
 func (k *Key) MustBool(defaultVal ...bool) bool {
 	val, err := k.Bool()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatBool(defaultVal[0])
 		return defaultVal[0]
 	}
 	return val
@@ -161,6 +171,7 @@ func (k *Key) MustBool(defaultVal ...bool) bool {
 func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 	val, err := k.Float64()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatFloat(defaultVal[0], 'f', -1, 64)
 		return defaultVal[0]
 	}
 	return val
@@ -171,6 +182,7 @@ func (k *Key) MustFloat64(defaultVal ...float64) float64 {
 func (k *Key) MustInt(defaultVal ...int) int {
 	val, err := k.Int()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatInt(int64(defaultVal[0]), 10)
 		return defaultVal[0]
 	}
 	return val
@@ -181,6 +193,7 @@ func (k *Key) MustInt(defaultVal ...int) int {
 func (k *Key) MustInt64(defaultVal ...int64) int64 {
 	val, err := k.Int64()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatInt(defaultVal[0], 10)
 		return defaultVal[0]
 	}
 	return val
@@ -191,6 +204,7 @@ func (k *Key) MustInt64(defaultVal ...int64) int64 {
 func (k *Key) MustUint(defaultVal ...uint) uint {
 	val, err := k.Uint()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatUint(uint64(defaultVal[0]), 10)
 		return defaultVal[0]
 	}
 	return val
@@ -201,6 +215,7 @@ func (k *Key) MustUint(defaultVal ...uint) uint {
 func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 	val, err := k.Uint64()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = strconv.FormatUint(defaultVal[0], 10)
 		return defaultVal[0]
 	}
 	return val
@@ -211,6 +226,7 @@ func (k *Key) MustUint64(defaultVal ...uint64) uint64 {
 func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 	val, err := k.Duration()
 	if len(defaultVal) > 0 && err != nil {
+		k.value = defaultVal[0].String()
 		return defaultVal[0]
 	}
 	return val
@@ -221,6 +237,7 @@ func (k *Key) MustDuration(defaultVal ...time.Duration) time.Duration {
 func (k *Key) MustTimeFormat(format string, defaultVal ...time.Time) time.Time {
 	val, err := k.TimeFormat(format)
 	if len(defaultVal) > 0 && err != nil {
+		k.value = defaultVal[0].Format(format)
 		return defaultVal[0]
 	}
 	return val

@@ -219,7 +219,12 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	e.scrape(ch)
+	err := e.scrape(ch)
+	if err != nil {
+		e.mysqldUp.Set(0)
+	} else {
+		e.mysqldUp.Set(1)
+	}
 
 	ch <- e.duration
 	ch <- e.totalScrapes
@@ -228,7 +233,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.mysqldUp
 }
 
-func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+func (e *Exporter) scrape(ch chan<- prometheus.Metric) error {
 	e.totalScrapes.Inc()
 	var err error
 	defer func(begun time.Time) {
@@ -243,25 +248,22 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Errorln("Error opening connection to database:", err)
-		return
+		return err
 	}
 	defer db.Close()
 
 	isUpRows, err := db.Query(upQuery)
 	if err != nil {
 		log.Errorln("Error pinging mysqld:", err)
-		e.mysqldUp.Set(0)
-		return
+		return err
 	}
 	isUpRows.Close()
-
-	e.mysqldUp.Set(1)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
 			log.Errorln("Error setting log_slow_filter:", err)
-			return
+			return err
 		}
 		sessionSettingsRows.Close()
 	}
@@ -392,6 +394,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
 		}
 	}
+	return nil
 }
 
 func parseMycnf(config interface{}) (string, error) {

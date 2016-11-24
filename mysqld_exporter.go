@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -18,6 +19,7 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/ini.v1"
+	"gopkg.in/yaml.v2"
 
 	"github.com/percona/mysqld_exporter/collector"
 )
@@ -34,6 +36,10 @@ var (
 	configMycnf = flag.String(
 		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
 		"Path to .my.cnf file to read MySQL credentials from.",
+	)
+	webAuthFile = flag.String(
+		"web.auth-file", "",
+		"Path to YAML file with server_user, server_password options for http basic auth (overrides HTTP_AUTH env var).",
 	)
 
 	slowLogFilter = flag.Bool(
@@ -143,6 +149,11 @@ var landingPage = []byte(`<html>
 </body>
 </html>
 `)
+
+type webAuth struct {
+	User     string `yaml:"server_user,omitempty"`
+	Password string `yaml:"server_password,omitempty"`
+}
 
 type basicAuthHandler struct {
 	handler  http.HandlerFunc
@@ -393,7 +404,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	e.mysqldUp.Set(1)
-	version := getMySQLVersion(db)
+	versionNum := getMySQLVersion(db)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
@@ -410,7 +421,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
 		}
 	}
-	if *innodbMetrics && version >= 5.6 {
+	if *innodbMetrics && versionNum >= 5.6 {
 		if err = collector.ScrapeInnodbMetrics(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
@@ -441,7 +452,7 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 		log.Errorln("Error pinging mysqld:", err)
 		return
 	}
-	version := getMySQLVersion(db)
+	versionNum := getMySQLVersion(db)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
@@ -464,25 +475,25 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
 		}
 	}
-	if *collectPerfEventsWaits && version >= 5.5 {
+	if *collectPerfEventsWaits && versionNum >= 5.5 {
 		if err = collector.ScrapePerfEventsWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
 		}
 	}
-	if *collectPerfFileEvents && version >= 5.6 {
+	if *collectPerfFileEvents && versionNum >= 5.6 {
 		if err = collector.ScrapePerfFileEvents(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
 		}
 	}
-	if *collectPerfTableLockWaits && version >= 5.6 {
+	if *collectPerfTableLockWaits && versionNum >= 5.6 {
 		if err = collector.ScrapePerfTableLockWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
 		}
 	}
-	if *collectQueryResponseTime && version >= 5.5 {
+	if *collectQueryResponseTime && versionNum >= 5.5 {
 		if err = collector.ScrapeQueryResponseTime(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.query_response_time:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
@@ -519,7 +530,7 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 		log.Errorln("Error pinging mysqld:", err)
 		return
 	}
-	version := getMySQLVersion(db)
+	versionNum := getMySQLVersion(db)
 
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
@@ -554,13 +565,13 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
 		}
 	}
-	if *collectPerfTableIOWaits && version >= 5.6 {
+	if *collectPerfTableIOWaits && versionNum >= 5.6 {
 		if err = collector.ScrapePerfTableIOWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.tableiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
 		}
 	}
-	if *collectPerfIndexIOWaits && version >= 5.6 {
+	if *collectPerfIndexIOWaits && versionNum >= 5.6 {
 		if err = collector.ScrapePerfIndexIOWaits(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.indexiowaits:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
@@ -578,25 +589,25 @@ func (e *ExporterLr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
 		}
 	}
-	if *collectPerfEventsStatements && version >= 5.6 {
+	if *collectPerfEventsStatements && versionNum >= 5.6 {
 		if err = collector.ScrapePerfEventsStatements(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
 		}
 	}
-	if *collectClientStat && version >= 5.5 {
+	if *collectClientStat && versionNum >= 5.5 {
 		if err = collector.ScrapeClientStat(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
 		}
 	}
-	if *collectInnodbTablespaces && version >= 5.7 {
+	if *collectInnodbTablespaces && versionNum >= 5.7 {
 		if err = collector.ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
 			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
 		}
 	}
-	if *collectEngineTokudbStatus && version >= 5.7 {
+	if *collectEngineTokudbStatus && versionNum >= 5.7 {
 		if err = collector.ScrapeEngineTokudbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_tokudb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
@@ -630,18 +641,18 @@ func parseMycnf(config interface{}) (string, error) {
 func getMySQLVersion(db *sql.DB) float64 {
 	var (
 		versionStr string
-		version    float64
+		versionNum float64
 	)
 	err := db.QueryRow(versionQuery).Scan(&versionStr)
 	if err == nil {
 		r, _ := regexp.Compile(`^\d+\.\d+`)
-		version, _ = strconv.ParseFloat(r.FindString(versionStr), 64)
+		versionNum, _ = strconv.ParseFloat(r.FindString(versionStr), 64)
 	}
 	// In case, we can't match/parse the version, let's set it to something big to it matches all the versions.
-	if version == 0 {
-		version = 999
+	if versionNum == 0 {
+		versionNum = 999
 	}
-	return version
+	return versionNum
 }
 
 func init() {
@@ -667,39 +678,47 @@ func main() {
 		}
 	}
 
-	var authUser, authPass string
+	cfg := &webAuth{}
 	httpAuth := os.Getenv("HTTP_AUTH")
-	if httpAuth != "" {
+	if *webAuthFile != "" {
+		bytes, err := ioutil.ReadFile(*webAuthFile)
+		if err != nil {
+			log.Fatal("Cannot read auth file:", err)
+		}
+		if err := yaml.Unmarshal(bytes, cfg); err != nil {
+			log.Fatal("Cannot parse auth file:", err)
+		}
+	} else if httpAuth != "" {
 		data := strings.SplitN(httpAuth, ":", 2)
 		if len(data) != 2 || data[0] == "" || data[1] == "" {
 			log.Fatal("HTTP_AUTH should be formatted as user:password")
 		}
-		authUser = data[0]
-		authPass = data[1]
-		log.Infoln("HTTP basic authentication is enabled")
+		cfg.User = data[0]
+		cfg.Password = data[1]
 	}
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(NewExporter(dsn))
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
-	if authUser != "" && authPass != "" {
-		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	if cfg.User != "" && cfg.Password != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: cfg.User, password: cfg.Password}
+		log.Infoln("HTTP basic authentication is enabled")
 	}
 	http.Handle("/metrics-hr", handler)
 
 	reg = prometheus.NewRegistry()
 	reg.MustRegister(NewExporterMr(dsn))
 	handler = promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
-	if authUser != "" && authPass != "" {
-		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	if cfg.User != "" && cfg.Password != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: cfg.User, password: cfg.Password}
 	}
 	http.Handle("/metrics-mr", handler)
 
 	reg = prometheus.NewRegistry()
 	reg.MustRegister(NewExporterLr(dsn))
 	handler = promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
-	if authUser != "" && authPass != "" {
-		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: authUser, password: authPass}
+	if cfg.User != "" && cfg.Password != "" {
+		handler = &basicAuthHandler{handler: handler.ServeHTTP, user: cfg.User, password: cfg.Password}
 	}
 	http.Handle("/metrics-lr", handler)
 

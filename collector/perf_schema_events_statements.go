@@ -27,9 +27,14 @@ const perfEventsStatementsQuery = `
 	    SUM_SORT_MERGE_PASSES,
 	    SUM_SORT_ROWS,
 	    SUM_NO_INDEX_USED
-	  FROM performance_schema.events_statements_summary_by_digest
-	  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
-	    AND last_seen > DATE_SUB(NOW(), INTERVAL %d SECOND)
+	  FROM (
+	    SELECT *
+	    FROM performance_schema.events_statements_summary_by_digest
+	    WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
+	    ORDER BY LAST_SEEN DESC
+	  )Q
+	  GROUP BY SCHEMA_NAME, DIGEST
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`

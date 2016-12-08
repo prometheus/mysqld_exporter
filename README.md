@@ -13,9 +13,11 @@ NOTE: Not all collection methods are supported on MySQL < 5.6
 
 ### Required Grants
 
-    CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX';
-    GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost'
-      WITH MAX_USER_CONNECTIONS 3;
+```sql
+CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX';
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost'
+  WITH MAX_USER_CONNECTIONS 3;
+```
 
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load.
 

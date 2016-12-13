@@ -72,9 +72,9 @@ ALERT MySQLReplicationNotRunning
 #        2 minutes.  This allows for a small amount of replication lag.
 ALERT MySQLReplicationLag
   IF
-      (mysql_slave_lag_seconds > 30)
+      (mysql_slave_status_seconds_behind_master > 30)
     AND on (instance)
-      (predict_linear(mysql_slave_lag_seconds[5m], 60*2) > 0)
+      (predict_linear(mysql_slave_status_seconds_behind_master[5m], 60*2) > 0)
   FOR 1m
   LABELS {
     severity = "critical"

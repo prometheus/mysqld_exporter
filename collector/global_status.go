@@ -5,6 +5,7 @@ package collector
 import (
 	"database/sql"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +17,14 @@ const (
 	// Subsytem.
 	globalStatus = "global_status"
 )
+
+var replLatencyMap = []string{
+	"Minimum",
+	"Average",
+	"Maximum",
+	"Standard Deviation",
+	"Sample Size",
+}
 
 // Regexp to match various groups of status vars.
 var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
@@ -72,6 +81,7 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 		"wsrep_local_state_uuid":   "",
 		"wsrep_cluster_state_uuid": "",
 		"wsrep_provider_version":   "",
+		"wsrep_evs_repl_latency":   "",
 	}
 
 	for globalStatusRows.Next() {
@@ -134,6 +144,26 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 				[]string{"wsrep_local_state_uuid", "wsrep_cluster_state_uuid", "wsrep_provider_version"}, nil),
 			prometheus.GaugeValue, 1, textItems["wsrep_local_state_uuid"], textItems["wsrep_cluster_state_uuid"], textItems["wsrep_provider_version"],
 		)
+	}
+
+	if textItems["wsrep_evs_repl_latency"] != "" {
+		galeraReplLatencyArray := strings.Split(textItems["wsrep_evs_repl_latency"], "/")
+
+		// check if galeraReplLatencyArray contains all needed values
+		if len(galeraReplLatencyArray) == len(replLatencyMap) {
+			galeraReplLatencyDesc := prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, globalStatus, "wsrep_evs_repl_latency"),
+				"PXC/Galera replication latency on group communication.",
+				[]string{"aggregator"}, nil,
+			)
+			for index, label := range replLatencyMap {
+				if floatVal, err := strconv.ParseFloat(galeraReplLatencyArray[index], 64); err == nil {
+					ch <- prometheus.MustNewConstMetric(
+						galeraReplLatencyDesc, prometheus.GaugeValue, floatVal, label,
+					)
+				}
+			}
+		}
 	}
 
 	return nil

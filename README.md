@@ -66,6 +66,9 @@ collect.perf_schema.indexiowaits                       | 5.6           | Collect
 collect.perf_schema.tableiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks                         | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
 collect.slave_status                                   | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
+collect.heartbeat                                      | 5.1           | Collect from [heartbeat](#heartbeat).
+collect.heartbeat.database                             | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
+collect.heartbeat.table                                | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
 
 
 ### General Flags
@@ -96,6 +99,14 @@ docker pull prom/mysqld-exporter
 docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
         -e DATA_SOURCE_NAME="user:password@(bdd:3306)/database" prom/mysqld-exporter
 ```
+
+## heartbeat
+
+With `collect.heartbeat` enabled, mysqld_exporter will scrape replication delay
+measured by heartbeat mechanisms. [Pt-heartbeat][pth] is the
+reference heartbeat implementation supported.
+
+[pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
 
 ## Example Rules
 

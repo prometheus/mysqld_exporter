@@ -117,6 +117,18 @@ var (
 	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
 		"Collect from SHOW ENGINE INNODB STATUS",
 	)
+	collectHeartbeat = flag.Bool(
+		"collect.heartbeat", false,
+		"Collect from heartbeat",
+	)
+	collectHeartbeatDatabase = flag.String(
+		"collect.heartbeat.database", "heartbeat",
+		"Database from where to collect heartbeat data",
+	)
+	collectHeartbeatTable = flag.String(
+		"collect.heartbeat.table", "heartbeat",
+		"Table from where to collect heartbeat data",
+	)
 )
 
 // Metric name parts.
@@ -390,6 +402,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
+		}
+	}
+	if *collectHeartbeat {
+		if err = collector.ScrapeHeartbeat(db, ch, collectHeartbeatDatabase, collectHeartbeatTable); err != nil {
+			log.Errorln("Error scraping for collect.heartbeat:", err)
+			e.scrapeErrors.WithLabelValues("collect.heartbeat").Inc()
 		}
 	}
 }

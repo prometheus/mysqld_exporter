@@ -81,7 +81,7 @@ func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 		masterUUID := columnValue(scanArgs, slaveCols, "Master_UUID")
 		masterHost := columnValue(scanArgs, slaveCols, "Master_Host")
-		channelName := columnValue(scanArgs, slaveCols, "Channel_Name") // MySQL & Percona
+		channelName := columnValue(scanArgs, slaveCols, "Channel_Name")       // MySQL & Percona
 		connectionName := columnValue(scanArgs, slaveCols, "Connection_name") // MariaDB
 
 		for i, col := range slaveCols {

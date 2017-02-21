@@ -21,7 +21,7 @@ func TestScrapeUserStat(t *testing.T) {
 
 	columns := []string{"USER", "TOTAL_CONNECTIONS", "CONCURRENT_CONNECTIONS", "CONNECTED_TIME", "BUSY_TIME", "CPU_TIME", "BYTES_RECEIVED", "BYTES_SENT", "BINLOG_BYTES_WRITTEN", "ROWS_READ", "ROWS_SENT", "ROWS_DELETED", "ROWS_INSERTED", "ROWS_UPDATED", "SELECT_COMMANDS", "UPDATE_COMMANDS", "OTHER_COMMANDS", "COMMIT_TRANSACTIONS", "ROLLBACK_TRANSACTIONS", "DENIED_CONNECTIONS", "LOST_CONNECTIONS", "ACCESS_DENIED", "EMPTY_QUERIES"}
 	rows := sqlmock.NewRows(columns).
-		AddRow("user_test", 1002, 0, 127027, 286, 245, 2565104853, 21090856, 2380108042, 767691, 1764, 8778, 1210741, 0, 1764, 1214416, 293, 2430888, 0, 0, 0, 0, 0)
+		AddRow("user_test", 1002, 0, 127027, 286, 245, float64(2565104853), 21090856, float64(2380108042), 767691, 1764, 8778, 1210741, 0, 1764, 1214416, 293, 2430888, 0, 0, 0, 0, 0)
 	mock.ExpectQuery(sanitizeQuery(userStatQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -38,9 +38,9 @@ func TestScrapeUserStat(t *testing.T) {
 		{labels: labelMap{"user": "user_test"}, value: 127027, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 286, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 245, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"user": "user_test"}, value: 2565104853, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"user": "user_test"}, value: float64(2565104853), metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 21090856, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"user": "user_test"}, value: 2380108042, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"user": "user_test"}, value: float64(2380108042), metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 767691, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 1764, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"user": "user_test"}, value: 8778, metricType: dto.MetricType_COUNTER},

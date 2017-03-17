@@ -1,4 +1,4 @@
-// Scrape `performance_schema.file_summary_by_event_name`.
+// Scrape `performance_schema.file_summary_by_instance`.
 
 package collector
 
@@ -7,34 +7,40 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"strings"
+	"flag"
+	"regexp"
 )
 
 const perfFileInstancesQuery = `
 	SELECT
-	    FILE_NAME,
+	    FILE_NAME
 	    COUNT_READ, COUNT_WRITE,
 	    SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE
 	  FROM performance_schema.file_summary_by_instance
-	     where LOCATE(?,FILE_NAME)>0
+	     where FILE_NAME REGEXP ?
 	`
 
 // Metric descriptors.
 var (
+	filter = flag.String(
+		"collect.perf_schema.file_instances.filter", "",
+		"RegEx file_name filter for performance_schema.file_summary_by_instance",
+	)
+
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),
-		"The number of bytes read or write by the file.",
-		[]string{"file", "mode"}, nil,
+		"The number of bytes processed by file read/write operations.",
+		[]string{"file_name", "mode"}, nil,
 	)
 	performanceSchemaFileInstancesCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_count"),
-		"The number of operations by the file.",
-		[]string{"file", "mode"}, nil,
+		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_total"),
+		"The total number of file read/write operations.",
+		[]string{"file_name", "mode"}, nil,
 	)
 )
 
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric, filter *string) error {
+func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileInstancesRows, err := db.Query(perfFileInstancesQuery, *filter)
 	if err != nil {
@@ -47,6 +53,8 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric, filter *st
 		countRead, countWrite         uint64
 		sumBytesRead, sumBytesWritten uint64
 	)
+
+	re := regexp.MustCompile(*filter)
 	for perfSchemaFileInstancesRows.Next() {
 		if err := perfSchemaFileInstancesRows.Scan(
 			&fileName,
@@ -55,10 +63,11 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric, filter *st
 		); err != nil {
 			return err
 		}
+
 		if len(*filter) > 0 {
-			pos:=strings.LastIndex(fileName,*filter)
-			if pos>-1 {
-				fileName=fileName[pos+len(*filter):]
+			loc := re.FindStringIndex(fileName)
+			if loc != nil {
+				fileName = fileName[loc[1]:]
 			}
 		}
 		ch <- prometheus.MustNewConstMetric(
@@ -66,7 +75,7 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric, filter *st
 			fileName, "read",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaFileInstancesCountDesc , prometheus.CounterValue, float64(countWrite),
+			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countWrite),
 			fileName, "write",
 		)
 		ch <- prometheus.MustNewConstMetric(

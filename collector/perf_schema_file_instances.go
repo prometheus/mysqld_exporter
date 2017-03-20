@@ -8,12 +8,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"flag"
-	"regexp"
+	"strings"
 )
 
 const perfFileInstancesQuery = `
 	SELECT
-	    FILE_NAME
+	    FILE_NAME,
 	    COUNT_READ, COUNT_WRITE,
 	    SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE
 	  FROM performance_schema.file_summary_by_instance
@@ -22,9 +22,14 @@ const perfFileInstancesQuery = `
 
 // Metric descriptors.
 var (
-	filter = flag.String(
+	performanceSchemaFileInstancesFilter = flag.String(
 		"collect.perf_schema.file_instances.filter", "",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
+	)
+
+	performanceSchemaFileInstancesRemovePrefix = flag.Bool(
+		"collect.perf_schema.file_instances.remove_prefix", true,
+		"Remove path prefix in performance_schema.file_summary_by_instance",
 	)
 
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
@@ -42,7 +47,7 @@ var (
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
 func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
-	perfSchemaFileInstancesRows, err := db.Query(perfFileInstancesQuery, *filter)
+	perfSchemaFileInstancesRows, err := db.Query(perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
 	if err != nil {
 		return err
 	}
@@ -54,7 +59,6 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 		sumBytesRead, sumBytesWritten uint64
 	)
 
-	re := regexp.MustCompile(*filter)
 	for perfSchemaFileInstancesRows.Next() {
 		if err := perfSchemaFileInstancesRows.Scan(
 			&fileName,
@@ -64,10 +68,10 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 
-		if len(*filter) > 0 {
-			loc := re.FindStringIndex(fileName)
-			if loc != nil {
-				fileName = fileName[loc[1]:]
+		if *performanceSchemaFileInstancesRemovePrefix {
+			pos:=strings.LastIndexAny(fileName,"/\\")
+			if pos!=-1 {
+				fileName = fileName[pos+1:]
 			}
 		}
 		ch <- prometheus.MustNewConstMetric(

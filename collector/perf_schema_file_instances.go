@@ -23,7 +23,7 @@ const perfFileInstancesQuery = `
 // Metric descriptors.
 var (
 	performanceSchemaFileInstancesFilter = flag.String(
-		"collect.perf_schema.file_instances.filter", "",
+		"collect.perf_schema.file_instances.filter", ".*",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
 	)
 
@@ -68,9 +68,9 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 
-		if *performanceSchemaFileInstancesRemovePrefix {
-			pos:=strings.LastIndexAny(fileName,"/\\")
-			if pos!=-1 {
+		if *performanceSchemaFileInstancesRemovePrefix && *performanceSchemaFileInstancesFilter != ".*" {
+			pos := strings.LastIndexAny(fileName, "/\\")
+			if pos != -1 && pos < len(fileName) {
 				fileName = fileName[pos+1:]
 			}
 		}

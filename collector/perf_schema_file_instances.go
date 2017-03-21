@@ -8,7 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"flag"
-	"strings"
+	"path"
+	"path/filepath"
 )
 
 const perfFileInstancesQuery = `
@@ -68,11 +69,8 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 
-		if *performanceSchemaFileInstancesRemovePrefix && *performanceSchemaFileInstancesFilter != ".*" {
-			pos := strings.LastIndexAny(fileName, "/\\")
-			if pos != -1 && pos < len(fileName) {
-				fileName = fileName[pos+1:]
-			}
+		if *performanceSchemaFileInstancesRemovePrefix {
+			fileName = path.Base(filepath.ToSlash(fileName))
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countRead),

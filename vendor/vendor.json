@@ -157,10 +157,10 @@
 			"revisionTime": "2017-03-08T15:04:45Z"
 		},
 		{
-			"checksumSHA1": "MeXzn+OFdrU9/TGeMVz0GsRX+dM=",
+			"checksumSHA1": "uR1qI7p56R7u43DJGoYtyRleQpA=",
 			"path": "gopkg.in/DATA-DOG/go-sqlmock.v1",
-			"revision": "d4cd2ca2ad1cc2130bba385aab072218f131f636",
-			"revisionTime": "2016-11-02T12:49:59Z"
+			"revision": "b983233bc0bbea4dc6e8ec8c8c923d935765ffec",
+			"revisionTime": "2017-02-21T15:59:18Z"
 		},
 		{
 			"checksumSHA1": "YRD335tkMvgHzkfbfveMUpsE3Bw=",

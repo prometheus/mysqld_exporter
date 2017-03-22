@@ -7,10 +7,10 @@
 			"revision": ""
 		},
 		{
-			"checksumSHA1": "yRNw/uu/4N7XHVe1PHtKPl6xtDg=",
+			"checksumSHA1": "Ksl4kXr4ty0HwjrLRLZOrNz05Bw=",
 			"path": "github.com/Sirupsen/logrus",
-			"revision": "1445b7a38228c041834afc69231b7966b9943397",
-			"revisionTime": "2016-11-08T19:08:11Z"
+			"revision": "ba1b36c82c5e05c4f912a88eab0dcd91a171688f",
+			"revisionTime": "2017-03-14T19:23:53Z"
 		},
 		{
 			"checksumSHA1": "spyv5/YFBjYyZLZa1U2LBfDR8PM=",

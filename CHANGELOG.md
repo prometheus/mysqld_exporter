@@ -1,3 +1,12 @@
+## v0.10.0 / 2017-03-22
+
+* [FEATURE] Add read/write query response time #166
+* [FEATURE] Add Galera gcache size metric #169
+* [FEATURE] Add MariaDB multi source replication support #178
+* [FEATURE] Implement heartbeat metrics #183
+* [FEATURE] Add basic file_summary_by_instance metrics #189
+* [BUGFIX] Workaround MySQL bug 79533 #173
+
 ## 0.9.0 / 2016-09-26
 
 BREAKING CHANGES:

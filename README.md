@@ -62,6 +62,7 @@ collect.perf_schema.eventsstatements.limit             | 5.6           | Limit t
 collect.perf_schema.eventsstatements.timelimit         | 5.6           | Limit how old the 'last_seen' events statements can be, in seconds. (default: 86400)
 collect.perf_schema.eventswaits                        | 5.5           | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.perf_schema.file_events                        | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
+collect.perf_schema.file_instances                     | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
 collect.perf_schema.indexiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.tableiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks                         | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.

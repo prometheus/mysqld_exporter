@@ -99,6 +99,10 @@ var (
 		"collect.perf_schema.file_events", false,
 		"Collect metrics from performance_schema.file_summary_by_event_name",
 	)
+	collectPerfFileInstances = flag.Bool(
+		"collect.perf_schema.file_instances", false,
+		"Collect metrics from performance_schema.file_summary_by_instance",
+	)
 	collectUserStat = flag.Bool("collect.info_schema.userstats", false,
 		"If running with userstat=1, set to true to collect user statistics",
 	)
@@ -366,6 +370,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapePerfFileEvents(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
 			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
+		}
+	}
+	if *collectPerfFileInstances {
+		if err = collector.ScrapePerfFileInstances(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.perf_schema.file_instances:", err)
+			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_instances").Inc()
 		}
 	}
 	if *collectUserStat {

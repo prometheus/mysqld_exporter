@@ -1,4 +1,4 @@
-## v0.10.0 / 2017-04-24
+## v0.10.0 / 2017-04-25
 
 * [FEATURE] Add read/write query response time #166
 * [FEATURE] Add Galera gcache size metric #169

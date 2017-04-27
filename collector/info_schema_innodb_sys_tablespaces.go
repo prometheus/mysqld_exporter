@@ -6,6 +6,7 @@ import (
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 )
 
 const innodbTablespacesQuery = `
@@ -41,7 +42,12 @@ var (
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
 func ScrapeInfoSchemaInnodbTablespaces(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tablespacesRows, err := db.Query(innodbTablespacesQuery)
-	if err != nil {
+	// Soft fail if SPACE_TYPE is not in the field list as this collector is useful and working with
+	// MySQL 5.7. See https://github.com/prometheus/mysqld_exporter/issues/118
+	if err != nil && err.Error() == "Error 1054: Unknown column 'SPACE_TYPE' in 'field list'" {
+		log.Debugln("Ignoring -collect.info_schema.innodb_tablespaces for MySQL prior 5.7.")
+		return nil
+	} else if err != nil {
 		return err
 	}
 	defer tablespacesRows.Close()

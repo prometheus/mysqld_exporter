@@ -1,5 +1,8 @@
 ## v0.10.0 / 2017-04-25
 
+BREAKING CHANGES:
+* `mysql_slave_...` metrics now include an additional `connection_name` label to support mariadb multi-source replication. (#178)
+
 * [FEATURE] Add read/write query response time #166
 * [FEATURE] Add Galera gcache size metric #169
 * [FEATURE] Add MariaDB multi source replication support #178

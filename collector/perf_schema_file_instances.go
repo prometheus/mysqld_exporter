@@ -29,7 +29,7 @@ var (
 	)
 
 	performanceSchemaFileInstancesRemovePrefix = flag.Bool(
-		"collect.perf_schema.file_instances.remove_prefix", true,
+		"collect.perf_schema.file_instances.remove_prefix", false,
 		"Remove path prefix in performance_schema.file_summary_by_instance",
 	)
 

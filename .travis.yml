@@ -1,12 +1,11 @@
-language: go
+sudo: false
 
+language: go
 go:
-  - 1.7.1
+- 1.8.x
+
+script:
+  - make
 
 notifications:
   email: false
-
-script:
-  - go get github.com/kardianos/govendor
-  - govendor sync
-  - go test -v

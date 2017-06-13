@@ -1,6 +1,5 @@
-# MySQL Server Exporter
+# MySQL Server Exporter [![Build Status](https://travis-ci.org/percona/mysqld_exporter.svg)][travis]
 
-[![Build Status](https://travis-ci.org/percona/mysqld_exporter.svg?branch=master)](https://travis-ci.org/percona/mysqld_exporter)
 [![Go Report Card](https://goreportcard.com/badge/github.com/percona/mysqld_exporter)](https://goreportcard.com/report/github.com/percona/mysqld_exporter)
 
 Prometheus exporter for MySQL server metrics.
@@ -11,9 +10,10 @@ NOTE: Not all collection methods are supported on MySQL < 5.6
 
 ### Required Grants
 
-    CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX';
-    GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost'
-      WITH MAX_USER_CONNECTIONS 3;
+```sql
+CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+```
 
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load.
 
@@ -58,10 +58,14 @@ collect.perf_schema.eventsstatements.limit             | 5.6           | Limit t
 collect.perf_schema.eventsstatements.timelimit         | 5.6           | Limit how old the 'last_seen' events statements can be, in seconds. (default: 86400)
 collect.perf_schema.eventswaits                        | 5.5           | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.perf_schema.file_events                        | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
+collect.perf_schema.file_instances                     | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
 collect.perf_schema.indexiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.tableiowaits                       | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks                         | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
 collect.slave_status                                   | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
+collect.heartbeat                                      | 5.1           | Collect from [heartbeat](#heartbeat).
+collect.heartbeat.database                             | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
+collect.heartbeat.table                                | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
 
 
 ### General Flags
@@ -93,11 +97,19 @@ docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
         -e DATA_SOURCE_NAME="user:password@(bdd:3306)/database" prom/mysqld-exporter
 ```
 
+## heartbeat
+
+With `collect.heartbeat` enabled, mysqld_exporter will scrape replication delay
+measured by heartbeat mechanisms. [Pt-heartbeat][pth] is the
+reference heartbeat implementation supported.
+
+[pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
+
 ## Example Rules
 
 There are some sample rules available in [example.rules](example.rules)
 
-[circleci]: https://circleci.com/gh/prometheus/mysqld_exporter
+[circleci]: https://circleci.com/gh/percona/mysqld_exporter
 [hub]: https://hub.docker.com/r/prom/mysqld-exporter/
-[travis]: https://travis-ci.org/prometheus/mysqld_exporter
+[travis]: https://travis-ci.org/percona/mysqld_exporter
 [quay]: https://quay.io/repository/prometheus/mysqld-exporter

@@ -390,7 +390,7 @@ func (s quantSort) Less(i, j int) bool {
 // (e.g. HTTP request latencies, partitioned by status code and method). Create
 // instances with NewSummaryVec.
 type SummaryVec struct {
-	MetricVec
+	*MetricVec
 }
 
 // NewSummaryVec creates a new SummaryVec based on the provided SummaryOpts and
@@ -404,13 +404,9 @@ func NewSummaryVec(opts SummaryOpts, labelNames []string) *SummaryVec {
 		opts.ConstLabels,
 	)
 	return &SummaryVec{
-		MetricVec: MetricVec{
-			children: map[uint64]Metric{},
-			desc:     desc,
-			newMetric: func(lvs ...string) Metric {
-				return newSummary(desc, opts, lvs...)
-			},
-		},
+		MetricVec: newMetricVec(desc, func(lvs ...string) Metric {
+			return newSummary(desc, opts, lvs...)
+		}),
 	}
 }
 

@@ -13,10 +13,9 @@ import (
 const (
 	// Subsystem.
 	slaveStatus = "slave_status"
-	// Query.
-	slaveStatusQuery = `SHOW SLAVE STATUS`
 )
 
+var slaveStatusQueries = [2]string{"SHOW ALL SLAVES STATUS", "SHOW SLAVE STATUS"}
 var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
 func columnIndex(slaveCols []string, colName string) int {
@@ -42,10 +41,18 @@ func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 		slaveStatusRows *sql.Rows
 		err             error
 	)
-	// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
-	for _, suffix := range slaveStatusQuerySuffixes {
-		slaveStatusRows, err = db.Query(fmt.Sprint(slaveStatusQuery, suffix))
-		if err == nil {
+	// Try the both syntax for MySQL/Percona and MariaDB
+	for _, query := range slaveStatusQueries {
+		slaveStatusRows, err = db.Query(query)
+		if err != nil { // MySQL/Percona
+			// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
+			for _, suffix := range slaveStatusQuerySuffixes {
+				slaveStatusRows, err = db.Query(fmt.Sprint(query, suffix))
+				if err == nil {
+					break
+				}
+			}
+		} else { // MariaDB
 			break
 		}
 	}
@@ -74,7 +81,8 @@ func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 		masterUUID := columnValue(scanArgs, slaveCols, "Master_UUID")
 		masterHost := columnValue(scanArgs, slaveCols, "Master_Host")
-		channelName := columnValue(scanArgs, slaveCols, "Channel_Name")
+		channelName := columnValue(scanArgs, slaveCols, "Channel_Name")       // MySQL & Percona
+		connectionName := columnValue(scanArgs, slaveCols, "Connection_name") // MariaDB
 
 		for i, col := range slaveCols {
 			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
@@ -82,12 +90,12 @@ func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 					prometheus.NewDesc(
 						prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(col)),
 						"Generic metric from SHOW SLAVE STATUS.",
-						[]string{"master_uuid", "master_host", "channel_name"},
+						[]string{"master_host", "master_uuid", "channel_name", "connection_name"},
 						nil,
 					),
 					prometheus.UntypedValue,
 					value,
-					masterUUID, masterHost, channelName,
+					masterHost, masterUUID, channelName, connectionName,
 				)
 			}
 		}

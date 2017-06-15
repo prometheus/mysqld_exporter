@@ -258,6 +258,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
+	// limit connections to recommended value
+	db.SetMaxOpenConns(3)
+	db.SetMaxIdleConns(3)
+	// close idle connections after max lifetime
+	db.SetConnMaxLifetime(5 * time.Minute)
+
 	isUpRows, err := db.Query(upQuery)
 	if err != nil {
 		log.Errorln("Error pinging mysqld:", err)

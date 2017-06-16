@@ -258,10 +258,10 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	defer db.Close()
 
-	// by design exporter should use maximum one connection at any given time
+	// By design exporter should use maximum one connection per request.
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	// set max lifetime for a connection
+	// Set max lifetime for a connection.
 	db.SetConnMaxLifetime(1 * time.Minute)
 
 	isUpRows, err := db.Query(upQuery)

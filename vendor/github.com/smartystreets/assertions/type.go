@@ -65,10 +65,6 @@ func ShouldImplement(actual interface{}, expectedList ...interface{}) string {
 
 	expectedInterface := expectedType.Elem()
 
-	if actualType == nil {
-		return fmt.Sprintf(shouldHaveImplemented, expectedInterface, actual)
-	}
-
 	if !actualType.Implements(expectedInterface) {
 		return fmt.Sprintf(shouldHaveImplemented, expectedInterface, actualType)
 	}
@@ -110,3 +106,28 @@ func ShouldNotImplement(actual interface{}, expectedList ...interface{}) string 
 	}
 	return success
 }
+
+// ShouldBeError asserts that the first argument implements the error interface.
+// It also compares the first argument against the second argument if provided
+// (which must be an error message string or another error value).
+func ShouldBeError(actual interface{}, expected ...interface{}) string {
+	if fail := atMost(1, expected); fail != success {
+		return fail
+	}
+
+	if !isError(actual) {
+		return fmt.Sprintf(shouldBeError, reflect.TypeOf(actual))
+	}
+
+	if len(expected) == 0 {
+		return success
+	}
+
+	if expected := expected[0]; !isString(expected) && !isError(expected) {
+		return fmt.Sprintf(shouldBeErrorInvalidComparisonValue, reflect.TypeOf(expected))
+	}
+	return ShouldEqual(fmt.Sprint(actual), fmt.Sprint(expected[0]))
+}
+
+func isString(value interface{}) bool { _, ok := value.(string); return ok }
+func isError(value interface{}) bool  { _, ok := value.(error); return ok }

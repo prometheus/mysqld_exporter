@@ -35,10 +35,10 @@
 			"revisionTime": "2017-06-13T22:42:24Z"
 		},
 		{
-			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
+			"checksumSHA1": "yIkYzW7bzAD81zHyuCNmEj4+oxQ=",
 			"path": "github.com/gopherjs/gopherjs/js",
-			"revision": "e34a5cd6a1bc7c4fde759f2d3039852fc68b5fcc",
-			"revisionTime": "2016-10-31T10:43:57Z"
+			"revision": "dc374d32704510cb387457180ca9d5193978b555",
+			"revisionTime": "2017-06-09T00:26:10Z"
 		},
 		{
 			"checksumSHA1": "tewA7jXVGCw1zb5mA0BDecWi4iQ=",

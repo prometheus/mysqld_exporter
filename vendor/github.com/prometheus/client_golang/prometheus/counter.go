@@ -82,7 +82,7 @@ func (c *counter) Add(v float64) {
 // CounterVec embeds MetricVec. See there for a full list of methods with
 // detailed documentation.
 type CounterVec struct {
-	MetricVec
+	*MetricVec
 }
 
 // NewCounterVec creates a new CounterVec based on the provided CounterOpts and
@@ -96,19 +96,15 @@ func NewCounterVec(opts CounterOpts, labelNames []string) *CounterVec {
 		opts.ConstLabels,
 	)
 	return &CounterVec{
-		MetricVec: MetricVec{
-			children: map[uint64]Metric{},
-			desc:     desc,
-			newMetric: func(lvs ...string) Metric {
-				result := &counter{value: value{
-					desc:       desc,
-					valType:    CounterValue,
-					labelPairs: makeLabelPairs(desc, lvs),
-				}}
-				result.init(result) // Init self-collection.
-				return result
-			},
-		},
+		MetricVec: newMetricVec(desc, func(lvs ...string) Metric {
+			result := &counter{value: value{
+				desc:       desc,
+				valType:    CounterValue,
+				labelPairs: makeLabelPairs(desc, lvs),
+			}}
+			result.init(result) // Init self-collection.
+			return result
+		}),
 	}
 }
 

@@ -12,6 +12,12 @@
 # `mysql_slave_status_sql_delay` into account
 mysql_slave_lag_seconds = mysql_slave_status_seconds_behind_master - mysql_slave_status_sql_delay
 
+# Record slave lag via heartbeat method
+mysql_heartbeat_lag_seconds = mysql_heartbeat_now_timestamp_seconds - mysql_heartbeat_stored_timestamp_seconds
+
+# Record "Transactions per second"
+# See: https://dev.mysql.com/doc/refman/5.7/en/glossary.html#glos_transaction
+job:mysql_transactions:rate5m = sum(rate(mysql_global_status_commands_total{command=~"(commit|rollback)"}[5m])) without (command)
 
 ###
 # Galera Alerts
@@ -68,13 +74,31 @@ ALERT MySQLReplicationNotRunning
     description = "Slave replication (IO or SQL) has been down for more than 2 minutes.",
   }
 
-# Alert: The replicaiton lag is non-zero and it predicted to not recover within
+# Alert: The replication lag is non-zero and it predicted to not recover within
 #        2 minutes.  This allows for a small amount of replication lag.
+# NOTE: This alert depends on the recording rule at the top of the file.
 ALERT MySQLReplicationLag
   IF
       (mysql_slave_lag_seconds > 30)
     AND on (instance)
       (predict_linear(mysql_slave_lag_seconds[5m], 60*2) > 0)
+  FOR 1m
+  LABELS {
+    severity = "critical"
+  }
+  ANNOTATIONS {
+    summary = "MySQL slave replication is lagging",
+    description = "The mysql slave replication has fallen behind and is not recovering",
+  }
+
+# Alert: The replication lag is non-zero and it predicted to not recover within
+#        2 minutes.  This allows for a small amount of replication lag.
+# NOTE: This alert depends on the recording rule at the top of the file.
+ALERT MySQLReplicationLag
+  IF
+      (mysql_heartbeat_lag_seconds > 30)
+    AND on (instance)
+      (predict_linear(mysql_heartbeat_lag_seconds[5m], 60*2) > 0)
   FOR 1m
   LABELS {
     severity = "critical"

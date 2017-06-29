@@ -11,9 +11,6 @@ import (
 	"github.com/smartystreets/assertions/internal/oglematchers"
 )
 
-// default acceptable delta for ShouldAlmostEqual
-const defaultDelta = 0.0000000001
-
 // ShouldEqual receives exactly two parameters and does an equality check.
 func ShouldEqual(actual interface{}, expected ...interface{}) string {
 	if message := need(1, expected); message != success {
@@ -95,7 +92,7 @@ func cleanAlmostEqualInput(actual interface{}, expected ...interface{}) (float64
 		delta, err := getFloat(expected[1])
 
 		if err != nil {
-			return 0.0, 0.0, 0.0, "delta must be a numerical type"
+			return 0.0, 0.0, 0.0, "The delta value " + err.Error()
 		}
 
 		deltaFloat = delta
@@ -104,15 +101,13 @@ func cleanAlmostEqualInput(actual interface{}, expected ...interface{}) (float64
 	}
 
 	actualFloat, err := getFloat(actual)
-
 	if err != nil {
-		return 0.0, 0.0, 0.0, err.Error()
+		return 0.0, 0.0, 0.0, "The actual value " + err.Error()
 	}
 
 	expectedFloat, err := getFloat(expected[0])
-
 	if err != nil {
-		return 0.0, 0.0, 0.0, err.Error()
+		return 0.0, 0.0, 0.0, "The comparison value " + err.Error()
 	}
 
 	return actualFloat, expectedFloat, deltaFloat, ""
@@ -139,7 +134,7 @@ func getFloat(num interface{}) (float64, error) {
 		numKind == reflect.Float64 {
 		return numValue.Float(), nil
 	} else {
-		return 0.0, errors.New("must be a numerical type, but was " + numKind.String())
+		return 0.0, errors.New("must be a numerical type, but was: " + numKind.String())
 	}
 }
 

@@ -4,11 +4,11 @@ package collector
 
 import (
 	"database/sql"
-	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -37,10 +37,10 @@ const (
 )
 
 var (
-	tableSchemaDatabases = flag.String(
-		"collect.info_schema.tables.databases", "*",
+	tableSchemaDatabases = kingpin.Flag(
+		"collect.info_schema.tables.databases",
 		"The list of databases to collect table stats for, or '*' for all",
-	)
+	).Default("*").String()
 	infoSchemaTablesVersionDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "table_version"),
 		"The version number of the table's .frm file",

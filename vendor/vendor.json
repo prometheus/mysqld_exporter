@@ -7,6 +7,24 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "KmjnydoAbofMieIWm+it5OWERaM=",
+			"path": "github.com/alecthomas/template",
+			"revision": "a0175ee3bccc567396460bf5acd36800cb10c49c",
+			"revisionTime": "2016-04-05T07:15:01Z"
+		},
+		{
+			"checksumSHA1": "3wt0pTXXeS+S93unwhGoLIyGX/Q=",
+			"path": "github.com/alecthomas/template/parse",
+			"revision": "a0175ee3bccc567396460bf5acd36800cb10c49c",
+			"revisionTime": "2016-04-05T07:15:01Z"
+		},
+		{
+			"checksumSHA1": "fCc3grA7vIxfBru7R3SqjcW+oLI=",
+			"path": "github.com/alecthomas/units",
+			"revision": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a",
+			"revisionTime": "2015-10-22T06:55:26Z"
+		},
+		{
 			"checksumSHA1": "spyv5/YFBjYyZLZa1U2LBfDR8PM=",
 			"path": "github.com/beorn7/perks/quantile",
 			"revision": "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9",
@@ -61,34 +79,34 @@
 			"revisionTime": "2015-02-12T10:17:44Z"
 		},
 		{
-			"checksumSHA1": "Wtpzndm/+bdwwNU5PCTfb4oUhc8=",
+			"checksumSHA1": "xfnn0THnqNwjwimeTClsxahYrIo=",
 			"path": "github.com/prometheus/common/expfmt",
-			"revision": "94eb3fe3a55f1b5d12d335b27a4f6e37cd73ed7e",
-			"revisionTime": "2017-06-16T09:39:39Z"
+			"revision": "8ba51016a21456f1649877d7079f416d69eb3948",
+			"revisionTime": "2017-07-31T09:30:31Z"
 		},
 		{
 			"checksumSHA1": "GWlM3d2vPYyNATtTFgftS10/A9w=",
 			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
-			"revision": "94eb3fe3a55f1b5d12d335b27a4f6e37cd73ed7e",
-			"revisionTime": "2017-06-16T09:39:39Z"
+			"revision": "8ba51016a21456f1649877d7079f416d69eb3948",
+			"revisionTime": "2017-07-31T09:30:31Z"
 		},
 		{
-			"checksumSHA1": "esljoY35OOHttvpjBctA6WGZc70=",
+			"checksumSHA1": "jYpLEs+wZ5LZubvOJEDSQ8I14MI=",
 			"path": "github.com/prometheus/common/log",
-			"revision": "94eb3fe3a55f1b5d12d335b27a4f6e37cd73ed7e",
-			"revisionTime": "2017-06-16T09:39:39Z"
+			"revision": "8ba51016a21456f1649877d7079f416d69eb3948",
+			"revisionTime": "2017-07-31T09:30:31Z"
 		},
 		{
-			"checksumSHA1": "0LL9u9tfv1KPBjNEiMDP6q7lpog=",
+			"checksumSHA1": "3VoqH7TFfzA6Ds0zFzIbKCUvBmw=",
 			"path": "github.com/prometheus/common/model",
-			"revision": "94eb3fe3a55f1b5d12d335b27a4f6e37cd73ed7e",
-			"revisionTime": "2017-06-16T09:39:39Z"
+			"revision": "8ba51016a21456f1649877d7079f416d69eb3948",
+			"revisionTime": "2017-07-31T09:30:31Z"
 		},
 		{
 			"checksumSHA1": "91KYK0SpvkaMJJA2+BcxbVnyRO0=",
 			"path": "github.com/prometheus/common/version",
-			"revision": "94eb3fe3a55f1b5d12d335b27a4f6e37cd73ed7e",
-			"revisionTime": "2017-06-16T09:39:39Z"
+			"revision": "8ba51016a21456f1649877d7079f416d69eb3948",
+			"revisionTime": "2017-07-31T09:30:31Z"
 		},
 		{
 			"checksumSHA1": "BXx+yybEN6zHgNupHbRa1troevA=",
@@ -175,6 +193,12 @@
 			"path": "gopkg.in/DATA-DOG/go-sqlmock.v1",
 			"revision": "b983233bc0bbea4dc6e8ec8c8c923d935765ffec",
 			"revisionTime": "2017-02-21T15:59:18Z"
+		},
+		{
+			"checksumSHA1": "3SZTatHIy9OTKc95YlVfXKnoySg=",
+			"path": "gopkg.in/alecthomas/kingpin.v2",
+			"revision": "1087e65c9441605df944fb12c33f0fe7072d18ca",
+			"revisionTime": "2017-07-27T04:22:29Z"
 		},
 		{
 			"checksumSHA1": "WNjUTH01NMhPWjpwnsaL3SW52Gw=",

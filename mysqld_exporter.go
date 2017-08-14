@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,126 +9,129 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
 
 	"github.com/prometheus/mysqld_exporter/collector"
 )
 
 var (
-	showVersion = flag.Bool(
-		"version", false,
-		"Print version information.",
-	)
-	listenAddress = flag.String(
-		"web.listen-address", ":9104",
+	listenAddress = kingpin.Flag(
+		"web.listen-address",
 		"Address to listen on for web interface and telemetry.",
-	)
-	metricPath = flag.String(
-		"web.telemetry-path", "/metrics",
+	).Default(":9104").String()
+	metricPath = kingpin.Flag(
+		"web.telemetry-path",
 		"Path under which to expose metrics.",
-	)
-	configMycnf = flag.String(
-		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
+	).Default("/metrics").String()
+	configMycnf = kingpin.Flag(
+		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
-	)
-	slowLogFilter = flag.Bool(
-		"log_slow_filter", false,
+	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	slowLogFilter = kingpin.Flag(
+		"log_slow_filter",
 		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
-	)
-	collectProcesslist = flag.Bool(
-		"collect.info_schema.processlist", false,
+	).Default("false").Bool()
+	collectProcesslist = kingpin.Flag(
+		"collect.info_schema.processlist",
 		"Collect current thread state counts from the information_schema.processlist",
-	)
-	collectTableSchema = flag.Bool(
-		"collect.info_schema.tables", true,
+	).Default("false").Bool()
+	collectTableSchema = kingpin.Flag(
+		"collect.info_schema.tables",
 		"Collect metrics from information_schema.tables",
-	)
-	collectInnodbTablespaces = flag.Bool(
-		"collect.info_schema.innodb_tablespaces", false,
+	).Default("true").Bool()
+	collectInnodbTablespaces = kingpin.Flag(
+		"collect.info_schema.innodb_tablespaces",
 		"Collect metrics from information_schema.innodb_sys_tablespaces",
-	)
-	collectInnodbMetrics = flag.Bool(
-		"collect.info_schema.innodb_metrics", false,
+	).Default("false").Bool()
+	collectInnodbMetrics = kingpin.Flag(
+		"collect.info_schema.innodb_metrics",
 		"Collect metrics from information_schema.innodb_metrics",
-	)
-	collectGlobalStatus = flag.Bool(
-		"collect.global_status", true,
+	).Default("false").Bool()
+	collectGlobalStatus = kingpin.Flag(
+		"collect.global_status",
 		"Collect from SHOW GLOBAL STATUS",
-	)
-	collectGlobalVariables = flag.Bool(
-		"collect.global_variables", true,
+	).Default("true").Bool()
+	collectGlobalVariables = kingpin.Flag(
+		"collect.global_variables",
 		"Collect from SHOW GLOBAL VARIABLES",
-	)
-	collectSlaveStatus = flag.Bool(
-		"collect.slave_status", true,
+	).Default("true").Bool()
+	collectSlaveStatus = kingpin.Flag(
+		"collect.slave_status",
 		"Collect from SHOW SLAVE STATUS",
-	)
-	collectAutoIncrementColumns = flag.Bool(
-		"collect.auto_increment.columns", false,
+	).Default("true").Bool()
+	collectAutoIncrementColumns = kingpin.Flag(
+		"collect.auto_increment.columns",
 		"Collect auto_increment columns and max values from information_schema",
-	)
-	collectBinlogSize = flag.Bool(
-		"collect.binlog_size", false,
+	).Default("false").Bool()
+	collectBinlogSize = kingpin.Flag(
+		"collect.binlog_size",
 		"Collect the current size of all registered binlog files",
-	)
-	collectPerfTableIOWaits = flag.Bool(
-		"collect.perf_schema.tableiowaits", false,
+	).Default("false").Bool()
+	collectPerfTableIOWaits = kingpin.Flag(
+		"collect.perf_schema.tableiowaits",
 		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
-	)
-	collectPerfIndexIOWaits = flag.Bool(
-		"collect.perf_schema.indexiowaits", false,
+	).Default("false").Bool()
+	collectPerfIndexIOWaits = kingpin.Flag(
+		"collect.perf_schema.indexiowaits",
 		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
-	)
-	collectPerfTableLockWaits = flag.Bool(
-		"collect.perf_schema.tablelocks", false,
+	).Default("false").Bool()
+	collectPerfTableLockWaits = kingpin.Flag(
+		"collect.perf_schema.tablelocks",
 		"Collect metrics from performance_schema.table_lock_waits_summary_by_table",
-	)
-	collectPerfEventsStatements = flag.Bool(
-		"collect.perf_schema.eventsstatements", false,
+	).Default("false").Bool()
+	collectPerfEventsStatements = kingpin.Flag(
+		"collect.perf_schema.eventsstatements",
 		"Collect metrics from performance_schema.events_statements_summary_by_digest",
-	)
-	collectPerfEventsWaits = flag.Bool(
-		"collect.perf_schema.eventswaits", false,
+	).Default("false").Bool()
+	collectPerfEventsWaits = kingpin.Flag(
+		"collect.perf_schema.eventswaits",
 		"Collect metrics from performance_schema.events_waits_summary_global_by_event_name",
-	)
-	collectPerfFileEvents = flag.Bool(
-		"collect.perf_schema.file_events", false,
+	).Default("false").Bool()
+	collectPerfFileEvents = kingpin.Flag(
+		"collect.perf_schema.file_events",
 		"Collect metrics from performance_schema.file_summary_by_event_name",
-	)
-	collectPerfFileInstances = flag.Bool(
-		"collect.perf_schema.file_instances", false,
+	).Default("false").Bool()
+	collectPerfFileInstances = kingpin.Flag(
+		"collect.perf_schema.file_instances",
 		"Collect metrics from performance_schema.file_summary_by_instance",
-	)
-	collectUserStat = flag.Bool("collect.info_schema.userstats", false,
+	).Default("false").Bool()
+	collectUserStat = kingpin.Flag(
+		"collect.info_schema.userstats",
 		"If running with userstat=1, set to true to collect user statistics",
-	)
-	collectClientStat = flag.Bool("collect.info_schema.clientstats", false,
+	).Default("false").Bool()
+	collectClientStat = kingpin.Flag(
+		"collect.info_schema.clientstats",
 		"If running with userstat=1, set to true to collect client statistics",
-	)
-	collectTableStat = flag.Bool("collect.info_schema.tablestats", false,
+	).Default("false").Bool()
+	collectTableStat = kingpin.Flag(
+		"collect.info_schema.tablestats",
 		"If running with userstat=1, set to true to collect table statistics",
-	)
-	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
+	).Default("false").Bool()
+	collectQueryResponseTime = kingpin.Flag(
+		"collect.info_schema.query_response_time",
 		"Collect query response time distribution if query_response_time_stats is ON.",
-	)
-	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
+	).Default("false").Bool()
+	collectEngineTokudbStatus = kingpin.Flag(
+		"collect.engine_tokudb_status",
 		"Collect from SHOW ENGINE TOKUDB STATUS",
-	)
-	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
+	).Default("false").Bool()
+	collectEngineInnodbStatus = kingpin.Flag(
+		"collect.engine_innodb_status",
 		"Collect from SHOW ENGINE INNODB STATUS",
-	)
-	collectHeartbeat = flag.Bool(
-		"collect.heartbeat", false,
+	).Default("false").Bool()
+	collectHeartbeat = kingpin.Flag(
+		"collect.heartbeat",
 		"Collect from heartbeat",
-	)
-	collectHeartbeatDatabase = flag.String(
-		"collect.heartbeat.database", "heartbeat",
+	).Default("false").Bool()
+	collectHeartbeatDatabase = kingpin.Flag(
+		"collect.heartbeat.database",
 		"Database from where to collect heartbeat data",
-	)
-	collectHeartbeatTable = flag.String(
-		"collect.heartbeat.table", "heartbeat",
+	).Default("heartbeat").String()
+	collectHeartbeatTable = kingpin.Flag(
+		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
-	)
+	).Default("heartbeat").String()
 )
 
 // landingPage contains the HTML served at '/'.
@@ -171,12 +173,10 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
-
-	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.Print("mysqld_exporter"))
-		os.Exit(0)
-	}
+	log.AddFlags(kingpin.CommandLine)
+	kingpin.Version(version.Print("mysqld_exporter"))
+	kingpin.HelpFlag.Short('h')
+	kingpin.Parse()
 
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())

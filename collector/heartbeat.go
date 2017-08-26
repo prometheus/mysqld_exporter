@@ -41,8 +41,8 @@ var (
 //  ts                    varchar(26) NOT NULL,
 //  server_id             int unsigned NOT NULL PRIMARY KEY,
 // );
-func ScrapeHeartbeat(db *sql.DB, ch chan<- prometheus.Metric, collectDatabase, collectTable *string) error {
-	query := fmt.Sprintf(heartbeatQuery, *collectDatabase, *collectTable)
+func ScrapeHeartbeat(db *sql.DB, ch chan<- prometheus.Metric, collectDatabase, collectTable string) error {
+	query := fmt.Sprintf(heartbeatQuery, collectDatabase, collectTable)
 	heartbeatRows, err := db.Query(query)
 	if err != nil {
 		return err

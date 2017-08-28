@@ -22,15 +22,19 @@ DOCKER_IMAGE_NAME   ?= mysqld-exporter
 DOCKER_IMAGE_TAG    ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 
 
-all: format build test
+all: format build test-short
 
 style:
 	@echo ">> checking code style"
 	@! gofmt -d $(shell find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
 
+test-short:
+	@echo ">> running short tests"
+	@$(GO) test -short -race $(pkgs)
+
 test:
 	@echo ">> running tests"
-	@$(GO) test -short -race $(pkgs)
+	@$(GO) test -race -v $(pkgs)
 
 format:
 	@echo ">> formatting code"

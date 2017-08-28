@@ -34,7 +34,7 @@ test-short:
 
 test:
 	@echo ">> running tests"
-	@$(GO) test -race -v $(pkgs)
+	@$(GO) test -race $(pkgs)
 
 format:
 	@echo ">> formatting code"

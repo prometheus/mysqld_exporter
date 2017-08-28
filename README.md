@@ -1,6 +1,4 @@
-# Percona MySQL Server Exporter [![Build Status](https://travis-ci.org/percona/mysqld_exporter.svg)][travis]
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/percona/mysqld_exporter)](https://goreportcard.com/report/github.com/percona/mysqld_exporter)
+# Percona MySQL Server Exporter [![Build Status](https://travis-ci.org/percona/mysqld_exporter.svg?branch=master)](https://travis-ci.org/percona/mysqld_exporter)
 
 Prometheus exporter for MySQL server metrics.
 Supported MySQL versions: 5.1 and up.
@@ -109,11 +107,6 @@ reference heartbeat implementation supported.
 
 There are some sample rules available in [example.rules](example.rules)
 
-[circleci]: https://circleci.com/gh/percona/mysqld_exporter
-[hub]: https://hub.docker.com/r/prom/mysqld-exporter/
-[travis]: https://travis-ci.org/percona/mysqld_exporter
-[quay]: https://quay.io/repository/prometheus/mysqld-exporter
-
 ## Visualize
 
 There is a Grafana dashboard for MySQL available as a part of [PMM](https://www.percona.com/doc/percona-monitoring-and-management/index.html) project, you can see the demo [here](https://pmmdemo.percona.com/graph/dashboard/db/mysql-overview).
@@ -137,4 +130,3 @@ As a general rule of thumb, please try to create bug reports that are:
 -   *Specific.* Include as much detail as possible: which version, what environment, etc.
 -   *Unique.* Do not duplicate existing tickets.
 -   *Scoped to a Single Bug.* One bug per report.
-

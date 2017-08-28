@@ -141,6 +141,9 @@ var (
 	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
 		"Collect from SHOW ENGINE INNODB STATUS",
 	)
+	collectEngineRocksDBStatus = flag.Bool("collect.engine_rocksdb_status", false,
+		"Collect from SHOW ENGINE ROCKSDB STATUS",
+	)
 	collectHeartbeat = flag.Bool(
 		"collect.heartbeat", false,
 		"Collect from heartbeat",
@@ -540,6 +543,14 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
+		}
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
+	}
+	if *collectEngineRocksDBStatus {
+		scrapeTime = time.Now()
+		if err = collector.ScrapeEngineRocksDBStatus(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.engine_rocksdb_status:", err)
+			e.scrapeErrors.WithLabelValues("collect.engine_rocksdb_status").Inc()
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
 	}

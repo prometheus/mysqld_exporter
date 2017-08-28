@@ -11,6 +11,7 @@ env:
 - MYSQL_IMAGE=mysql/mysql-server:5.6
 - MYSQL_IMAGE=mysql/mysql-server:5.7
 - MYSQL_IMAGE=mysql/mysql-server:8.0
+- MYSQL_IMAGE=perconalab/percona-server:5.7.18_rocksdb
 
 services:
 - docker

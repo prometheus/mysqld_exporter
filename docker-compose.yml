@@ -7,5 +7,6 @@ services:
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
       - MYSQL_ROOT_HOST=%
+      - INIT_ROCKSDB=1
     ports:
       - 127.0.0.1:3306:3306

@@ -16,3 +16,14 @@ Prometheus uses GitHub to manage reviews of pull requests.
   and the _Formatting and style_ section of Peter Bourgon's [Go: Best
   Practices for Production
   Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).
+
+
+## Local setup
+
+The easiest way to make a local development setup is to use Docker Compose.
+
+```
+docker-compose up
+make
+make test
+```

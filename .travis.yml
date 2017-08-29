@@ -1,11 +1,28 @@
-sudo: false
-
+dist: trusty
+sudo: required
 language: go
+
 go:
 - 1.8.x
 - tip
 
+env:
+- MYSQL_IMAGE=mysql/mysql-server:5.5
+- MYSQL_IMAGE=mysql/mysql-server:5.6
+- MYSQL_IMAGE=mysql/mysql-server:5.7
+- MYSQL_IMAGE=mysql/mysql-server:8.0
+
+services:
+- docker
+
 go_import_path: github.com/prometheus/mysqld_exporter
+
+before_script:
+- sudo service mysql stop
+- docker --version
+- docker-compose --version
+- docker-compose up -d
 
 script:
 - make
+- make test

@@ -39,7 +39,8 @@ func rocksDBEnabled(db *sql.DB, t testing.TB) bool {
 	}
 	defer rows.Close()
 
-	var engine, support, dummy string
+	var engine, support string
+	var dummy interface{}
 	for rows.Next() {
 		if err = rows.Scan(&engine, &support, &dummy, &dummy, &dummy, &dummy); err != nil {
 			t.Fatal(err)

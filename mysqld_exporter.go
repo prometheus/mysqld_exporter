@@ -138,6 +138,9 @@ var (
 	collectRocksDBCFStats = flag.Bool("collect.info_schema.rocksdb_cfstats", false,
 		"Collect RocksDB column family statistics",
 	)
+	collectRocksDBDBStats = flag.Bool("collect.info_schema.rocksdb_dbstats", false,
+		"Collect RocksDB database statistics",
+	)
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	)
@@ -548,6 +551,14 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.rocksdb_cfstats").Inc()
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.rocksdb_cfstats")
+	}
+	if *collectRocksDBDBStats {
+		scrapeTime = time.Now()
+		if err = collector.ScrapeRocksDBDBStats(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.rocksdb_dbstats:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.rocksdb_dbstats").Inc()
+		}
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.rocksdb_dbstats")
 	}
 	if *collectEngineInnodbStatus {
 		scrapeTime = time.Now()

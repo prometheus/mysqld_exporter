@@ -552,7 +552,7 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			log.Errorln("Error scraping for collect.engine_rocksdb_status:", err)
 			e.scrapeErrors.WithLabelValues("collect.engine_rocksdb_status").Inc()
 		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_rocksdb_status")
 	}
 }
 

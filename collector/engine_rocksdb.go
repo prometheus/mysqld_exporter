@@ -28,20 +28,26 @@ func parseRocksDBStatistics(data string) ([]prometheus.Metric, error) {
 	var metrics []prometheus.Metric
 	scanner := bufio.NewScanner(strings.NewReader(data))
 	for scanner.Scan() {
-		m := rocksDBCounter.FindStringSubmatch(scanner.Text())
-		if len(m) > 0 {
-			name := strings.Replace(m[1], ".", "_", -1)
-			value, err := strconv.Atoi(m[2])
-			if err != nil {
-				log.Warnf("failed to parse: %s", scanner.Text())
-				continue
-			}
-			metrics = append(metrics, prometheus.MustNewConstMetric(
-				newDesc(rocksDB, name, m[1]),
-				prometheus.CounterValue,
-				float64(value),
-			))
+		line := strings.TrimSpace(scanner.Text())
+		if len(line) == 0 {
+			continue
 		}
+		m := rocksDBCounter.FindStringSubmatch(line)
+		if len(m) == 0 {
+			continue
+		}
+
+		name := strings.Replace(m[1], ".", "_", -1)
+		value, err := strconv.Atoi(m[2])
+		if err != nil {
+			log.Warnf("failed to parse: %s", scanner.Text())
+			continue
+		}
+		metrics = append(metrics, prometheus.MustNewConstMetric(
+			newDesc(rocksDB, name, m[1]),
+			prometheus.CounterValue,
+			float64(value),
+		))
 	}
 	return metrics, scanner.Err()
 }

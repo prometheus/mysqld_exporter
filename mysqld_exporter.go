@@ -135,6 +135,9 @@ var (
 	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
 		"Collect query response time distribution if query_response_time_stats is ON.",
 	)
+	collectRocksDBCFStats = flag.Bool("collect.info_schema.rocksdb_cfstats", false,
+		"Collect RocksDB column family statistics",
+	)
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	)
@@ -537,6 +540,14 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.query_response_time")
+	}
+	if *collectRocksDBCFStats {
+		scrapeTime = time.Now()
+		if err = collector.ScrapeRocksDBCFStats(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.rocksdb_cfstats:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.rocksdb_cfstats").Inc()
+		}
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.rocksdb_cfstats")
 	}
 	if *collectEngineInnodbStatus {
 		scrapeTime = time.Now()

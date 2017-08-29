@@ -15,6 +15,9 @@ func TestScrapeRocksDBDBStats(t *testing.T) {
 	}
 
 	db := getDB(t)
+	if !rocksDBEnabled(db, t) {
+		t.Skip("RocksDB is not enabled, skipping test")
+	}
 
 	convey.Convey("Metrics collection", t, func() {
 		ch := make(chan prometheus.Metric)

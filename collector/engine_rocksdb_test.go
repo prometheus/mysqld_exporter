@@ -31,12 +31,40 @@ func getDB(t testing.TB) *sql.DB {
 	panic("not reached")
 }
 
+// rocksDBEnabled returns true if RocksDB is enabled, false otherwise.
+func rocksDBEnabled(db *sql.DB, t testing.TB) bool {
+	rows, err := db.Query("SHOW ENGINES")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var engine, support, dummy string
+	for rows.Next() {
+		if err = rows.Scan(&engine, &support, &dummy, &dummy, &dummy, &dummy); err != nil {
+			t.Fatal(err)
+		}
+
+		if engine != "ROCKSDB" {
+			continue
+		}
+		return support == "YES"
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return false
+}
+
 func TestScrapeEngineRocksDBStatus(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short is passed, skipping test")
 	}
 
 	db := getDB(t)
+	if !rocksDBEnabled(db, t) {
+		t.Skip("RocksDB is not enabled, skipping test")
+	}
 
 	convey.Convey("Metrics collection", t, func() {
 		ch := make(chan prometheus.Metric)

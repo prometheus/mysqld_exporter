@@ -28,13 +28,17 @@ func TestScrapeRocksDBCFStats(t *testing.T) {
 			}
 			close(ch)
 		}()
+
+		var found int
 		for m := range ch {
 			got := helpers.ReadMetric(m)
 			if got.Name == "mysql_rocksdb_cfstats_cur_size_all_mem_tables" {
 				convey.So(got.Type, convey.ShouldEqual, dto.MetricType_UNTYPED)
 				convey.So(got.Value, convey.ShouldBeGreaterThan, 0)
 				convey.So(got.Labels, convey.ShouldContainKey, "name")
+				found += 1
 			}
 		}
+		convey.So(found, convey.ShouldEqual, 2)
 	})
 }

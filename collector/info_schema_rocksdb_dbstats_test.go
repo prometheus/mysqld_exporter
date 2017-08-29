@@ -28,12 +28,16 @@ func TestScrapeRocksDBDBStats(t *testing.T) {
 			}
 			close(ch)
 		}()
+
+		var found int
 		for m := range ch {
 			got := helpers.ReadMetric(m)
 			if got.Name == "mysql_rocksdb_dbstats_db_block_cache_usage" {
 				convey.So(got.Type, convey.ShouldEqual, dto.MetricType_UNTYPED)
 				convey.So(got.Value, convey.ShouldBeGreaterThan, 0)
+				found++
 			}
 		}
+		convey.So(found, convey.ShouldEqual, 1)
 	})
 }

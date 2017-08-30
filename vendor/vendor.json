@@ -49,6 +49,12 @@
 			"revisionTime": "2016-04-24T11:30:07Z"
 		},
 		{
+			"checksumSHA1": "hlMPi8/SmdReaBRR0dqEWsYVMvg=",
+			"path": "github.com/percona/exporter_shared/helpers",
+			"revision": "b61ecbac3b73768e613063577adfcabe7628cb9d",
+			"revisionTime": "2017-08-29T10:33:34Z"
+		},
+		{
 			"checksumSHA1": "KkB+77Ziom7N6RzSbyUwYGrmDeU=",
 			"path": "github.com/prometheus/client_golang/prometheus",
 			"revision": "c5b7fccd204277076155f10851dad72b76a49317",

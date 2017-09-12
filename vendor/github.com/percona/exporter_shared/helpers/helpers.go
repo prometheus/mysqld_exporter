@@ -20,25 +20,27 @@
 package helpers
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
 
-var nameRE = regexp.MustCompile(`fqName: "(\w+)"`)
+var nameAndHelpRE = regexp.MustCompile(`fqName: "(\w+)", help: "([^"]+)"`)
 
-func getName(d *prometheus.Desc) string {
-	m := nameRE.FindStringSubmatch(d.String())
-	if len(m) != 2 {
-		panic("failed to get metric name from " + d.String())
+func getNameAndHelp(d *prometheus.Desc) (string, string) {
+	m := nameAndHelpRE.FindStringSubmatch(d.String())
+	if len(m) != 3 {
+		panic(fmt.Sprintf("failed to get metric name and help from %#q: %#v", d.String(), m))
 	}
-	return m[1]
+	return m[1], m[2]
 }
 
 // Metric contains Prometheus metric details.
 type Metric struct {
 	Name   string
+	Help   string
 	Labels prometheus.Labels
 	Type   dto.MetricType
 	Value  float64
@@ -51,19 +53,19 @@ func ReadMetric(m prometheus.Metric) *Metric {
 		panic(err)
 	}
 
-	name := getName(m.Desc())
+	name, help := getNameAndHelp(m.Desc())
 	labels := make(prometheus.Labels, len(pb.Label))
 	for _, v := range pb.Label {
 		labels[v.GetName()] = v.GetValue()
 	}
 	if pb.Gauge != nil {
-		return &Metric{name, labels, dto.MetricType_GAUGE, pb.GetGauge().GetValue()}
+		return &Metric{name, help, labels, dto.MetricType_GAUGE, pb.GetGauge().GetValue()}
 	}
 	if pb.Counter != nil {
-		return &Metric{name, labels, dto.MetricType_COUNTER, pb.GetCounter().GetValue()}
+		return &Metric{name, help, labels, dto.MetricType_COUNTER, pb.GetCounter().GetValue()}
 	}
 	if pb.Untyped != nil {
-		return &Metric{name, labels, dto.MetricType_UNTYPED, pb.GetUntyped().GetValue()}
+		return &Metric{name, help, labels, dto.MetricType_UNTYPED, pb.GetUntyped().GetValue()}
 	}
 	panic("Unsupported metric type")
 }

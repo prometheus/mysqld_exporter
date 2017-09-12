@@ -49,10 +49,10 @@
 			"revisionTime": "2016-04-24T11:30:07Z"
 		},
 		{
-			"checksumSHA1": "hlMPi8/SmdReaBRR0dqEWsYVMvg=",
+			"checksumSHA1": "BwRvsVaeoszCaubPyvw85c4ixLs=",
 			"path": "github.com/percona/exporter_shared/helpers",
-			"revision": "b61ecbac3b73768e613063577adfcabe7628cb9d",
-			"revisionTime": "2017-08-29T10:33:34Z"
+			"revision": "770ea06784d962fae60681973886f8cfed9ce7da",
+			"revisionTime": "2017-09-12T13:48:10Z"
 		},
 		{
 			"checksumSHA1": "KkB+77Ziom7N6RzSbyUwYGrmDeU=",

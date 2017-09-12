@@ -8,7 +8,6 @@ import (
 	_ "github.com/go-sql-driver/mysql" // register driver
 	"github.com/percona/exporter_shared/helpers"
 	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -67,7 +66,7 @@ func TestScrapeEngineRocksDBStatus(t *testing.T) {
 		t.Skip("RocksDB is not enabled, skipping test")
 	}
 
-	convey.Convey("Metrics collection", t, func() {
+	convey.Convey("Metrics collection", t, convey.FailureContinues, func() {
 		ch := make(chan prometheus.Metric)
 		go func() {
 			err := ScrapeEngineRocksDBStatus(db, ch)
@@ -77,15 +76,20 @@ func TestScrapeEngineRocksDBStatus(t *testing.T) {
 			close(ch)
 		}()
 
-		var found int
+		// check that we found all metrics we expect
+		expected := make(map[string]struct{})
+		for k := range engineRocksDBStatusTypes {
+			expected[k] = struct{}{}
+		}
 		for m := range ch {
 			got := helpers.ReadMetric(m)
-			if got.Name == "mysql_engine_rocksdb_bytes_read" {
-				convey.So(got.Type, convey.ShouldEqual, dto.MetricType_COUNTER)
-				convey.So(got.Value, convey.ShouldBeGreaterThan, 0)
-				found++
-			}
+			convey.So(expected, convey.ShouldContainKey, got.Help)
+			delete(expected, got.Help)
 		}
-		convey.So(found, convey.ShouldEqual, 1)
+		// two exceptions
+		convey.So(expected, convey.ShouldResemble, map[string]struct{}{
+			"rocksdb.l0.hit": struct{}{},
+			"rocksdb.l1.hit": struct{}{},
+		})
 	})
 }

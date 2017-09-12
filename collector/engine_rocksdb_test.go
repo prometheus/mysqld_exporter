@@ -80,7 +80,7 @@ func TestScrapeEngineRocksDBStatus(t *testing.T) {
 		var found int
 		for m := range ch {
 			got := helpers.ReadMetric(m)
-			if got.Name == "mysql_engine_rocksdb_rocksdb_bytes_read" {
+			if got.Name == "mysql_engine_rocksdb_bytes_read" {
 				convey.So(got.Type, convey.ShouldEqual, dto.MetricType_COUNTER)
 				convey.So(got.Value, convey.ShouldBeGreaterThan, 0)
 				found++

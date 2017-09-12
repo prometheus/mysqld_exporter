@@ -135,12 +135,21 @@ var (
 	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
 		"Collect query response time distribution if query_response_time_stats is ON.",
 	)
-	collectRocksDBCFStats = flag.Bool("collect.info_schema.rocksdb_cfstats", false,
-		"Collect RocksDB column family statistics",
-	)
-	collectRocksDBDBStats = flag.Bool("collect.info_schema.rocksdb_dbstats", false,
-		"Collect RocksDB database statistics",
-	)
+
+	// Those MyRocks collectors work but are not currently used by our dashboard, so disable them.
+	// TODO enable when we need them
+	removeMeFalse         = false
+	collectRocksDBCFStats = &removeMeFalse
+	collectRocksDBDBStats = &removeMeFalse
+	/*
+		collectRocksDBCFStats = flag.Bool("collect.info_schema.rocksdb_cfstats", false,
+			"Collect RocksDB column family statistics",
+		)
+		collectRocksDBDBStats = flag.Bool("collect.info_schema.rocksdb_dbstats", false,
+			"Collect RocksDB database statistics",
+		)
+	*/
+
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	)

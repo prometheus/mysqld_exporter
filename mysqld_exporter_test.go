@@ -34,6 +34,10 @@ func TestParseMycnf(t *testing.T) {
 			port = 3307
 			socket = /var/lib/mysql/mysql.sock
 		`
+		socketConfig3 = `
+			[client]
+			socket = /var/lib/mysql/mysql.sock
+		`
 		remoteConfig = `
 			[client]
 			user = dude
@@ -46,15 +50,10 @@ func TestParseMycnf(t *testing.T) {
 			user = root
 		`
 		badConfig2 = `
-			[client]
-			password = abc123
-			socket = /var/lib/mysql/mysql.sock
-		`
-		badConfig3 = `
 			[hello]
 			world = ismine
 		`
-		badConfig4 = `
+		badConfig3 = `
 			[hello]
 			world
 		`
@@ -76,6 +75,10 @@ func TestParseMycnf(t *testing.T) {
 			dsn, _ := parseMycnf([]byte(socketConfig2))
 			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
 		})
+		convey.Convey("Socket connection without username or password", func() {
+			dsn, _ := parseMycnf([]byte(socketConfig3))
+			convey.So(dsn, convey.ShouldEqual, "unix(/var/lib/mysql/mysql.sock)/")
+		})
 		convey.Convey("Remote connection", func() {
 			dsn, _ := parseMycnf([]byte(remoteConfig))
 			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
@@ -84,16 +87,12 @@ func TestParseMycnf(t *testing.T) {
 			_, err := parseMycnf([]byte(badConfig))
 			convey.So(err, convey.ShouldNotBeNil)
 		})
-		convey.Convey("Missed password", func() {
+		convey.Convey("No [client] section", func() {
 			_, err := parseMycnf([]byte(badConfig2))
 			convey.So(err, convey.ShouldNotBeNil)
 		})
-		convey.Convey("No [client] section", func() {
-			_, err := parseMycnf([]byte(badConfig3))
-			convey.So(err, convey.ShouldNotBeNil)
-		})
 		convey.Convey("Invalid config", func() {
-			_, err := parseMycnf([]byte(badConfig4))
+			_, err := parseMycnf([]byte(badConfig3))
 			convey.So(err, convey.ShouldNotBeNil)
 		})
 	})

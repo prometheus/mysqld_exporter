@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"net/http"
@@ -144,26 +145,40 @@ var landingPage = []byte(`<html>
 `)
 
 func parseMycnf(config interface{}) (string, error) {
-	var dsn string
+	var dsn bytes.Buffer
 	cfg, err := ini.Load(config)
 	if err != nil {
-		return dsn, fmt.Errorf("failed reading ini file: %s", err)
+		return "", fmt.Errorf("failed reading ini file: %s", err)
 	}
-	user := cfg.Section("client").Key("user").String()
-	password := cfg.Section("client").Key("password").String()
-	if (user == "") || (password == "") {
-		return dsn, fmt.Errorf("no user or password specified under [client] in %s", config)
-	}
+
 	host := cfg.Section("client").Key("host").MustString("localhost")
 	port := cfg.Section("client").Key("port").MustUint(3306)
 	socket := cfg.Section("client").Key("socket").String()
+	user := cfg.Section("client").Key("user").String()
+	password := cfg.Section("client").Key("password").String()
+
 	if socket != "" {
-		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
+		if user != "" {
+			dsn.WriteString(user)
+
+			if password != "" {
+				dsn.WriteString(fmt.Sprintf(":%s", password))
+			}
+
+			dsn.WriteString("@")
+		}
+
+		dsn.WriteString(fmt.Sprintf("unix(%s)/", socket))
 	} else {
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+		if (user == "") || (password == "") {
+			return "", fmt.Errorf("no user or password specified under [client] in %s", config)
+		}
+
+		dsn.WriteString(fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port))
 	}
-	log.Debugln(dsn)
-	return dsn, nil
+
+	log.Debugln(dsn.String())
+	return dsn.String(), nil
 }
 
 func init() {

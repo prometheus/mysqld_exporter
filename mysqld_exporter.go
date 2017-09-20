@@ -156,7 +156,7 @@ var (
 	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
 		"Collect from SHOW ENGINE INNODB STATUS",
 	)
-	collectEngineRocksDBStatus = flag.Bool("collect.engine_rocksdb_status", false,
+	collectEngineRocksDBStatus = flag.String("collect.engine_rocksdb_status", "auto",
 		"Collect from SHOW ENGINE ROCKSDB STATUS",
 	)
 	collectHeartbeat = flag.Bool(
@@ -494,6 +494,19 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 	}
 	versionNum := getMySQLVersion(db)
 
+	var rocksDBEnabled bool
+	if *collectEngineRocksDBStatus == "auto" {
+		rocksDBEnabled, err = collector.RocksDBEnabled(db)
+		if err != nil {
+			log.Warnln("Error to detect MyRocks support:", err)
+		}
+	} else {
+		rocksDBEnabled, err = strconv.ParseBool(*collectEngineRocksDBStatus)
+		if err != nil {
+			log.Warnln("Failed to parse -collect.engine_rocksdb_status, assuming false:", err)
+		}
+	}
+
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
@@ -577,7 +590,7 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
 	}
-	if *collectEngineRocksDBStatus {
+	if rocksDBEnabled {
 		scrapeTime = time.Now()
 		if err = collector.ScrapeEngineRocksDBStatus(db, ch); err != nil {
 			log.Errorln("Error scraping for collect.engine_rocksdb_status:", err)

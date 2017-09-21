@@ -146,3 +146,29 @@ func ScrapeEngineRocksDBStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	return rows.Err()
 }
+
+// RocksDBEnabled returns true if RocksDB is enabled, false otherwise.
+func RocksDBEnabled(db *sql.DB) (bool, error) {
+	rows, err := db.Query("SHOW ENGINES")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	var engine, support string
+	var dummy interface{}
+	for rows.Next() {
+		if err = rows.Scan(&engine, &support, &dummy, &dummy, &dummy, &dummy); err != nil {
+			return false, err
+		}
+
+		if engine != "ROCKSDB" {
+			continue
+		}
+		return support == "YES" || support == "DEFAULT", nil
+	}
+	if err = rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
+}

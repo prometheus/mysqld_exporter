@@ -15,7 +15,11 @@ func TestScrapeRocksDBCFStats(t *testing.T) {
 	}
 
 	db := getDB(t)
-	if !rocksDBEnabled(db, t) {
+	enabled, err := RocksDBEnabled(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !enabled {
 		t.Skip("RocksDB is not enabled, skipping test")
 	}
 

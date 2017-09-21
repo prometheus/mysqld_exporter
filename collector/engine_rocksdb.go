@@ -165,7 +165,7 @@ func RocksDBEnabled(db *sql.DB) (bool, error) {
 		if engine != "ROCKSDB" {
 			continue
 		}
-		return support == "YES", nil
+		return support == "YES" || support == "DEFAULT", nil
 	}
 	if err = rows.Err(); err != nil {
 		return false, err

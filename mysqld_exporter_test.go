@@ -229,7 +229,7 @@ func testVersion(t *testing.T, data binData) {
 	expectedRegexp := `mysqld_exporter, version gotest-version \(branch: gotest-branch, revision: gotest-revision\)
   build user:
   build date:
-  go version:       go1.+
+  go version:
 `
 
 	expectedScanner := bufio.NewScanner(bytes.NewBufferString(expectedRegexp))

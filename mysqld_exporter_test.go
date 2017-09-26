@@ -15,6 +15,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"net/url"
+	"net"
+	"syscall"
 
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -275,10 +278,31 @@ func testLandingPage(t *testing.T, data binData) {
 		t.Fatal(err)
 	}
 	defer cmd.Wait()
+	defer cmd.Process.Kill()
 
-	resp, err := http.Get("http://127.0.0.1:9104")
-	if err != nil {
-		t.Fatal(err)
+	// Get the main page, but we need to wait a bit for http server
+	var resp *http.Response
+	var err error
+	for i:=0; i<= 10; i++ {
+		// Try to get main page
+		resp, err = http.Get("http://127.0.0.1:9104")
+		if err == nil {
+			break
+		}
+
+		// If there is a syscall.ECONNREFUSED error (web server not available) then retry
+		if urlError, ok := err.(*url.Error); ok {
+			if opError, ok := urlError.Err.(*net.OpError); ok {
+				if osSyscallError, ok := opError.Err.(*os.SyscallError); ok {
+					if osSyscallError.Err == syscall.ECONNREFUSED {
+						time.Sleep(1 * time.Second)
+						continue
+					}
+				}
+			}
+		}
+
+		t.Fatalf("%#v", err)
 	}
 	defer resp.Body.Close()
 

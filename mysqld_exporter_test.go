@@ -269,14 +269,14 @@ func testLandingPage(t *testing.T, data binData) {
 		ctx,
 		data.bin,
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=localhost:3306")
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
 
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer cmd.Wait()
 
-	resp, err := http.Get("http://localhost:9104")
+	resp, err := http.Get("http://127.0.0.1:9104")
 	if err != nil {
 		t.Fatal(err)
 	}

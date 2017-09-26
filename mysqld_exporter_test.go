@@ -1,7 +1,20 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"os/exec"
+	"reflect"
+	"regexp"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -125,5 +138,167 @@ func TestGetMySQLVersion(t *testing.T) {
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expections: %s", err)
+	}
+}
+
+type binData struct {
+	bin string
+}
+
+func TestBin(t *testing.T) {
+	var err error
+	binName := "mysqld_exporter"
+
+	binDir, err := ioutil.TempDir("/tmp", binName+"-test-bindir-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.RemoveAll(binDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	importpath := "github.com/percona/mysqld_exporter/vendor/github.com/prometheus/common"
+	bin := binDir + "/" + binName
+	xVariables := map[string]string{
+		importpath + "/version.Version":  "gotest-version",
+		importpath + "/version.Branch":   "gotest-branch",
+		importpath + "/version.Revision": "gotest-revision",
+	}
+	var ldflags []string
+	for x, value := range xVariables {
+		ldflags = append(ldflags, fmt.Sprintf("-X %s=%s", x, value))
+	}
+	cmd := exec.Command(
+		"go",
+		"build",
+		"-o",
+		bin,
+		"-ldflags",
+		strings.Join(ldflags, " "),
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		t.Fatalf("Failed to build: %s", err)
+	}
+
+	data := binData{
+		bin: bin,
+	}
+	tests := []func(*testing.T, binData){
+		testLandingPage,
+		testVersion,
+	}
+	t.Run(binName, func(t *testing.T) {
+		for _, f := range tests {
+			f := f // capture range variable
+			fName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+			t.Run(fName, func(t *testing.T) {
+				t.Parallel()
+				f(t, data)
+			})
+		}
+	})
+}
+
+func testVersion(t *testing.T, data binData) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		data.bin,
+		"--version",
+	)
+
+	b := &bytes.Buffer{}
+	cmd.Stdout = b
+	cmd.Stderr = b
+
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRegexp := `mysqld_exporter, version gotest-version \(branch: gotest-branch, revision: gotest-revision\)
+  build user:
+  build date:
+  go version:       go1.+
+`
+
+	expectedScanner := bufio.NewScanner(bytes.NewBufferString(expectedRegexp))
+	defer func() {
+		if err := expectedScanner.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	gotScanner := bufio.NewScanner(b)
+	defer func() {
+		if err := gotScanner.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	for gotScanner.Scan() {
+		if !expectedScanner.Scan() {
+			t.Fatalf("didn't expected more data but got '%s'", gotScanner.Text())
+		}
+		ok, err := regexp.MatchString(expectedScanner.Text(), gotScanner.Text())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ok {
+			t.Fatalf("'%s' does not match regexp '%s'", gotScanner.Text(), expectedScanner.Text())
+		}
+	}
+
+	if expectedScanner.Scan() {
+		t.Errorf("expected '%s' but didn't got more data", expectedScanner.Text())
+	}
+}
+
+func testLandingPage(t *testing.T, data binData) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		data.bin,
+	)
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=localhost:3306")
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+
+	resp, err := http.Get("http://localhost:9104")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+
+	expected := `<html>
+<head><title>MySQLd 3-in-1 exporter</title></head>
+<body>
+<h1>MySQL 3-in-1 exporter</h1>
+<li><a href="/metrics-hr">high-res metrics</a></li>
+<li><a href="/metrics-mr">medium-res metrics</a></li>
+<li><a href="/metrics-lr">low-res metrics</a></li>
+</body>
+</html>
+`
+	if got != expected {
+		t.Fatalf("got '%s' but expected '%s'", got, expected)
 	}
 }

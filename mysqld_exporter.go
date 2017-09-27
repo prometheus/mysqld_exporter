@@ -192,9 +192,9 @@ var landingPage = []byte(`<html>
 <head><title>MySQLd 3-in-1 exporter</title></head>
 <body>
 <h1>MySQL 3-in-1 exporter</h1>
-<li><a href="/` + *metricPath + `-hr">high-res metrics</a></li>
-<li><a href="/` + *metricPath + `-mr">medium-res metrics</a></li>
-<li><a href="/` + *metricPath + `-lr">low-res metrics</a></li>
+<li><a href="` + *metricPath + `-hr">high-res metrics</a></li>
+<li><a href="` + *metricPath + `-mr">medium-res metrics</a></li>
+<li><a href="` + *metricPath + `-lr">low-res metrics</a></li>
 </body>
 </html>
 `)

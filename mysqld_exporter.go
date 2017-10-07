@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -191,12 +190,11 @@ func filter(filters map[string]bool, name string) bool {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	var filters map[string]bool
-	query := r.URL.Query().Get("collect")
-	log.Debugln("collect query:", query)
+	params := r.URL.Query()["collect[]"]
+	log.Debugln("collect query:", params)
 
-	if len(query) > 0 {
+	if len(params) > 0 {
 		filters = make(map[string]bool)
-		params := strings.Split(query, ",")
 		for _, param := range params {
 			f := flag.Lookup("collect." + param)
 			if f == nil {

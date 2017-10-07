@@ -176,13 +176,13 @@ func init() {
 }
 
 func filter(filters map[string]bool, name string) bool {
-	flg := flag.Lookup("collect." + name)
+	f := flag.Lookup("collect." + name)
 
-	if flg != nil {
+	if f != nil {
 		if len(filters) > 0 {
-			return flg.Value.(flag.Getter).Get().(bool) && filters[name]
+			return f.Value.(flag.Getter).Get().(bool) && filters[name]
 		}
-		return flg.Value.(flag.Getter).Get().(bool)
+		return f.Value.(flag.Getter).Get().(bool)
 	}
 
 	log.Warnln("Missing collector with name:", name)
@@ -198,8 +198,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		filters = make(map[string]bool)
 		params := strings.Split(query, ",")
 		for _, param := range params {
-			flg := flag.Lookup("collect." + param)
-			if flg == nil {
+			f := flag.Lookup("collect." + param)
+			if f == nil {
 				log.Warnln("Could not match collection filter parameter:", param)
 			}
 			filters[param] = true
@@ -235,14 +235,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		HeartbeatTable:       *collectHeartbeatTable,
 	}
 
-	//start := time.Now()
 	registry := prometheus.NewRegistry()
 	c := collector.New(dsn, collect)
 	registry.MustRegister(c)
 	// Delegate http serving to Promethues client library, which will call collector.Collect.
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
-	//duration := float64(time.Since(start).Seconds())
 }
 
 func main() {

@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -132,6 +134,7 @@ var (
 		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
 	).Default("heartbeat").String()
+  dsn string
 )
 
 // landingPage contains the HTML served at '/'.
@@ -172,6 +175,76 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
+func filter(filters map[string]bool, name string) bool {
+	flg := flag.Lookup("collect." + name)
+
+	if flg != nil {
+		if len(filters) > 0 {
+			return flg.Value.(flag.Getter).Get().(bool) && filters[name]
+		}
+		return flg.Value.(flag.Getter).Get().(bool)
+	}
+
+	log.Warnln("Missing collector with name:", name)
+	return false
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	var filters map[string]bool
+	query := r.URL.Query().Get("collect")
+	log.Debugln("collect query:", query)
+
+	if len(query) > 0 {
+		filters = make(map[string]bool)
+		params := strings.Split(query, ",")
+		for _, param := range params {
+			flg := flag.Lookup("collect." + param)
+			if flg == nil {
+				log.Warnln("Could not match collection filter parameter:", param)
+			}
+			filters[param] = true
+		}
+	}
+
+	collect := collector.Collect{
+		SlowLogFilter:        *slowLogFilter,
+		Processlist:          filter(filters, "info_schema.processlist"),
+		TableSchema:          filter(filters, "info_schema.tables"),
+		InnodbTablespaces:    filter(filters, "info_schema.innodb_tablespaces"),
+		InnodbMetrics:        filter(filters, "info_schema.innodb_metrics"),
+		GlobalStatus:         filter(filters, "global_status"),
+		GlobalVariables:      filter(filters, "global_variables"),
+		SlaveStatus:          filter(filters, "slave_status"),
+		AutoIncrementColumns: filter(filters, "auto_increment.columns"),
+		BinlogSize:           filter(filters, "binlog_size"),
+		PerfTableIOWaits:     filter(filters, "perf_schema.tableiowaits"),
+		PerfIndexIOWaits:     filter(filters, "perf_schema.indexiowaits"),
+		PerfTableLockWaits:   filter(filters, "perf_schema.tablelocks"),
+		PerfEventsStatements: filter(filters, "perf_schema.eventsstatements"),
+		PerfEventsWaits:      filter(filters, "perf_schema.eventswaits"),
+		PerfFileEvents:       filter(filters, "perf_schema.file_events"),
+		PerfFileInstances:    filter(filters, "perf_schema.file_instances"),
+		UserStat:             filter(filters, "info_schema.userstats"),
+		ClientStat:           filter(filters, "info_schema.clientstats"),
+		TableStat:            filter(filters, "info_schema.tablestats"),
+		QueryResponseTime:    filter(filters, "info_schema.query_response_time"),
+		EngineTokudbStatus:   filter(filters, "engine_tokudb_status"),
+		EngineInnodbStatus:   filter(filters, "engine_innodb_status"),
+		Heartbeat:            filter(filters, "heartbeat"),
+		HeartbeatDatabase:    *collectHeartbeatDatabase,
+		HeartbeatTable:       *collectHeartbeatTable,
+	}
+
+	//start := time.Now()
+	registry := prometheus.NewRegistry()
+	c := collector.New(dsn, collect)
+	registry.MustRegister(c)
+	// Delegate http serving to Promethues client library, which will call collector.Collect.
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	h.ServeHTTP(w, r)
+	//duration := float64(time.Since(start).Seconds())
+}
+
 func main() {
 	log.AddFlags(kingpin.CommandLine)
 	kingpin.Version(version.Print("mysqld_exporter"))
@@ -181,7 +254,7 @@ func main() {
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	dsn := os.Getenv("DATA_SOURCE_NAME")
+	dsn = os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
@@ -189,39 +262,7 @@ func main() {
 		}
 	}
 
-	collect := collector.Collect{
-		SlowLogFilter:        *slowLogFilter,
-		Processlist:          *collectProcesslist,
-		TableSchema:          *collectTableSchema,
-		InnodbTablespaces:    *collectInnodbTablespaces,
-		InnodbMetrics:        *collectInnodbMetrics,
-		GlobalStatus:         *collectGlobalStatus,
-		GlobalVariables:      *collectGlobalVariables,
-		SlaveStatus:          *collectSlaveStatus,
-		AutoIncrementColumns: *collectAutoIncrementColumns,
-		BinlogSize:           *collectBinlogSize,
-		PerfTableIOWaits:     *collectPerfTableIOWaits,
-		PerfIndexIOWaits:     *collectPerfIndexIOWaits,
-		PerfTableLockWaits:   *collectPerfTableLockWaits,
-		PerfEventsStatements: *collectPerfEventsStatements,
-		PerfEventsWaits:      *collectPerfEventsWaits,
-		PerfFileEvents:       *collectPerfFileEvents,
-		PerfFileInstances:    *collectPerfFileInstances,
-		UserStat:             *collectUserStat,
-		ClientStat:           *collectClientStat,
-		TableStat:            *collectTableStat,
-		QueryResponseTime:    *collectQueryResponseTime,
-		EngineTokudbStatus:   *collectEngineTokudbStatus,
-		EngineInnodbStatus:   *collectEngineInnodbStatus,
-		Heartbeat:            *collectHeartbeat,
-		HeartbeatDatabase:    *collectHeartbeatDatabase,
-		HeartbeatTable:       *collectHeartbeatTable,
-	}
-
-	c := collector.New(dsn, collect)
-	prometheus.MustRegister(c)
-
-	http.Handle(*metricPath, prometheus.Handler())
+	http.HandleFunc(*metricPath, handler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})

@@ -6,8 +6,8 @@ import (
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 
-	"flag"
 	"path"
 	"path/filepath"
 )
@@ -23,15 +23,15 @@ const perfFileInstancesQuery = `
 
 // Metric descriptors.
 var (
-	performanceSchemaFileInstancesFilter = flag.String(
-		"collect.perf_schema.file_instances.filter", ".*",
+	performanceSchemaFileInstancesFilter = kingpin.Flag(
+		"collect.perf_schema.file_instances.filter",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
-	)
+	).Default(".*").String()
 
-	performanceSchemaFileInstancesRemovePrefix = flag.Bool(
-		"collect.perf_schema.file_instances.remove_prefix", false,
+	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
+		"collect.perf_schema.file_instances.remove_prefix",
 		"Remove path prefix in performance_schema.file_summary_by_instance",
-	)
+	).Default("false").Bool()
 
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),

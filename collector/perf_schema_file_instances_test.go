@@ -3,16 +3,16 @@ package collector
 import (
 	"testing"
 
-	"flag"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapePerfFileInstances(t *testing.T) {
-	err := flag.Set("collect.perf_schema.file_instances.filter", "")
+	_, err := kingpin.CommandLine.Parse([]string{"--collect.perf_schema.file_instances.filter", ""})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -111,7 +111,8 @@ reference heartbeat implementation supported.
 
 ## Prometheus Configuration
 
-The mysqld exporter can be passed a list desired (enabled) collectors. The `collect[]` parameter accepts values matching [Collector Flags](#collector-flags) names.
+The mysqld exporter will expose all metrics from enabled collectors by default, but it can be passed an optional list of collectors to filter metrics. The `collect[]` parameter accepts values matching [Collector Flags](#collector-flags) names (without `collect.` prefix).
+
 This can be useful for specifying different scrape intervals for different collectors.
 
 ```yaml

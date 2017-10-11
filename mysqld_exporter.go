@@ -223,6 +223,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewGoCollector())
 	registry.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
 	registry.MustRegister(collector.New(dsn, collect))
 

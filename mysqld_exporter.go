@@ -226,9 +226,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	registry.MustRegister(prometheus.NewGoCollector())
 	registry.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
 	registry.MustRegister(collector.New(dsn, collect))
+	prometheus.DefaultRegisterer = registry
 
 	// Delegate http serving to Promethues client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	h := prometheus.InstrumentHandler("metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	h.ServeHTTP(w, r)
 }
 

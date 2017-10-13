@@ -224,7 +224,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collector.New(dsn, collect))
-	prometheus.DefaultRegisterer = registry
 
 	gatherers := prometheus.Gatherers{
 		prometheus.DefaultGatherer,

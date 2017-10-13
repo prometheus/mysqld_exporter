@@ -108,6 +108,36 @@ reference heartbeat implementation supported.
 
 [pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
 
+
+## Prometheus Configuration
+
+The mysqld exporter will expose all metrics from enabled collectors by default, but it can be passed an optional list of collectors to filter metrics. The `collect[]` parameter accepts values matching [Collector Flags](#collector-flags) names (without `collect.` prefix).
+
+This can be useful for specifying different scrape intervals for different collectors.
+
+```yaml
+scrape_configs:
+  - job_name: 'mysql global status'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+        - '192.168.1.2:9104'
+    params:
+      collect[]:
+        - global_status
+
+  - job_name: 'mysql performance'
+    scrape_interval: 1m
+    static_configs:
+      - targets:
+        - '192.168.1.2:9104'
+    params:
+      collect[]:
+        - perf_schema.tableiowaits
+        - perf_schema.indexiowaits
+        - perf_schema.tablelocks
+```
+
 ## Example Rules
 
 There are some sample rules available in [example.rules](example.rules)

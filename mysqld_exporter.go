@@ -223,13 +223,15 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGoCollector())
-	registry.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
 	registry.MustRegister(collector.New(dsn, collect))
 	prometheus.DefaultRegisterer = registry
 
+	gatherers := prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		registry,
+	}
 	// Delegate http serving to Promethues client library, which will call collector.Collect.
-	h := prometheus.InstrumentHandler("metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
 }
 
@@ -250,7 +252,10 @@ func main() {
 		}
 	}
 
-	http.HandleFunc(*metricPath, handler)
+	//prometheus.MustRegister(prometheus.NewGoCollector())
+	//prometheus.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
+
+	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", handler))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})

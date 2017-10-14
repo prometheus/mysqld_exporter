@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -133,7 +135,8 @@ var (
 		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
 	).Default("heartbeat").String()
-	dsn string
+	dsn        string
+	collectors map[string]bool
 )
 
 // landingPage contains the HTML served at '/'.
@@ -172,13 +175,14 @@ func parseMycnf(config interface{}) (string, error) {
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
+	collectors = make(map[string]bool)
 }
 
-func filter(filters map[string]bool, name string, flag bool) bool {
+func filter(filters map[string]bool, name string) bool {
 	if len(filters) > 0 {
-		return flag && filters[name]
+		return collectors[name] && filters[name]
 	}
-	return flag
+	return collectors[name]
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -189,35 +193,48 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if len(params) > 0 {
 		filters = make(map[string]bool)
 		for _, param := range params {
+			enabled, exist := collectors[param]
+			if !exist {
+				log.Warnln("Couldn't create missing collector:", param)
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(fmt.Sprintf("Couldn't create missing collector: %s", param)))
+				return
+			}
+			if !enabled {
+				log.Warnln("Couldn't create disabled collector:", param)
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(fmt.Sprintf("Couldn't create disabled collector: %s", param)))
+				return
+			}
 			filters[param] = true
 		}
 	}
 
 	collect := collector.Collect{
 		SlowLogFilter:        *slowLogFilter,
-		Processlist:          filter(filters, "info_schema.processlist", *collectProcesslist),
-		TableSchema:          filter(filters, "info_schema.tables", *collectTableSchema),
-		InnodbTablespaces:    filter(filters, "info_schema.innodb_tablespaces", *collectInnodbTablespaces),
-		InnodbMetrics:        filter(filters, "info_schema.innodb_metrics", *collectInnodbMetrics),
-		GlobalStatus:         filter(filters, "global_status", *collectGlobalStatus),
-		GlobalVariables:      filter(filters, "global_variables", *collectGlobalVariables),
-		SlaveStatus:          filter(filters, "slave_status", *collectSlaveStatus),
-		AutoIncrementColumns: filter(filters, "auto_increment.columns", *collectAutoIncrementColumns),
-		BinlogSize:           filter(filters, "binlog_size", *collectBinlogSize),
-		PerfTableIOWaits:     filter(filters, "perf_schema.tableiowaits", *collectPerfTableIOWaits),
-		PerfIndexIOWaits:     filter(filters, "perf_schema.indexiowaits", *collectPerfIndexIOWaits),
-		PerfTableLockWaits:   filter(filters, "perf_schema.tablelocks", *collectPerfTableLockWaits),
-		PerfEventsStatements: filter(filters, "perf_schema.eventsstatements", *collectPerfEventsStatements),
-		PerfEventsWaits:      filter(filters, "perf_schema.eventswaits", *collectPerfEventsWaits),
-		PerfFileEvents:       filter(filters, "perf_schema.file_events", *collectPerfFileEvents),
-		PerfFileInstances:    filter(filters, "perf_schema.file_instances", *collectPerfFileInstances),
-		UserStat:             filter(filters, "info_schema.userstats", *collectUserStat),
-		ClientStat:           filter(filters, "info_schema.clientstats", *collectClientStat),
-		TableStat:            filter(filters, "info_schema.tablestats", *collectTableStat),
-		QueryResponseTime:    filter(filters, "info_schema.query_response_time", *collectQueryResponseTime),
-		EngineTokudbStatus:   filter(filters, "engine_tokudb_status", *collectEngineTokudbStatus),
-		EngineInnodbStatus:   filter(filters, "engine_innodb_status", *collectEngineInnodbStatus),
-		Heartbeat:            filter(filters, "heartbeat", *collectHeartbeat),
+		Processlist:          filter(filters, "info_schema.processlist"),
+		TableSchema:          filter(filters, "info_schema.tables"),
+		InnodbTablespaces:    filter(filters, "info_schema.innodb_tablespaces"),
+		InnodbMetrics:        filter(filters, "info_schema.innodb_metrics"),
+		GlobalStatus:         filter(filters, "global_status"),
+		GlobalVariables:      filter(filters, "global_variables"),
+		SlaveStatus:          filter(filters, "slave_status"),
+		AutoIncrementColumns: filter(filters, "auto_increment.columns"),
+		BinlogSize:           filter(filters, "binlog_size"),
+		PerfTableIOWaits:     filter(filters, "perf_schema.tableiowaits"),
+		PerfIndexIOWaits:     filter(filters, "perf_schema.indexiowaits"),
+		PerfTableLockWaits:   filter(filters, "perf_schema.tablelocks"),
+		PerfEventsStatements: filter(filters, "perf_schema.eventsstatements"),
+		PerfEventsWaits:      filter(filters, "perf_schema.eventswaits"),
+		PerfFileEvents:       filter(filters, "perf_schema.file_events"),
+		PerfFileInstances:    filter(filters, "perf_schema.file_instances"),
+		UserStat:             filter(filters, "info_schema.userstats"),
+		ClientStat:           filter(filters, "info_schema.clientstats"),
+		TableStat:            filter(filters, "info_schema.tablestats"),
+		QueryResponseTime:    filter(filters, "info_schema.query_response_time"),
+		EngineTokudbStatus:   filter(filters, "engine_tokudb_status"),
+		EngineInnodbStatus:   filter(filters, "engine_innodb_status"),
+		Heartbeat:            filter(filters, "heartbeat"),
 		HeartbeatDatabase:    *collectHeartbeatDatabase,
 		HeartbeatTable:       *collectHeartbeatTable,
 	}
@@ -254,6 +271,24 @@ func main() {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	log.Infof("Enabled collectors:")
+	for _, flag := range kingpin.CommandLine.Model().Flags {
+		if flag.IsBoolFlag() {
+			split := strings.SplitN(flag.Name, ".", 2)
+			if split[0] == "collect" {
+				value, err := strconv.ParseBool(flag.Value.String())
+				if err != nil {
+					log.Errorln("Failed to parse boolean value for flag:", flag.Name)
+					log.Fatalln(err)
+				}
+				collectors[split[1]] = value
+				if value {
+					log.Infof(" - %s", split[1])
+				}
+			}
 		}
 	}
 

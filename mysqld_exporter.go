@@ -223,7 +223,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(collector.New(dsn, collect))
+	err := registry.Register(collector.New(dsn, collect))
+	if err != nil {
+		log.Errorln("Couldn't register collector:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Couldn't register collector: %s", err)))
+		return
+	}
 
 	gatherers := prometheus.Gatherers{
 		prometheus.DefaultGatherer,

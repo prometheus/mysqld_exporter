@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -279,13 +278,8 @@ func main() {
 		if flag.IsBoolFlag() {
 			split := strings.SplitN(flag.Name, ".", 2)
 			if split[0] == "collect" {
-				value, err := strconv.ParseBool(flag.Value.String())
-				if err != nil {
-					log.Errorln("Failed to parse boolean value for flag:", flag.Name)
-					log.Fatalln(err)
-				}
-				collectors[split[1]] = value
-				if value {
+				collectors[split[1]] = flag.Value.(kingpin.Getter).Get().(bool)
+				if collectors[split[1]] {
 					log.Infof(" - %s", split[1])
 				}
 			}

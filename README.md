@@ -110,7 +110,7 @@ reference heartbeat implementation supported.
 
 [pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
 
-Please remind to add the following grant:
+You will need to grant the exporter access to the heartbeat table:
 
 ```sql
 GRANT SELECT ON `<db_name>.<table_name>` TO 'exporter'@'localhost';

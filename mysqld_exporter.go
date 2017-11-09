@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -234,6 +235,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
+func getDSN() string {
+	if v := os.Getenv("DATA_SOURCE_NAME"); len(v) > 0 {
+		return v
+	}
+
+	if v := os.Getenv("DATA_SOURCE_NAME_FILE"); len(v) > 0 {
+		f, err := ioutil.ReadFile(v)
+
+		if err != nil {
+			log.Fatal("error reading DSN file", err)
+		}
+
+		return string(f)
+	}
+
+	v, err := parseMycnf(*configMycnf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return v
+}
+
 func main() {
 	log.AddFlags(kingpin.CommandLine)
 	kingpin.Version(version.Print("mysqld_exporter"))
@@ -243,13 +266,7 @@ func main() {
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			log.Fatal(err)
-		}
-	}
+	dsn = getDSN()
 
 	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", handler))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -35,6 +35,11 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+Format for flags (example):
+  
+    -collect.auto_increment.columns
+    -collect.auto_increment.columns=[true|flase]
+
 ### Collector Flags
 
 Name                                                   | MySQL Version | Description

@@ -2,11 +2,13 @@ package collector
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Metric name parts.
@@ -19,10 +21,16 @@ const (
 const (
 	sessionSettingsQuery = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
 	upQuery              = `SELECT 1`
+	timeoutQuery         = `SET SESSION lock_wait_timeout = %d`
 )
 
 // Metric descriptors.
 var (
+	exporterLockTimeout = kingpin.Flag(
+		"exporter.lock_wait_timeout",
+		"Set the MySQL session lock_wait_timeout to avoid stuck metadata locks",
+	).Default("2").Int()
+
 	scrapeDurationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
 		"Collector time duration.",
@@ -166,6 +174,15 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		return
 	}
 	isUpRows.Close()
+
+	timeoutRows, err := db.Query(fmt.Sprintf(timeoutQuery, exporterLockTimeout))
+	if err != nil {
+		log.Errorln("Error setting timeout", err)
+		e.mysqldUp.Set(0)
+		e.error.Set(1)
+		return
+	}
+	timeoutRows.Close()
 
 	e.mysqldUp.Set(1)
 

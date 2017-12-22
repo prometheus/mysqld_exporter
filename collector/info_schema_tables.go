@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -59,7 +60,7 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-func ScrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
+func ScrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric, wg *sync.WaitGroup) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
 		dbListRows, err := db.Query(dbListQuery)
@@ -83,64 +84,69 @@ func ScrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	for _, database := range dbList {
-		tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, database))
-		if err != nil {
-			return err
-		}
-		defer tableSchemaRows.Close()
-
-		var (
-			tableSchema   string
-			tableName     string
-			tableType     string
-			engine        string
-			version       uint64
-			rowFormat     string
-			tableRows     uint64
-			dataLength    uint64
-			indexLength   uint64
-			dataFree      uint64
-			createOptions string
-		)
-
-		for tableSchemaRows.Next() {
-			err = tableSchemaRows.Scan(
-				&tableSchema,
-				&tableName,
-				&tableType,
-				&engine,
-				&version,
-				&rowFormat,
-				&tableRows,
-				&dataLength,
-				&indexLength,
-				&dataFree,
-				&createOptions,
-			)
+		wg.Add(1)
+		go func(dbname string) error {
+			defer wg.Done()
+			tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, dbname))
 			if err != nil {
 				return err
 			}
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesVersionDesc, prometheus.GaugeValue, float64(version),
-				tableSchema, tableName, tableType, engine, rowFormat, createOptions,
+			defer tableSchemaRows.Close()
+
+			var (
+				tableSchema   string
+				tableName     string
+				tableType     string
+				engine        string
+				version       uint64
+				rowFormat     string
+				tableRows     uint64
+				dataLength    uint64
+				indexLength   uint64
+				dataFree      uint64
+				createOptions string
 			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesRowsDesc, prometheus.GaugeValue, float64(tableRows),
-				tableSchema, tableName,
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataLength),
-				tableSchema, tableName, "data_length",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(indexLength),
-				tableSchema, tableName, "index_length",
-			)
-			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataFree),
-				tableSchema, tableName, "data_free",
-			)
-		}
+
+			for tableSchemaRows.Next() {
+				err = tableSchemaRows.Scan(
+					&tableSchema,
+					&tableName,
+					&tableType,
+					&engine,
+					&version,
+					&rowFormat,
+					&tableRows,
+					&dataLength,
+					&indexLength,
+					&dataFree,
+					&createOptions,
+				)
+				if err != nil {
+					return err
+				}
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaTablesVersionDesc, prometheus.GaugeValue, float64(version),
+					tableSchema, tableName, tableType, engine, rowFormat, createOptions,
+				)
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaTablesRowsDesc, prometheus.GaugeValue, float64(tableRows),
+					tableSchema, tableName,
+				)
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataLength),
+					tableSchema, tableName, "data_length",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(indexLength),
+					tableSchema, tableName, "index_length",
+				)
+				ch <- prometheus.MustNewConstMetric(
+					infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataFree),
+					tableSchema, tableName, "data_free",
+				)
+			}
+			return nil
+		}(database)
 	}
 
 	return nil

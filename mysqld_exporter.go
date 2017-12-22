@@ -133,6 +133,10 @@ var (
 		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
 	).Default("heartbeat").String()
+	mysqlMaxconns = kingpin.Flag(
+		"mysql.max.connection",
+		"Maximum connection pool size to MySQL server (max value 64)",
+	).Default("8").Int()
 	dsn string
 )
 
@@ -220,6 +224,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		Heartbeat:            filter(filters, "heartbeat", *collectHeartbeat),
 		HeartbeatDatabase:    *collectHeartbeatDatabase,
 		HeartbeatTable:       *collectHeartbeatTable,
+		MaxMySQLConns:        *mysqlMaxconns,
 	}
 
 	registry := prometheus.NewRegistry()

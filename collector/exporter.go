@@ -177,6 +177,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		label   string
 		fn      scrapeFunc
 	}{
+		// "log_slow_filter" needs to be the first, since it changes the session.
+		// TODO: Set via DSN parameter instead? See https://github.com/go-sql-driver/mysql/#system-variables
 		{e.collect.SlowLogFilter, "log_slow_filter", func(db *sql.DB, ch chan<- prometheus.Metric) error {
 			sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 			if err != nil {

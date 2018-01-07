@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -166,8 +170,45 @@ func parseMycnf(config interface{}) (string, error) {
 	} else {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 	}
+	sslCA := cfg.Section("client").Key("ssl-ca").String()
+	sslCert := cfg.Section("client").Key("ssl-cert").String()
+	sslKey := cfg.Section("client").Key("ssl-key").String()
+	if sslCA != "" {
+		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
+			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
+			return dsn, tlsErr
+		}
+		dsn = fmt.Sprintf("%s?tls=custom", dsn)
+	}
+
 	log.Debugln(dsn)
 	return dsn, nil
+}
+
+func customizeTLS(sslCA string, sslCert string, sslKey string) error {
+	var tlsCfg tls.Config
+	caBundle := x509.NewCertPool()
+	pemCA, err := ioutil.ReadFile(sslCA)
+	if err != nil {
+		return err
+	}
+	if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
+		tlsCfg.RootCAs = caBundle
+	} else {
+		return fmt.Errorf("failed parse pem-encoded CA certificates from %s", sslCA)
+	}
+	if sslCert != "" && sslKey != "" {
+		certPairs := make([]tls.Certificate, 0, 1)
+		keypair, err := tls.LoadX509KeyPair(sslCert, sslKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %s",
+				sslCert, sslKey, err)
+		}
+		certPairs = append(certPairs, keypair)
+		tlsCfg.Certificates = certPairs
+	}
+	mysql.RegisterTLSConfig("custom", &tlsCfg)
+	return nil
 }
 
 func init() {

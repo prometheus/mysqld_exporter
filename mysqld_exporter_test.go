@@ -6,21 +6,20 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
-	"net/url"
-	"net"
-	"syscall"
 
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestParseMycnf(t *testing.T) {
@@ -114,34 +113,6 @@ func TestParseMycnf(t *testing.T) {
 			convey.So(err, convey.ShouldNotBeNil)
 		})
 	})
-}
-
-func TestGetMySQLVersion(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error opening a stub database connection: %s", err)
-	}
-	defer db.Close()
-
-	convey.Convey("MySQL version extract", t, func() {
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(""))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("something"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("10.1.17-MariaDB"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 10.1)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.7.13-6-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.7)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.6.30-76.3-56-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.6)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.5.51-38.1"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.5)
-	})
-
-	// Ensure all SQL queries were executed
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
-	}
 }
 
 type binData struct {
@@ -283,7 +254,7 @@ func testLandingPage(t *testing.T, data binData) {
 	// Get the main page, but we need to wait a bit for http server
 	var resp *http.Response
 	var err error
-	for i:=0; i<= 10; i++ {
+	for i := 0; i <= 10; i++ {
 		// Try to get main page
 		resp, err = http.Get("http://127.0.0.1:9104")
 		if err == nil {

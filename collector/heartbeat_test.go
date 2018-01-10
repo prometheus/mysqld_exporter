@@ -25,7 +25,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 	go func() {
 		database := "heartbeat"
 		table := "heartbeat"
-		if err = ScrapeHeartbeat(db, ch, &database, &table); err != nil {
+		if err = ScrapeHeartbeat(db, ch, database, table); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

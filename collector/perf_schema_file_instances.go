@@ -4,12 +4,10 @@ package collector
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/alecthomas/kingpin.v2"
-
-	"path"
-	"path/filepath"
 )
 
 const perfFileInstancesQuery = `
@@ -31,7 +29,7 @@ var (
 	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
 		"collect.perf_schema.file_instances.remove_prefix",
 		"Remove path prefix in performance_schema.file_summary_by_instance",
-	).Default("false").Bool()
+	).Default("/var/lib/mysql/").String()
 
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),
@@ -69,9 +67,7 @@ func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 
-		if *performanceSchemaFileInstancesRemovePrefix {
-			fileName = path.Base(filepath.ToSlash(fileName))
-		}
+		fileName = strings.TrimPrefix(fileName, *performanceSchemaFileInstancesRemovePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countRead),
 			fileName, eventName, "read",

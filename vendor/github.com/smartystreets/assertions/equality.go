@@ -11,7 +11,11 @@ import (
 	"github.com/smartystreets/assertions/internal/oglematchers"
 )
 
-// ShouldEqual receives exactly two parameters and does an equality check.
+// ShouldEqual receives exactly two parameters and does an equality check
+// using the following semantics:
+// 1. If the expected and actual values implement an Equal method in the form
+// `func (this T) Equal(that T) bool` then call the method. If true, they are equal.
+// 2. The expected and actual values are judged equal or not by oglematchers.Equals.
 func ShouldEqual(actual interface{}, expected ...interface{}) string {
 	if message := need(1, expected); message != success {
 		return message
@@ -22,10 +26,17 @@ func shouldEqual(actual, expected interface{}) (message string) {
 	defer func() {
 		if r := recover(); r != nil {
 			message = serializer.serialize(expected, actual, fmt.Sprintf(shouldHaveBeenEqual, expected, actual))
-			return
 		}
 	}()
 
+	if specification := newEqualityMethodSpecification(expected, actual); specification.IsSatisfied() {
+		if specification.AreEqual() {
+			return success
+		} else {
+			message = fmt.Sprintf(shouldHaveBeenEqual, expected, actual)
+			return serializer.serialize(expected, actual, message)
+		}
+	}
 	if matchError := oglematchers.Equals(expected).Matches(actual); matchError != nil {
 		expectedSyntax := fmt.Sprintf("%v", expected)
 		actualSyntax := fmt.Sprintf("%v", actual)
@@ -34,14 +45,14 @@ func shouldEqual(actual, expected interface{}) (message string) {
 		} else {
 			message = fmt.Sprintf(shouldHaveBeenEqual, expected, actual)
 		}
-		message = serializer.serialize(expected, actual, message)
-		return
+		return serializer.serialize(expected, actual, message)
 	}
 
 	return success
 }
 
 // ShouldNotEqual receives exactly two parameters and does an inequality check.
+// See ShouldEqual for details on how equality is determined.
 func ShouldNotEqual(actual interface{}, expected ...interface{}) string {
 	if fail := need(1, expected); fail != success {
 		return fail

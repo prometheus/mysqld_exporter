@@ -137,40 +137,40 @@
 			"versionExact": "v1.0.4"
 		},
 		{
-			"checksumSHA1": "AikWjAOvWHSJ8G1iU+wNReZnyCk=",
+			"checksumSHA1": "ozRFnFdTG0IjkTE0RkZn71XO4gw=",
 			"path": "github.com/smartystreets/assertions",
-			"revision": "4ea54c1f28ad3ae597e76607dea3871fa177e263",
-			"revisionTime": "2017-06-07T22:27:57Z"
+			"revision": "0b37b35ec7434b77e77a4bb29b79677cced992ea",
+			"revisionTime": "2017-09-25T17:21:51Z"
 		},
 		{
 			"checksumSHA1": "Vzb+dEH/LTYbvr8RXHmt6xJHz04=",
 			"path": "github.com/smartystreets/assertions/internal/go-render/render",
-			"revision": "4ea54c1f28ad3ae597e76607dea3871fa177e263",
-			"revisionTime": "2017-06-07T22:27:57Z"
+			"revision": "0b37b35ec7434b77e77a4bb29b79677cced992ea",
+			"revisionTime": "2017-09-25T17:21:51Z"
 		},
 		{
 			"checksumSHA1": "r6FauVdOTFnwYQgrKGFuWUbIAJE=",
 			"path": "github.com/smartystreets/assertions/internal/oglematchers",
-			"revision": "4ea54c1f28ad3ae597e76607dea3871fa177e263",
-			"revisionTime": "2017-06-07T22:27:57Z"
+			"revision": "0b37b35ec7434b77e77a4bb29b79677cced992ea",
+			"revisionTime": "2017-09-25T17:21:51Z"
 		},
 		{
 			"checksumSHA1": "f4m09DHEetaanti/GqUJzyCBTaI=",
 			"path": "github.com/smartystreets/goconvey/convey",
-			"revision": "9e8dc3f972df6c8fcc0375ef492c24d0bb204857",
-			"revisionTime": "2017-06-02T16:46:21Z"
+			"revision": "e5b2b7c9111590d019a696c7800593f666e1a7f4",
+			"revisionTime": "2017-08-25T22:14:26Z"
 		},
 		{
 			"checksumSHA1": "9LakndErFi5uCXtY1KWl0iRnT4c=",
 			"path": "github.com/smartystreets/goconvey/convey/gotest",
-			"revision": "9e8dc3f972df6c8fcc0375ef492c24d0bb204857",
-			"revisionTime": "2017-06-02T16:46:21Z"
+			"revision": "e5b2b7c9111590d019a696c7800593f666e1a7f4",
+			"revisionTime": "2017-08-25T22:14:26Z"
 		},
 		{
 			"checksumSHA1": "FWDhk37bhAwZ2363D/L2xePwR64=",
 			"path": "github.com/smartystreets/goconvey/convey/reporting",
-			"revision": "9e8dc3f972df6c8fcc0375ef492c24d0bb204857",
-			"revisionTime": "2017-06-02T16:46:21Z"
+			"revision": "e5b2b7c9111590d019a696c7800593f666e1a7f4",
+			"revisionTime": "2017-08-25T22:14:26Z"
 		},
 		{
 			"checksumSHA1": "X1NTlfcau2XcV6WtAHF6b/DECOA=",

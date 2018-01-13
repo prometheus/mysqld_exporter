@@ -15,7 +15,9 @@ NOTE: Not all collection methods are supported on MySQL < 5.6
 
 ```sql
 CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
-GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'localhost';
+GRANT SELECT ON `information_schema`.* TO 'exporter'@'localhost';
+GRANT SELECT ON `performance_schema`.* TO 'exporter'@'localhost';
 ```
 
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load.
@@ -118,6 +120,11 @@ reference heartbeat implementation supported.
 
 [pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
 
+You will need to grant the exporter access to the heartbeat table:
+
+```sql
+GRANT SELECT ON `<db_name>.<table_name>` TO 'exporter'@'localhost';
+```
 
 ## Prometheus Configuration
 

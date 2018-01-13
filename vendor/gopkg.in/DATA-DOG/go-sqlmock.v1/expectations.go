@@ -153,7 +153,7 @@ func (e *ExpectedQuery) WillDelayFor(duration time.Duration) *ExpectedQuery {
 
 // String returns string representation
 func (e *ExpectedQuery) String() string {
-	msg := "ExpectedQuery => expecting Query or QueryRow which:"
+	msg := "ExpectedQuery => expecting Query, QueryContext or QueryRow which:"
 	msg += "\n  - matches sql: '" + e.sqlRegex.String() + "'"
 
 	if len(e.args) == 0 {
@@ -208,7 +208,7 @@ func (e *ExpectedExec) WillDelayFor(duration time.Duration) *ExpectedExec {
 
 // String returns string representation
 func (e *ExpectedExec) String() string {
-	msg := "ExpectedExec => expecting Exec which:"
+	msg := "ExpectedExec => expecting Exec or ExecContext which:"
 	msg += "\n  - matches sql: '" + e.sqlRegex.String() + "'"
 
 	if len(e.args) == 0 {
@@ -252,11 +252,13 @@ func (e *ExpectedExec) WillReturnResult(result driver.Result) *ExpectedExec {
 // Returned by *Sqlmock.ExpectPrepare.
 type ExpectedPrepare struct {
 	commonExpectation
-	mock      *sqlmock
-	sqlRegex  *regexp.Regexp
-	statement driver.Stmt
-	closeErr  error
-	delay     time.Duration
+	mock         *sqlmock
+	sqlRegex     *regexp.Regexp
+	statement    driver.Stmt
+	closeErr     error
+	mustBeClosed bool
+	wasClosed    bool
+	delay        time.Duration
 }
 
 // WillReturnError allows to set an error for the expected *sql.DB.Prepare or *sql.Tx.Prepare action.
@@ -265,7 +267,7 @@ func (e *ExpectedPrepare) WillReturnError(err error) *ExpectedPrepare {
 	return e
 }
 
-// WillReturnCloseError allows to set an error for this prapared statement Close action
+// WillReturnCloseError allows to set an error for this prepared statement Close action
 func (e *ExpectedPrepare) WillReturnCloseError(err error) *ExpectedPrepare {
 	e.closeErr = err
 	return e
@@ -275,6 +277,13 @@ func (e *ExpectedPrepare) WillReturnCloseError(err error) *ExpectedPrepare {
 // result. May be used together with Context
 func (e *ExpectedPrepare) WillDelayFor(duration time.Duration) *ExpectedPrepare {
 	e.delay = duration
+	return e
+}
+
+// WillBeClosed expects this prepared statement to
+// be closed.
+func (e *ExpectedPrepare) WillBeClosed() *ExpectedPrepare {
+	e.mustBeClosed = true
 	return e
 }
 

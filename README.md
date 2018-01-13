@@ -35,6 +35,16 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+Example format for flags for version > 0.10.0:
+  
+    --collect.auto_increment.columns
+    --no-collect.auto_increment.columns
+  
+Example format for flags for version <= 0.10.0:
+  
+    -collect.auto_increment.columns
+    -collect.auto_increment.columns=[true|false]
+
 ### Collector Flags
 
 Name                                                   | MySQL Version | Description

@@ -29,10 +29,6 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
-	slowLogFilter = kingpin.Flag(
-		"log_slow_filter",
-		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
-	).Default("false").Bool()
 	collectProcesslist = kingpin.Flag(
 		"collect.info_schema.processlist",
 		"Collect current thread state counts from the information_schema.processlist",
@@ -194,7 +190,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	collect := collector.Collect{
-		SlowLogFilter:        *slowLogFilter,
 		Processlist:          filter(filters, "info_schema.processlist", *collectProcesslist),
 		TableSchema:          filter(filters, "info_schema.tables", *collectTableSchema),
 		InnodbTablespaces:    filter(filters, "info_schema.innodb_tablespaces", *collectInnodbTablespaces),

@@ -3,6 +3,7 @@ package collector
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -33,6 +34,10 @@ var (
 		"exporter.lock_wait_timeout",
 		"Set the MySQL session lock_wait_timeout to avoid stuck metadata locks",
 	).Default("2").Int()
+	slowLogFilter = kingpin.Flag(
+		"exporter.log_slow_filter",
+		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
+	).Default("false").Bool()
 
 	scrapeDurationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
@@ -43,7 +48,6 @@ var (
 
 // Collect defines which metrics we should collect
 type Collect struct {
-	SlowLogFilter        bool
 	Processlist          bool
 	TableSchema          bool
 	InnodbTablespaces    bool
@@ -86,7 +90,7 @@ func New(dsn string, collect Collect) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, exporterLockTimeout)}
 
-	if e.collect.SlowLogFilter {
+	if *slowLogFilter {
 		dsnParams = append(dsnParams, sessionSettingsParam)
 	}
 

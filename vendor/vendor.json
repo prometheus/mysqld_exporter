@@ -215,10 +215,10 @@
 			"revisionTime": "2017-12-17T18:08:21Z"
 		},
 		{
-			"checksumSHA1": "WNjUTH01NMhPWjpwnsaL3SW52Gw=",
+			"checksumSHA1": "P4LsadWqFYNCs98XRAiacey3q1U=",
 			"path": "gopkg.in/ini.v1",
-			"revision": "d3de07a94d22b4a0972deb4b96d790c2c0ce8333",
-			"revisionTime": "2017-06-02T20:46:24Z"
+			"revision": "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a",
+			"revisionTime": "2017-11-19T05:34:21Z"
 		}
 	],
 	"rootPath": "github.com/prometheus/mysqld_exporter"

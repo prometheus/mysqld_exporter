@@ -6,18 +6,18 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
-	"net/url"
-	"net"
-	"syscall"
 
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -283,7 +283,7 @@ func testLandingPage(t *testing.T, data binData) {
 	// Get the main page, but we need to wait a bit for http server
 	var resp *http.Response
 	var err error
-	for i:=0; i<= 10; i++ {
+	for i := 0; i <= 10; i++ {
 		// Try to get main page
 		resp, err = http.Get("http://127.0.0.1:9104")
 		if err == nil {

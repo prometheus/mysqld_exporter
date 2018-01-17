@@ -135,29 +135,11 @@ var (
 	collectQueryResponseTime = flag.Bool("collect.info_schema.query_response_time", false,
 		"Collect query response time distribution if query_response_time_stats is ON.",
 	)
-
-	// Those MyRocks collectors work but are not currently used by our dashboard, so disable them.
-	// TODO enable when we need them
-	removeMeFalse         = false
-	collectRocksDBCFStats = &removeMeFalse
-	collectRocksDBDBStats = &removeMeFalse
-	/*
-		collectRocksDBCFStats = flag.Bool("collect.info_schema.rocksdb_cfstats", false,
-			"Collect RocksDB column family statistics",
-		)
-		collectRocksDBDBStats = flag.Bool("collect.info_schema.rocksdb_dbstats", false,
-			"Collect RocksDB database statistics",
-		)
-	*/
-
 	collectEngineTokudbStatus = flag.Bool("collect.engine_tokudb_status", false,
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	)
 	collectEngineInnodbStatus = flag.Bool("collect.engine_innodb_status", false,
 		"Collect from SHOW ENGINE INNODB STATUS",
-	)
-	collectEngineRocksDBStatus = flag.String("collect.engine_rocksdb_status", "auto",
-		"Collect from SHOW ENGINE ROCKSDB STATUS",
 	)
 	collectHeartbeat = flag.Bool(
 		"collect.heartbeat", false,
@@ -494,19 +476,6 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 	}
 	versionNum := getMySQLVersion(db)
 
-	var rocksDBEnabled bool
-	if *collectEngineRocksDBStatus == "auto" {
-		rocksDBEnabled, err = collector.RocksDBEnabled(db)
-		if err != nil {
-			log.Warnln("Error to detect MyRocks support:", err)
-		}
-	} else {
-		rocksDBEnabled, err = strconv.ParseBool(*collectEngineRocksDBStatus)
-		if err != nil {
-			log.Warnln("Failed to parse -collect.engine_rocksdb_status, assuming false:", err)
-		}
-	}
-
 	if *slowLogFilter {
 		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
 		if err != nil {
@@ -566,22 +535,6 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.query_response_time")
 	}
-	if *collectRocksDBCFStats {
-		scrapeTime = time.Now()
-		if err = collector.ScrapeRocksDBCFStats(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.rocksdb_cfstats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.rocksdb_cfstats").Inc()
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.rocksdb_cfstats")
-	}
-	if *collectRocksDBDBStats {
-		scrapeTime = time.Now()
-		if err = collector.ScrapeRocksDBDBStats(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.rocksdb_dbstats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.rocksdb_dbstats").Inc()
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.rocksdb_dbstats")
-	}
 	if *collectEngineInnodbStatus {
 		scrapeTime = time.Now()
 		if err = collector.ScrapeEngineInnodbStatus(db, ch); err != nil {
@@ -589,14 +542,6 @@ func (e *ExporterMr) scrape(ch chan<- prometheus.Metric) {
 			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
-	}
-	if rocksDBEnabled {
-		scrapeTime = time.Now()
-		if err = collector.ScrapeEngineRocksDBStatus(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.engine_rocksdb_status:", err)
-			e.scrapeErrors.WithLabelValues("collect.engine_rocksdb_status").Inc()
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_rocksdb_status")
 	}
 }
 

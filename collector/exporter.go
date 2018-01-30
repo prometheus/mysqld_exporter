@@ -3,6 +3,7 @@ package collector
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -19,9 +20,12 @@ const (
 
 // SQL Queries.
 const (
-	sessionSettingsQuery = `SET SESSION log_slow_filter = 'tmp_table_on_disk,filesort_on_disk'`
-	upQuery              = `SELECT 1`
-	timeoutQuery         = `SET SESSION lock_wait_timeout = %d`
+	// System variable params formatting.
+	// See: https://github.com/go-sql-driver/mysql#system-variables
+	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
+	timeoutParam         = `lock_wait_timeout=%d`
+
+	upQuery = `SELECT 1`
 )
 
 // Metric descriptors.
@@ -30,6 +34,10 @@ var (
 		"exporter.lock_wait_timeout",
 		"Set the MySQL session lock_wait_timeout to avoid stuck metadata locks",
 	).Default("2").Int()
+	slowLogFilter = kingpin.Flag(
+		"exporter.log_slow_filter",
+		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
+	).Default("false").Bool()
 
 	scrapeDurationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
@@ -40,7 +48,6 @@ var (
 
 // Collect defines which metrics we should collect
 type Collect struct {
-	SlowLogFilter        bool
 	Processlist          bool
 	TableSchema          bool
 	InnodbTablespaces    bool
@@ -80,6 +87,19 @@ type Exporter struct {
 
 // New returns a new MySQL exporter for the provided DSN.
 func New(dsn string, collect Collect) *Exporter {
+	// Setup extra params for the DSN, default to having a lock timeout.
+	dsnParams := []string{fmt.Sprintf(timeoutParam, exporterLockTimeout)}
+
+	if *slowLogFilter {
+		dsnParams = append(dsnParams, sessionSettingsParam)
+	}
+
+	if strings.Contains(dsn, "?") {
+		dsn = dsn + "&" + strings.Join(dsnParams, "&")
+	} else {
+		dsn = dsn + "?" + strings.Join(dsnParams, "&")
+	}
+
 	return &Exporter{
 		dsn:     dsn,
 		collect: collect,
@@ -175,26 +195,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 	isUpRows.Close()
 
-	timeoutRows, err := db.Query(fmt.Sprintf(timeoutQuery, exporterLockTimeout))
-	if err != nil {
-		log.Errorln("Error setting timeout", err)
-		e.mysqldUp.Set(0)
-		e.error.Set(1)
-		return
-	}
-	timeoutRows.Close()
-
 	e.mysqldUp.Set(1)
-
-	if e.collect.SlowLogFilter {
-		sessionSettingsRows, err := db.Query(sessionSettingsQuery)
-		if err != nil {
-			log.Errorln("Error setting log_slow_filter:", err)
-			e.error.Set(1)
-			return
-		}
-		sessionSettingsRows.Close()
-	}
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 

@@ -125,7 +125,8 @@ var (
 		"collect.info_schema.query_response_time",
 		"Collect query response time distribution if query_response_time_stats is ON.",
 	).Default("false").Bool()
-	collectEngineTokudbStatus = kingpin.Flag("collect.engine_tokudb_status",
+	collectEngineTokudbStatus = kingpin.Flag(
+		"collect.engine_tokudb_status",
 		"Collect from SHOW ENGINE TOKUDB STATUS",
 	).Default("false").Bool()
 	collectEngineInnodbStatus = kingpin.Flag(

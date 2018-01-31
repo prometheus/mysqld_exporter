@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestParseMycnf(t *testing.T) {

@@ -30,6 +30,16 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+Example format for flags for version > 0.10.0:
+  
+    --collect.auto_increment.columns
+    --no-collect.auto_increment.columns
+  
+Example format for flags for version <= 0.10.0:
+  
+    -collect.auto_increment.columns
+    -collect.auto_increment.columns=[true|false]
+
 ### Collector Flags
 
 Name                                                   | MySQL Version | Description
@@ -71,7 +81,8 @@ Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
-log_slow_filter                            | Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.
+exporter.lock_wait_timeout                 | Set a lock_wait_timeout on the connection to avoid long metadata locking. (default: 2 seconds)
+exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.

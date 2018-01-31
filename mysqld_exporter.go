@@ -45,10 +45,6 @@ var (
 		"web.ssl-key-file",
 		"Path to SSL key file.",
 	).String()
-	slowLogFilter = kingpin.Flag(
-		"log_slow_filter",
-		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
-	).Default("false").Bool()
 	collectProcesslist = kingpin.Flag(
 		"collect.info_schema.processlist",
 		"Collect current thread state counts from the information_schema.processlist",

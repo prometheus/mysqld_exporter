@@ -3,9 +3,9 @@ package collector
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +27,6 @@ const (
 	// See: https://github.com/go-sql-driver/mysql#system-variables
 	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
 	timeoutParam         = `lock_wait_timeout=%d`
-
 	versionQuery         = `SELECT @@version`
 )
 
@@ -39,7 +38,7 @@ var (
 	).Default("2").Int()
 	slowLogFilter = kingpin.Flag(
 		"exporter.log_slow_filter",
-		"Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
+		"Add a log_slow_filter to avoid excessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
 	).Default("false").Bool()
 
 	scrapeDurationDesc = prometheus.NewDesc(
@@ -49,15 +48,9 @@ var (
 	)
 )
 
-// Collect defines which metrics we should collect
-type Collect struct {
-	Scrapers      []Scraper
-}
-
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
 	dsn          string
-	collect      Collect
 	error        prometheus.Gauge
 	totalScrapes prometheus.Counter
 	scrapeErrors *prometheus.CounterVec
@@ -66,7 +59,7 @@ type Exporter struct {
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, collect Collect) *Exporter {
+func New(dsn string, scrapers []Scraper) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, exporterLockTimeout)}
 
@@ -81,8 +74,8 @@ func New(dsn string, collect Collect) *Exporter {
 	}
 
 	return &Exporter{
-		dsn:     dsn,
-		collect: collect,
+		dsn:      dsn,
+		scrapers: scrapers,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,

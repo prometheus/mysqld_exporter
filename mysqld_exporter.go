@@ -195,7 +195,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(cfg *webAuth, collect collector.Collect) http.HandlerFunc {
+func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var filters map[string]bool
 		params := r.URL.Query()["collect[]"]
@@ -208,16 +208,16 @@ func newHandler(cfg *webAuth, collect collector.Collect) http.HandlerFunc {
 			}
 
 			var filteredScrapers []collector.Scraper
-			for _, scraper := range collect.Scrapers {
+			for _, scraper := range scrapers {
 				if filters[scraper.Name()] {
 					filteredScrapers = append(filteredScrapers, scraper)
 				}
 			}
-			collect.Scrapers = filteredScrapers
+			scrapers = filteredScrapers
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, collect))
+		registry.MustRegister(collector.New(dsn, scrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -299,19 +299,20 @@ func main() {
 		log.Infoln("HTTPS/TLS is enabled")
 	}
 
+	// New http server
 	mux := http.NewServeMux()
 
-	scrapersHR := Scrapers{
+	// Defines what to scrape in high resolution.
+	scrapersHr := Scrapers{
 		{collector.ScraperGlobalStatus, *collectGlobalStatus},
 		{collector.ScraperInnodbMetrics, *collectInnodbMetrics},
 	}
-	mux.Handle(*metricPath+"-hr", prometheus.InstrumentHandlerFunc("metrics-hr", newHandler(
+	mux.Handle(*metricPath+"-hr", newHandler(
 		cfg,
-		collector.Collect{
-			SlowLogFilter: *slowLogFilter,
-			Scrapers:      scrapersHR.CollectorActiveScrapers(),
-		},
-	)))
+		scrapersHr.CollectorActiveScrapers(),
+	))
+
+	// Defines what to scrape in medium resolution.
 	scrapersMr := Scrapers{
 		{collector.ScraperSlaveStatus, *collectSlaveStatus},
 		{collector.ScraperProcessList, *collectProcesslist},
@@ -321,14 +322,12 @@ func main() {
 		{collector.ScraperQueryResponseTime, *collectQueryResponseTime},
 		{collector.ScraperEngineInnodbStatus, *collectEngineInnodbStatus},
 	}
-	mux.Handle(*metricPath+"-mr", prometheus.InstrumentHandlerFunc("metrics-mr", newHandler(
+	mux.Handle(*metricPath+"-mr", newHandler(
 		cfg,
-		collector.Collect{
-			SlowLogFilter: *slowLogFilter,
-			Scrapers:      scrapersMr.CollectorActiveScrapers(),
-		},
-	)))
+		scrapersMr.CollectorActiveScrapers(),
+	))
 
+	// Defines what to scrape in low resolution.
 	scrapersLr := Scrapers{
 		{collector.ScraperGlobalVariables, *collectGlobalVariables},
 		{collector.ScraperTableSchema, *collectTableSchema},
@@ -345,14 +344,10 @@ func main() {
 		{collector.ScraperEngineTokudbStatus, *collectEngineTokudbStatus},
 		{collector.ScraperHeartbeat(*collectHeartbeatDatabase, *collectHeartbeatTable), *collectHeartbeat},
 	}
-
-	mux.Handle(*metricPath+"-lr", prometheus.InstrumentHandlerFunc("metrics-lr", newHandler(
+	mux.Handle(*metricPath+"-lr", newHandler(
 		cfg,
-		collector.Collect{
-			SlowLogFilter: *slowLogFilter,
-			Scrapers:      scrapersLr.CollectorActiveScrapers(),
-		},
-	)))
+		scrapersLr.CollectorActiveScrapers(),
+	))
 
 	srv := &http.Server{
 		Addr:    *listenAddress,
@@ -383,11 +378,11 @@ func main() {
 		log.Fatal(srv.ListenAndServeTLS(*sslCertFile, *sslKeyFile))
 	} else {
 		// http
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write(landingPage)
 		})
 
-		log.Fatal(http.ListenAndServe(*listenAddress, nil))
+		log.Fatal(srv.ListenAndServe())
 	}
 }
 

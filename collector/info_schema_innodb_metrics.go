@@ -49,7 +49,20 @@ var (
 )
 
 // ScrapeInnodbMetrics collects from `information_schema.innodb_metrics`.
-func ScrapeInnodbMetrics(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeInnodbMetrics struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeInnodbMetrics) Name() string {
+	return informationSchema + ".innodb_metrics"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeInnodbMetrics) Help() string {
+	return "Collect metrics from information_schema.innodb_metrics"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeInnodbMetrics) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	innodbMetricsRows, err := db.Query(infoSchemaInnodbMetricsQuery)
 	if err != nil {
 		return err

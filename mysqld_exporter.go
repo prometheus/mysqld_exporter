@@ -29,120 +29,38 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
-	collectProcesslist = kingpin.Flag(
-		"collect.info_schema.processlist",
-		"Collect current thread state counts from the information_schema.processlist",
-	).Default("false").Bool()
-	collectTableSchema = kingpin.Flag(
-		"collect.info_schema.tables",
-		"Collect metrics from information_schema.tables",
-	).Default("true").Bool()
-	collectInnodbTablespaces = kingpin.Flag(
-		"collect.info_schema.innodb_tablespaces",
-		"Collect metrics from information_schema.innodb_sys_tablespaces",
-	).Default("false").Bool()
-	collectInnodbMetrics = kingpin.Flag(
-		"collect.info_schema.innodb_metrics",
-		"Collect metrics from information_schema.innodb_metrics",
-	).Default("false").Bool()
-	collectGlobalStatus = kingpin.Flag(
-		"collect.global_status",
-		"Collect from SHOW GLOBAL STATUS",
-	).Default("true").Bool()
-	collectGlobalVariables = kingpin.Flag(
-		"collect.global_variables",
-		"Collect from SHOW GLOBAL VARIABLES",
-	).Default("true").Bool()
-	collectSlaveStatus = kingpin.Flag(
-		"collect.slave_status",
-		"Collect from SHOW SLAVE STATUS",
-	).Default("true").Bool()
-	collectAutoIncrementColumns = kingpin.Flag(
-		"collect.auto_increment.columns",
-		"Collect auto_increment columns and max values from information_schema",
-	).Default("false").Bool()
-	collectBinlogSize = kingpin.Flag(
-		"collect.binlog_size",
-		"Collect the current size of all registered binlog files",
-	).Default("false").Bool()
-	collectPerfTableIOWaits = kingpin.Flag(
-		"collect.perf_schema.tableiowaits",
-		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
-	).Default("false").Bool()
-	collectPerfIndexIOWaits = kingpin.Flag(
-		"collect.perf_schema.indexiowaits",
-		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
-	).Default("false").Bool()
-	collectPerfTableLockWaits = kingpin.Flag(
-		"collect.perf_schema.tablelocks",
-		"Collect metrics from performance_schema.table_lock_waits_summary_by_table",
-	).Default("false").Bool()
-	collectPerfEventsStatements = kingpin.Flag(
-		"collect.perf_schema.eventsstatements",
-		"Collect metrics from performance_schema.events_statements_summary_by_digest",
-	).Default("false").Bool()
-	collectPerfEventsWaits = kingpin.Flag(
-		"collect.perf_schema.eventswaits",
-		"Collect metrics from performance_schema.events_waits_summary_global_by_event_name",
-	).Default("false").Bool()
-	collectPerfFileEvents = kingpin.Flag(
-		"collect.perf_schema.file_events",
-		"Collect metrics from performance_schema.file_summary_by_event_name",
-	).Default("false").Bool()
-	collectPerfFileInstances = kingpin.Flag(
-		"collect.perf_schema.file_instances",
-		"Collect metrics from performance_schema.file_summary_by_instance",
-	).Default("false").Bool()
-	collectPerfRepGroupMemberStats = kingpin.Flag(
-		"collect.replication_group_member_stats",
-		"Collect metrics from performance_schema.replication_group_member_stats",
-	).Default("false").Bool()
-	collectUserStat = kingpin.Flag(
-		"collect.info_schema.userstats",
-		"If running with userstat=1, set to true to collect user statistics",
-	).Default("false").Bool()
-	collectClientStat = kingpin.Flag(
-		"collect.info_schema.clientstats",
-		"If running with userstat=1, set to true to collect client statistics",
-	).Default("false").Bool()
-	collectTableStat = kingpin.Flag(
-		"collect.info_schema.tablestats",
-		"If running with userstat=1, set to true to collect table statistics",
-	).Default("false").Bool()
-	collectQueryResponseTime = kingpin.Flag(
-		"collect.info_schema.query_response_time",
-		"Collect query response time distribution if query_response_time_stats is ON.",
-	).Default("false").Bool()
-	collectInnodbCmp = kingpin.Flag(
-		"collect.info_schema.innodbcmp",
-		"If running with innodbcmp=1, set to true to collect innodb cmp statistics",
-	).Default("false").Bool()
-	collectInnodbCmpMem = kingpin.Flag(
-		"collect.info_schema.innodbcmpmem",
-		"If running with innodbcmpmem=1, set to true to collect innodb cmpmem statistics",
-	).Default("false").Bool()
-	collectEngineTokudbStatus = kingpin.Flag(
-		"collect.engine_tokudb_status",
-		"Collect from SHOW ENGINE TOKUDB STATUS",
-	).Default("false").Bool()
-	collectEngineInnodbStatus = kingpin.Flag(
-		"collect.engine_innodb_status",
-		"Collect from SHOW ENGINE INNODB STATUS",
-	).Default("false").Bool()
-	collectHeartbeat = kingpin.Flag(
-		"collect.heartbeat",
-		"Collect from heartbeat",
-	).Default("false").Bool()
-	collectHeartbeatDatabase = kingpin.Flag(
-		"collect.heartbeat.database",
-		"Database from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatTable = kingpin.Flag(
-		"collect.heartbeat.table",
-		"Table from where to collect heartbeat data",
-	).Default("heartbeat").String()
 	dsn string
 )
+
+// scrapers lists all possible collection methods and if they should be enabled by default.
+var scrapers = map[collector.Scraper]bool{
+	collector.ScrapeGlobalStatus{}:                    true,
+	collector.ScrapeGlobalVariables{}:                 true,
+	collector.ScrapeSlaveStatus{}:                     true,
+	collector.ScrapeProcesslist{}:                     false,
+	collector.ScrapeTableSchema{}:                     true,
+	collector.ScrapeInfoSchemaInnodbTablespaces{}:     false,
+	collector.ScrapeInnodbMetrics{}:                   false,
+	collector.ScrapeAutoIncrementColumns{}:            false,
+	collector.ScrapeBinlogSize{}:                      false,
+	collector.ScrapePerfTableIOWaits{}:                false,
+	collector.ScrapePerfIndexIOWaits{}:                false,
+	collector.ScrapePerfTableLockWaits{}:              false,
+	collector.ScrapePerfEventsStatements{}:            false,
+	collector.ScrapePerfEventsWaits{}:                 false,
+	collector.ScrapePerfFileEvents{}:                  false,
+	collector.ScrapePerfFileInstances{}:               false,
+	collector.ScrapePerfReplicationGroupMemberStats{}: false,
+	collector.ScrapeUserStat{}:                        false,
+	collector.ScrapeClientStat{}:                      false,
+	collector.ScrapeTableStat{}:                       false,
+	collector.ScrapeInnodbCmp{}:                       false,
+	collector.ScrapeInnodbCmpMem{}:                    false,
+	collector.ScrapeQueryResponseTime{}:               false,
+	collector.ScrapeEngineTokudbStatus{}:              false,
+	collector.ScrapeEngineInnodbStatus{}:              false,
+	collector.ScrapeHeartbeat{}:                       false,
+}
 
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
@@ -171,69 +89,58 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func filter(filters map[string]bool, name string, flag bool) bool {
-	if len(filters) > 0 {
-		return flag && filters[name]
-	}
-	return flag
-}
+func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		filteredScrapers := scrapers
+		params := r.URL.Query()["collect[]"]
+		log.Debugln("collect query:", params)
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	var filters map[string]bool
-	params := r.URL.Query()["collect[]"]
-	log.Debugln("collect query:", params)
+		// Check if we have some "collect[]" query parameters.
+		if len(params) > 0 {
+			filters := make(map[string]bool)
+			for _, param := range params {
+				filters[param] = true
+			}
 
-	if len(params) > 0 {
-		filters = make(map[string]bool)
-		for _, param := range params {
-			filters[param] = true
+			filteredScrapers = nil
+			for _, scraper := range scrapers {
+				if filters[scraper.Name()] {
+					filteredScrapers = append(filteredScrapers, scraper)
+				}
+			}
 		}
-	}
 
-	collect := collector.Collect{
-		Processlist:             filter(filters, "info_schema.processlist", *collectProcesslist),
-		TableSchema:             filter(filters, "info_schema.tables", *collectTableSchema),
-		InnodbTablespaces:       filter(filters, "info_schema.innodb_tablespaces", *collectInnodbTablespaces),
-		InnodbMetrics:           filter(filters, "info_schema.innodb_metrics", *collectInnodbMetrics),
-		GlobalStatus:            filter(filters, "global_status", *collectGlobalStatus),
-		GlobalVariables:         filter(filters, "global_variables", *collectGlobalVariables),
-		SlaveStatus:             filter(filters, "slave_status", *collectSlaveStatus),
-		AutoIncrementColumns:    filter(filters, "auto_increment.columns", *collectAutoIncrementColumns),
-		BinlogSize:              filter(filters, "binlog_size", *collectBinlogSize),
-		PerfTableIOWaits:        filter(filters, "perf_schema.tableiowaits", *collectPerfTableIOWaits),
-		PerfIndexIOWaits:        filter(filters, "perf_schema.indexiowaits", *collectPerfIndexIOWaits),
-		PerfTableLockWaits:      filter(filters, "perf_schema.tablelocks", *collectPerfTableLockWaits),
-		PerfEventsStatements:    filter(filters, "perf_schema.eventsstatements", *collectPerfEventsStatements),
-		PerfEventsWaits:         filter(filters, "perf_schema.eventswaits", *collectPerfEventsWaits),
-		PerfFileEvents:          filter(filters, "perf_schema.file_events", *collectPerfFileEvents),
-		PerfFileInstances:       filter(filters, "perf_schema.file_instances", *collectPerfFileInstances),
-		PerfRepGroupMemberStats: filter(filters, "perf_schema.replication_group_member_stats", *collectPerfRepGroupMemberStats),
-		UserStat:                filter(filters, "info_schema.userstats", *collectUserStat),
-		ClientStat:              filter(filters, "info_schema.clientstats", *collectClientStat),
-		InnodbCmp:               filter(filters, "info_schema.innodbcmp", *collectInnodbCmp),
-		InnodbCmpMem:            filter(filters, "info_schema.innodbcmpmem", *collectInnodbCmpMem),
-		TableStat:               filter(filters, "info_schema.tablestats", *collectTableStat),
-		QueryResponseTime:       filter(filters, "info_schema.query_response_time", *collectQueryResponseTime),
-		EngineTokudbStatus:      filter(filters, "engine_tokudb_status", *collectEngineTokudbStatus),
-		EngineInnodbStatus:      filter(filters, "engine_innodb_status", *collectEngineInnodbStatus),
-		Heartbeat:               filter(filters, "heartbeat", *collectHeartbeat),
-		HeartbeatDatabase:       *collectHeartbeatDatabase,
-		HeartbeatTable:          *collectHeartbeatTable,
-	}
+		registry := prometheus.NewRegistry()
+		registry.MustRegister(collector.New(dsn, filteredScrapers))
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(collector.New(dsn, collect))
-
-	gatherers := prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-		registry,
+		gatherers := prometheus.Gatherers{
+			prometheus.DefaultGatherer,
+			registry,
+		}
+		// Delegate http serving to Prometheus client library, which will call collector.Collect.
+		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
 	}
-	// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
-	h.ServeHTTP(w, r)
 }
 
 func main() {
+	// Generate ON/OFF flags for all scrapers.
+	scraperFlags := map[collector.Scraper]*bool{}
+	for scraper, enabledByDefault := range scrapers {
+		defaultOn := "false"
+		if enabledByDefault {
+			defaultOn = "true"
+		}
+
+		f := kingpin.Flag(
+			"collect."+scraper.Name(),
+			scraper.Help(),
+		).Default(defaultOn).Bool()
+
+		scraperFlags[scraper] = f
+	}
+
+	// Parse flags.
 	log.AddFlags(kingpin.CommandLine)
 	kingpin.Version(version.Print("mysqld_exporter"))
 	kingpin.HelpFlag.Short('h')
@@ -261,7 +168,16 @@ func main() {
 		}
 	}
 
-	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", handler))
+	// Register only scrapers enabled by flag.
+	log.Infof("Enabled scrapers:")
+	enabledScrapers := []collector.Scraper{}
+	for scraper, enabled := range scraperFlags {
+		if *enabled {
+			log.Infof(" --collect.%s", scraper.Name())
+			enabledScrapers = append(enabledScrapers, scraper)
+		}
+	}
+	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", newHandler(enabledScrapers)))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})

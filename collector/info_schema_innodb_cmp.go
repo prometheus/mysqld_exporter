@@ -14,6 +14,7 @@ const innodbCmpQuery = `
 		  FROM information_schema.innodb_cmp
 		`
 
+// Metric descriptors.
 var (
 	infoSchemaInnodbCmpCompressOps = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_total"),
@@ -43,7 +44,20 @@ var (
 )
 
 // ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
-func ScrapeInnodbCmp(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeInnodbCmp struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeInnodbCmp) Name() string {
+	return informationSchema + ".innodb_cmp"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeInnodbCmp) Help() string {
+	return "Collect metrics from information_schema.innodb_cmp"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeInnodbCmp) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	informationSchemaInnodbCmpRows, err := db.Query(innodbCmpQuery)
 	if err != nil {

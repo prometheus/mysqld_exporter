@@ -19,7 +19,20 @@ const (
 )
 
 // ScrapeGlobalVariables collects from `SHOW GLOBAL VARIABLES`.
-func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeGlobalVariables struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeGlobalVariables) Name() string {
+	return globalVariables
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeGlobalVariables) Help() string {
+	return "Collect from SHOW GLOBAL VARIABLES"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeGlobalVariables) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalVariablesRows, err := db.Query(globalVariablesQuery)
 	if err != nil {
 		return err

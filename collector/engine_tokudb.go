@@ -16,26 +16,21 @@ const (
 	engineTokudbStatusQuery = `SHOW ENGINE TOKUDB STATUS`
 )
 
-func sanitizeTokudbMetric(metricName string) string {
-	replacements := map[string]string{
-		">": "",
-		",": "",
-		":": "",
-		"(": "",
-		")": "",
-		" ": "_",
-		"-": "_",
-		"+": "and",
-		"/": "and",
-	}
-	for r := range replacements {
-		metricName = strings.Replace(metricName, r, replacements[r], -1)
-	}
-	return metricName
+// ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
+type ScrapeEngineTokudbStatus struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeEngineTokudbStatus) Name() string {
+	return "engine_tokudb_status"
 }
 
-// ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
-func ScrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+// Help describes the role of the Scraper.
+func (ScrapeEngineTokudbStatus) Help() string {
+	return "Collect from SHOW ENGINE TOKUDB STATUS"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeEngineTokudbStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tokudbRows, err := db.Query(engineTokudbStatusQuery)
 	if err != nil {
 		return err
@@ -59,4 +54,22 @@ func ScrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 		}
 	}
 	return nil
+}
+
+func sanitizeTokudbMetric(metricName string) string {
+	replacements := map[string]string{
+		">": "",
+		",": "",
+		":": "",
+		"(": "",
+		")": "",
+		" ": "_",
+		"-": "_",
+		"+": "and",
+		"/": "and",
+	}
+	for r := range replacements {
+		metricName = strings.Replace(metricName, r, replacements[r], -1)
+	}
+	return metricName
 }

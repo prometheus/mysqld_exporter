@@ -37,7 +37,20 @@ var (
 )
 
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-func ScrapePerfFileEvents(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfFileEvents struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapePerfFileEvents) Name() string {
+	return "perf_schema.file_events"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapePerfFileEvents) Help() string {
+	return "Collect metrics from performance_schema.file_summary_by_event_name"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapePerfFileEvents) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileEventsRows, err := db.Query(perfFileEventsQuery)
 	if err != nil {

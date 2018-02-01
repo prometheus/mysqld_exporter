@@ -19,6 +19,7 @@ const tableStatQuery = `
 		  FROM information_schema.table_statistics
 		`
 
+// Metric descriptors.
 var (
 	infoSchemaTableStatsRowsReadDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_read_total"),
@@ -38,7 +39,20 @@ var (
 )
 
 // ScrapeTableStat collects from `information_schema.table_statistics`.
-func ScrapeTableStat(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeTableStat struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeTableStat) Name() string {
+	return "info_schema.tablestats"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeTableStat) Help() string {
+	return "If running with userstat=1, set to true to collect table statistics"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeTableStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
 	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {

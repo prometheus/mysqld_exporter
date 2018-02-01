@@ -20,13 +20,16 @@ const infoSchemaProcesslistQuery = `
 		  ORDER BY null
 		`
 
+// Tunable flags.
 var (
-	// Tunable flags.
 	processlistMinTime = kingpin.Flag(
 		"collect.info_schema.processlist.min_time",
 		"Minimum time a thread must be in each state to be counted",
 	).Default("0").Int()
-	// Prometheus descriptors.
+)
+
+// Metric descriptors.
+var (
 	processlistCountDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "threads"),
 		"The number of threads (connections) split by current state.",
@@ -118,37 +121,21 @@ var (
 	}
 )
 
-func deriveThreadState(command string, state string) string {
-	var normCmd = strings.Replace(strings.ToLower(command), "_", " ", -1)
-	var normState = strings.Replace(strings.ToLower(state), "_", " ", -1)
-	// check if it's already a valid state
-	_, knownState := threadStateCounterMap[normState]
-	if knownState {
-		return normState
-	}
-	// check if plain mapping applies
-	mappedState, canMap := threadStateMapping[normState]
-	if canMap {
-		return mappedState
-	}
-	// check special waiting for XYZ lock
-	if strings.Contains(normState, "waiting for") && strings.Contains(normState, "lock") {
-		return "waiting for lock"
-	}
-	if normCmd == "sleep" && normState == "" {
-		return "idle"
-	}
-	if normCmd == "query" {
-		return "executing"
-	}
-	if normCmd == "binlog dump" {
-		return "replication master"
-	}
-	return "other"
+// ScrapeProcesslist collects from `information_schema.processlist`.
+type ScrapeProcesslist struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeProcesslist) Name() string {
+	return informationSchema + ".processlist"
 }
 
-// ScrapeProcesslist collects from `information_schema.processlist`.
-func ScrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
+// Help describes the role of the Scraper.
+func (ScrapeProcesslist) Help() string {
+	return "Collect current thread state counts from the information_schema.processlist"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
@@ -190,4 +177,33 @@ func ScrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	return nil
+}
+
+func deriveThreadState(command string, state string) string {
+	var normCmd = strings.Replace(strings.ToLower(command), "_", " ", -1)
+	var normState = strings.Replace(strings.ToLower(state), "_", " ", -1)
+	// check if it's already a valid state
+	_, knownState := threadStateCounterMap[normState]
+	if knownState {
+		return normState
+	}
+	// check if plain mapping applies
+	mappedState, canMap := threadStateMapping[normState]
+	if canMap {
+		return mappedState
+	}
+	// check special waiting for XYZ lock
+	if strings.Contains(normState, "waiting for") && strings.Contains(normState, "lock") {
+		return "waiting for lock"
+	}
+	if normCmd == "sleep" && normState == "" {
+		return "idle"
+	}
+	if normCmd == "query" {
+		return "executing"
+	}
+	if normCmd == "binlog dump" {
+		return "replication master"
+	}
+	return "other"
 }

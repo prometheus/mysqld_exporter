@@ -37,7 +37,20 @@ var (
 )
 
 // ScrapeReplicationGroupMemberStats collects from `performance_schema.replication_group_member_stats`.
-func ScrapeReplicationGroupMemberStats(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfReplicationGroupMemberStats struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapePerfReplicationGroupMemberStats) Name() string {
+	return performanceSchema + ".replication_group_member_stats"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapePerfReplicationGroupMemberStats) Help() string {
+	return "Collect metrics from performance_schema.replication_group_member_stats"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapePerfReplicationGroupMemberStats) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfReplicationGroupMemeberStatsRows, err := db.Query(perfReplicationGroupMemeberStatsQuery)
 	if err != nil {
 		return err
@@ -58,19 +71,19 @@ func ScrapeReplicationGroupMemberStats(db *sql.DB, ch chan<- prometheus.Metric) 
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countTransactionsInQueue),
+			performanceSchemaReplicationGroupMemberStatsTransInQueueDesc, prometheus.CounterValue, float64(countTransactionsInQueue),
 			memberId,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countTransactionsChecked),
+			performanceSchemaReplicationGroupMemberStatsTransCheckedDesc, prometheus.CounterValue, float64(countTransactionsChecked),
 			memberId,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countConflictsDetected),
+			performanceSchemaReplicationGroupMemberStatsConflictsDetectedDesc, prometheus.CounterValue, float64(countConflictsDetected),
 			memberId,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaTableWaitsDesc, prometheus.CounterValue, float64(countTransactionsRowsValidating),
+			performanceSchemaReplicationGroupMemberStatsTransRowValidatingDesc, prometheus.CounterValue, float64(countTransactionsRowsValidating),
 			memberId,
 		)
 	}

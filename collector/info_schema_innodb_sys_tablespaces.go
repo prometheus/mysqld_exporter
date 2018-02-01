@@ -20,6 +20,7 @@ const innodbTablespacesQuery = `
 	  FROM information_schema.innodb_sys_tablespaces
 	`
 
+// Metric descriptors.
 var (
 	infoSchemaInnodbTablesspaceInfoDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_space_info"),
@@ -39,7 +40,20 @@ var (
 )
 
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
-func ScrapeInfoSchemaInnodbTablespaces(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeInfoSchemaInnodbTablespaces struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeInfoSchemaInnodbTablespaces) Name() string {
+	return informationSchema + ".innodb_tablespaces"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeInfoSchemaInnodbTablespaces) Help() string {
+	return "Collect metrics from information_schema.innodb_sys_tablespaces"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tablespacesRows, err := db.Query(innodbTablespacesQuery)
 	if err != nil {
 		return err

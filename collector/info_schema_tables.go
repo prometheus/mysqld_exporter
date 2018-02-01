@@ -36,11 +36,16 @@ const (
 		`
 )
 
+// Tunable flags.
 var (
 	tableSchemaDatabases = kingpin.Flag(
 		"collect.info_schema.tables.databases",
 		"The list of databases to collect table stats for, or '*' for all",
 	).Default("*").String()
+)
+
+// Metric descriptors.
+var (
 	infoSchemaTablesVersionDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "table_version"),
 		"The version number of the table's .frm file",
@@ -59,7 +64,20 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-func ScrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeTableSchema struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeTableSchema) Name() string {
+	return informationSchema + ".tables"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeTableSchema) Help() string {
+	return "Collect metrics from information_schema.tables"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
 		dbListRows, err := db.Query(dbListQuery)

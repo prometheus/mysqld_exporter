@@ -19,13 +19,16 @@ const perfFileInstancesQuery = `
 	     where FILE_NAME REGEXP ?
 	`
 
-// Metric descriptors.
+// Tunable flags.
 var (
 	performanceSchemaFileInstancesFilter = kingpin.Flag(
 		"collect.perf_schema.file_instances.filter",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
 	).Default(".*").String()
+)
 
+// Metric descriptors.
+var (
 	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
 		"collect.perf_schema.file_instances.remove_prefix",
 		"Remove path prefix in performance_schema.file_summary_by_instance",
@@ -43,8 +46,21 @@ var (
 	)
 )
 
-// ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-func ScrapePerfFileInstances(db *sql.DB, ch chan<- prometheus.Metric) error {
+// ScrapePerfFileInstances collects from `performance_schema.file_summary_by_instance`.
+type ScrapePerfFileInstances struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapePerfFileInstances) Name() string {
+	return "perf_schema.file_instances"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapePerfFileInstances) Help() string {
+	return "Collect metrics from performance_schema.file_summary_by_instance"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapePerfFileInstances) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileInstancesRows, err := db.Query(perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
 	if err != nil {

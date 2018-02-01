@@ -132,17 +132,6 @@ var (
 	dsn string
 )
 
-// landingPage contains the HTML served at '/'.
-// TODO: Make this nicer and more informative.
-var landingPage = []byte(`<html>
-<head><title>MySQLd exporter</title></head>
-<body>
-<h1>MySQLd exporter</h1>
-<p><a href='` + *metricPath + `'>Metrics</a></p>
-</body>
-</html>
-`)
-
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
 	cfg, err := ini.Load(config)
@@ -234,6 +223,17 @@ func main() {
 	kingpin.Version(version.Print("mysqld_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+
+	// landingPage contains the HTML served at '/'.
+	// TODO: Make this nicer and more informative.
+	var landingPage = []byte(`<html>
+<head><title>MySQLd exporter</title></head>
+<body>
+<h1>MySQLd exporter</h1>
+<p><a href='` + *metricPath + `'>Metrics</a></p>
+</body>
+</html>
+`)
 
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())

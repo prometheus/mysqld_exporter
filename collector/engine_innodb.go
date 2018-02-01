@@ -19,7 +19,20 @@ const (
 )
 
 // ScrapeEngineInnodbStatus scrapes from `SHOW ENGINE INNODB STATUS`.
-func ScrapeEngineInnodbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeEngineInnodbStatus struct{}
+
+// Name of the Scraper.
+func (ScrapeEngineInnodbStatus) Name() string {
+	return "engine_innodb_status"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeEngineInnodbStatus) Help() string {
+	return "Collect from SHOW ENGINE INNODB STATUS"
+}
+
+// Scrape collects data.
+func (ScrapeEngineInnodbStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	rows, err := db.Query(engineInnodbStatusQuery)
 	if err != nil {
 		return err

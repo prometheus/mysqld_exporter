@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -46,39 +47,10 @@ var (
 	)
 )
 
-// Collect defines which metrics we should collect
-type Collect struct {
-	Processlist          bool
-	TableSchema          bool
-	InnodbTablespaces    bool
-	InnodbMetrics        bool
-	GlobalStatus         bool
-	GlobalVariables      bool
-	SlaveStatus          bool
-	AutoIncrementColumns bool
-	BinlogSize           bool
-	PerfTableIOWaits     bool
-	PerfIndexIOWaits     bool
-	PerfTableLockWaits   bool
-	PerfEventsStatements bool
-	PerfEventsWaits      bool
-	PerfFileEvents       bool
-	PerfFileInstances    bool
-	UserStat             bool
-	ClientStat           bool
-	TableStat            bool
-	QueryResponseTime    bool
-	EngineTokudbStatus   bool
-	EngineInnodbStatus   bool
-	Heartbeat            bool
-	HeartbeatDatabase    string
-	HeartbeatTable       string
-}
-
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
 	dsn          string
-	collect      Collect
+	scrapers     []Scraper
 	error        prometheus.Gauge
 	totalScrapes prometheus.Counter
 	scrapeErrors *prometheus.CounterVec
@@ -86,7 +58,7 @@ type Exporter struct {
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, collect Collect) *Exporter {
+func New(dsn string, scrapers []Scraper) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -102,8 +74,8 @@ func New(dsn string, collect Collect) *Exporter {
 	dsn += strings.Join(dsnParams, "&")
 
 	return &Exporter{
-		dsn:     dsn,
-		collect: collect,
+		dsn:      dsn,
+		scrapers: scrapers,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
@@ -200,210 +172,20 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	if e.collect.GlobalStatus {
-		scrapeTime = time.Now()
-		if err = ScrapeGlobalStatus(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.global_status:", err)
-			e.scrapeErrors.WithLabelValues("collect.global_status").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.global_status")
-	}
-	if e.collect.GlobalVariables {
-		scrapeTime = time.Now()
-		if err = ScrapeGlobalVariables(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.global_variables:", err)
-			e.scrapeErrors.WithLabelValues("collect.global_variables").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.global_variables")
-	}
-	if e.collect.SlaveStatus {
-		scrapeTime = time.Now()
-		if err = ScrapeSlaveStatus(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.slave_status:", err)
-			e.scrapeErrors.WithLabelValues("collect.slave_status").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.slave_status")
-	}
-	if e.collect.Processlist {
-		scrapeTime = time.Now()
-		if err = ScrapeProcesslist(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.processlist:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.processlist").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.processlist")
-	}
-	if e.collect.TableSchema {
-		scrapeTime = time.Now()
-		if err = ScrapeTableSchema(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.tables:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.tables").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.tables")
-	}
-	if e.collect.InnodbTablespaces {
-		scrapeTime = time.Now()
-		if err = ScrapeInfoSchemaInnodbTablespaces(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.innodb_sys_tablespaces:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_sys_tablespaces").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.innodb_sys_tablespaces")
-	}
-	if e.collect.InnodbMetrics {
-		if err = ScrapeInnodbMetrics(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.innodb_metrics:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.innodb_metrics").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.innodb_metrics")
-	}
-	if e.collect.AutoIncrementColumns {
-		scrapeTime = time.Now()
-		if err = ScrapeAutoIncrementColumns(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.auto_increment.columns:", err)
-			e.scrapeErrors.WithLabelValues("collect.auto_increment.columns").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.auto_increment.columns")
-	}
-	if e.collect.BinlogSize {
-		scrapeTime = time.Now()
-		if err = ScrapeBinlogSize(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.binlog_size:", err)
-			e.scrapeErrors.WithLabelValues("collect.binlog_size").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.binlog_size")
-	}
-	if e.collect.PerfTableIOWaits {
-		scrapeTime = time.Now()
-		if err = ScrapePerfTableIOWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.tableiowaits:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.tableiowaits").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.tableiowaits")
-	}
-	if e.collect.PerfIndexIOWaits {
-		scrapeTime = time.Now()
-		if err = ScrapePerfIndexIOWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.indexiowaits:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.indexiowaits").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.indexiowaits")
-	}
-	if e.collect.PerfTableLockWaits {
-		scrapeTime = time.Now()
-		if err = ScrapePerfTableLockWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.tablelocks:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.tablelocks").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.tablelocks")
-	}
-	if e.collect.PerfEventsStatements {
-		scrapeTime = time.Now()
-		if err = ScrapePerfEventsStatements(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.eventsstatements:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventsstatements").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.eventsstatements")
-	}
-	if e.collect.PerfEventsWaits {
-		scrapeTime = time.Now()
-		if err = ScrapePerfEventsWaits(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.eventswaits:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.eventswaits").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.eventswaits")
-	}
-	if e.collect.PerfFileEvents {
-		scrapeTime = time.Now()
-		if err = ScrapePerfFileEvents(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.file_events:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_events").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.file_events")
-	}
-	if e.collect.PerfFileInstances {
-		scrapeTime = time.Now()
-		if err = ScrapePerfFileInstances(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.perf_schema.file_instances:", err)
-			e.scrapeErrors.WithLabelValues("collect.perf_schema.file_instances").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.perf_schema.file_instances")
-	}
-	if e.collect.UserStat {
-		scrapeTime = time.Now()
-		if err = ScrapeUserStat(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.userstats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.userstats").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.userstats")
-	}
-	if e.collect.ClientStat {
-		scrapeTime = time.Now()
-		if err = ScrapeClientStat(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.clientstats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.clientstats").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.clientstats")
-	}
-	if e.collect.TableStat {
-		scrapeTime = time.Now()
-		if err = ScrapeTableStat(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.tablestats:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.tablestats").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.tablestats")
-	}
-	if e.collect.QueryResponseTime {
-		scrapeTime = time.Now()
-		if err = ScrapeQueryResponseTime(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.info_schema.query_response_time:", err)
-			e.scrapeErrors.WithLabelValues("collect.info_schema.query_response_time").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.query_response_time")
-	}
-	if e.collect.EngineTokudbStatus {
-		scrapeTime = time.Now()
-		if err = ScrapeEngineTokudbStatus(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.engine_tokudb_status:", err)
-			e.scrapeErrors.WithLabelValues("collect.engine_tokudb_status").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_tokudb_status")
-	}
-	if e.collect.EngineInnodbStatus {
-		scrapeTime = time.Now()
-		if err = ScrapeEngineInnodbStatus(db, ch); err != nil {
-			log.Errorln("Error scraping for collect.engine_innodb_status:", err)
-			e.scrapeErrors.WithLabelValues("collect.engine_innodb_status").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.engine_innodb_status")
-	}
-	if e.collect.Heartbeat {
-		scrapeTime = time.Now()
-		if err = ScrapeHeartbeat(db, ch, e.collect.HeartbeatDatabase, e.collect.HeartbeatTable); err != nil {
-			log.Errorln("Error scraping for collect.heartbeat:", err)
-			e.scrapeErrors.WithLabelValues("collect.heartbeat").Inc()
-			e.error.Set(1)
-		}
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.heartbeat")
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+	for _, scraper := range e.scrapers {
+		wg.Add(1)
+		go func(scraper Scraper) {
+			defer wg.Done()
+			label := "collect." + scraper.Name()
+			scrapeTime := time.Now()
+			if err := scraper.Scrape(db, ch); err != nil {
+				log.Errorln("Error scraping for "+label+":", err)
+				e.scrapeErrors.WithLabelValues(label).Inc()
+				e.error.Set(1)
+			}
+			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
+		}(scraper)
 	}
 }

@@ -36,7 +36,20 @@ var (
 )
 
 // ScrapeAutoIncrementColumns collects auto_increment column information.
-func ScrapeAutoIncrementColumns(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeAutoIncrementColumns struct{}
+
+// Name of the Scraper.
+func (ScrapeAutoIncrementColumns) Name() string {
+	return "auto_increment.columns"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeAutoIncrementColumns) Help() string {
+	return "Collect auto_increment columns and max values from information_schema"
+}
+
+// Scrape collects data.
+func (ScrapeAutoIncrementColumns) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
 	if err != nil {
 		return err

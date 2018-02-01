@@ -128,7 +128,20 @@ var (
 )
 
 // ScrapeClientStat collects from `information_schema.client_statistics`.
-func ScrapeClientStat(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeClientStat struct{}
+
+// Name of the Scraper.
+func (ScrapeClientStat) Name() string {
+	return "info_schema.clientstats"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeClientStat) Help() string {
+	return "If running with userstat=1, set to true to collect client statistics"
+}
+
+// Scrape collects data.
+func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
 	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {

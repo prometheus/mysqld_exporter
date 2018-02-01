@@ -140,7 +140,7 @@ END OF INNODB MONITOR OUTPUT
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapeEngineInnodbStatus(db, ch); err != nil {
+		if err = (ScrapeEngineInnodbStatus{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

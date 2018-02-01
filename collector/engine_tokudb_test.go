@@ -44,7 +44,7 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapeEngineTokudbStatus(db, ch); err != nil {
+		if err = (ScrapeEngineTokudbStatus{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

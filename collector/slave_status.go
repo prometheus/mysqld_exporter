@@ -36,7 +36,20 @@ func columnValue(scanArgs []interface{}, slaveCols []string, colName string) str
 }
 
 // ScrapeSlaveStatus collects from `SHOW SLAVE STATUS`.
-func ScrapeSlaveStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeSlaveStatus struct{}
+
+// Name of the Scraper.
+func (ScrapeSlaveStatus) Name() string {
+	return slaveStatus
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeSlaveStatus) Help() string {
+	return "Collect from SHOW SLAVE STATUS"
+}
+
+// Scrape collects data.
+func (ScrapeSlaveStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var (
 		slaveStatusRows *sql.Rows
 		err             error

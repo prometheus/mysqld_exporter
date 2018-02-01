@@ -38,7 +38,20 @@ var (
 )
 
 // ScrapeBinlogSize colects from `SHOW BINARY LOGS`.
-func ScrapeBinlogSize(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeBinlogSize struct{}
+
+// Name of the Scraper.
+func (ScrapeBinlogSize) Name() string {
+	return "binlog_size"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeBinlogSize) Help() string {
+	return "Collect the current size of all registered binlog files"
+}
+
+// Scrape collects data.
+func (ScrapeBinlogSize) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var logBin uint8
 	err := db.QueryRow(logbinQuery).Scan(&logBin)
 	if err != nil {

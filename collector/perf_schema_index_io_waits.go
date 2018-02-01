@@ -31,7 +31,20 @@ var (
 )
 
 // ScrapePerfIndexIOWaits collects for `performance_schema.table_io_waits_summary_by_index_usage`.
-func ScrapePerfIndexIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfIndexIOWaits struct{}
+
+// Name of the Scraper.
+func (ScrapePerfIndexIOWaits) Name() string {
+	return "perf_schema.indexiowaits"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfIndexIOWaits) Help() string {
+	return "Collect metrics from performance_schema.table_io_waits_summary_by_index_usage"
+}
+
+// Scrape collects data.
+func (ScrapePerfIndexIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfSchemaIndexWaitsRows, err := db.Query(perfIndexIOWaitsQuery)
 	if err != nil {
 		return err

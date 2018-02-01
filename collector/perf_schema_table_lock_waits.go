@@ -61,7 +61,20 @@ var (
 )
 
 // ScrapePerfTableLockWaits collects from `performance_schema.table_lock_waits_summary_by_table`.
-func ScrapePerfTableLockWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfTableLockWaits struct{}
+
+// Name of the Scraper.
+func (ScrapePerfTableLockWaits) Name() string {
+	return "perf_schema.tablelocks"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfTableLockWaits) Help() string {
+	return "Collect metrics from performance_schema.table_lock_waits_summary_by_table"
+}
+
+// Scrape collects data.
+func (ScrapePerfTableLockWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfSchemaTableLockWaitsRows, err := db.Query(perfTableLockWaitsQuery)
 	if err != nil {
 		return err

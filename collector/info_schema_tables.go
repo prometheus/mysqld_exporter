@@ -59,7 +59,20 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-func ScrapeTableSchema(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeTableSchema struct{}
+
+// Name of the Scraper.
+func (ScrapeTableSchema) Name() string {
+	return informationSchema + ".tables"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeTableSchema) Help() string {
+	return "Collect metrics from information_schema.tables"
+}
+
+// Scrape collects data.
+func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
 		dbListRows, err := db.Query(dbListQuery)

@@ -35,7 +35,20 @@ func sanitizeTokudbMetric(metricName string) string {
 }
 
 // ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
-func ScrapeEngineTokudbStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeEngineTokudbStatus struct{}
+
+// Name of the Scraper.
+func (ScrapeEngineTokudbStatus) Name() string {
+	return "engine_tokudb_status"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeEngineTokudbStatus) Help() string {
+	return "Collect from SHOW ENGINE TOKUDB STATUS"
+}
+
+// Scrape collects data.
+func (ScrapeEngineTokudbStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tokudbRows, err := db.Query(engineTokudbStatusQuery)
 	if err != nil {
 		return err

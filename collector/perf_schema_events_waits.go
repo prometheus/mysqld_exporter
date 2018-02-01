@@ -28,7 +28,20 @@ var (
 )
 
 // ScrapePerfEventsWaits collects from `performance_schema.events_waits_summary_global_by_event_name`.
-func ScrapePerfEventsWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfEventsWaits struct{}
+
+// Name of the Scraper.
+func (ScrapePerfEventsWaits) Name() string {
+	return "perf_schema.eventswaits"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfEventsWaits) Help() string {
+	return "Collect metrics from performance_schema.events_waits_summary_global_by_event_name"
+}
+
+// Scrape collects data.
+func (ScrapePerfEventsWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsWaitsRows, err := db.Query(perfEventsWaitsQuery)
 	if err != nil {

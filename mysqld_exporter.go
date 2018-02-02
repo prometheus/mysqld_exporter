@@ -238,8 +238,6 @@ func main() {
 		}
 	}
 
-	// Register only scrapers enabled by flag.
-	log.Infof("Enabled scrapers:")
 	cfg := &webAuth{}
 	httpAuth := os.Getenv("HTTP_AUTH")
 	if *webAuthFile != "" {
@@ -281,10 +279,30 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Defines what to scrape in each resolution.
-	enabledScrapersHr, enabledScrapersMr, enabledScrapersLr := enabledScrapers(scraperFlags)
-	mux.Handle(*metricPath+"-hr", newHandler(cfg, enabledScrapersHr))
-	mux.Handle(*metricPath+"-mr", newHandler(cfg, enabledScrapersMr))
-	mux.Handle(*metricPath+"-lr", newHandler(cfg, enabledScrapersLr))
+	hr, mr, lr := enabledScrapers(scraperFlags)
+	mux.Handle(*metricPath+"-hr", newHandler(cfg, hr))
+	mux.Handle(*metricPath+"-mr", newHandler(cfg, mr))
+	mux.Handle(*metricPath+"-lr", newHandler(cfg, lr))
+
+	// Log which scrapers are enabled.
+	if len(hr) > 0 {
+		log.Infof("Enabled High Resolution scrapers:")
+		for _, scraper := range hr {
+			log.Infof(" --collect.%s", scraper.Name())
+		}
+	}
+	if len(mr) > 0 {
+		log.Infof("Enabled Medium Resolution scrapers:")
+		for _, scraper := range mr {
+			log.Infof(" --collect.%s", scraper.Name())
+		}
+	}
+	if len(lr) > 0 {
+		log.Infof("Enabled Low Resolution scrapers:")
+		for _, scraper := range lr {
+			log.Infof(" --collect.%s", scraper.Name())
+		}
+	}
 
 	srv := &http.Server{
 		Addr:    *listenAddress,

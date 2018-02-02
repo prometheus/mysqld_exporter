@@ -4,10 +4,10 @@ package collector
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const perfEventsStatementsQuery = `
@@ -56,18 +56,18 @@ const perfEventsStatementsQuery = `
 
 // Tuning flags.
 var (
-	perfEventsStatementsLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.limit",
+	perfEventsStatementsLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.limit", 250,
 		"Limit the number of events statements digests by response time",
-	).Default("250").Int()
-	perfEventsStatementsTimeLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.timelimit",
+	)
+	perfEventsStatementsTimeLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.timelimit", 86400,
 		"Limit how old the 'last_seen' events statements can be, in seconds",
-	).Default("86400").Int()
-	perfEventsStatementsDigestTextLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.digest_text_limit",
+	)
+	perfEventsStatementsDigestTextLimit = flag.Int(
+		"collect.perf_schema.eventsstatements.digest_text_limit", 120,
 		"Maximum length of the normalized statement text",
-	).Default("120").Int()
+	)
 )
 
 // Metric descriptors.

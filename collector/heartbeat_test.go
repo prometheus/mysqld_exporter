@@ -1,20 +1,21 @@
 package collector
 
 import (
+	"flag"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapeHeartbeat(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{
-		"--collect.heartbeat.database", "heartbeat-test",
-		"--collect.heartbeat.table", "heartbeat-test",
-	})
+	err := flag.Set("collect.heartbeat.database", "heartbeat-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = flag.Set("collect.heartbeat.table", "heartbeat-test")
 	if err != nil {
 		t.Fatal(err)
 	}

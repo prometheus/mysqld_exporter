@@ -1,20 +1,18 @@
 package collector
 
 import (
+	"flag"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/log"
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapeInnodbMetrics(t *testing.T) {
 	// Suppress a log messages
-	log.AddFlags(kingpin.CommandLine)
-	_, err := kingpin.CommandLine.Parse([]string{"--log.level", "fatal"})
+	err := flag.Set("log.level", "fatal")
 	if err != nil {
 		t.Fatal(err)
 	}

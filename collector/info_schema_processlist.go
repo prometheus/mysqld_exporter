@@ -4,11 +4,11 @@ package collector
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const infoSchemaProcesslistQuery = `
@@ -22,10 +22,10 @@ const infoSchemaProcesslistQuery = `
 
 var (
 	// Tunable flags.
-	processlistMinTime = kingpin.Flag(
-		"collect.info_schema.processlist.min_time",
+	processlistMinTime = flag.Int(
+		"collect.info_schema.processlist.min_time", 0,
 		"Minimum time a thread must be in each state to be counted",
-	).Default("0").Int()
+	)
 	// Prometheus descriptors.
 	processlistCountDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "threads"),

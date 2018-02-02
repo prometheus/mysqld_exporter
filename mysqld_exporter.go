@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 
@@ -21,30 +21,34 @@ import (
 )
 
 var (
-	listenAddress = kingpin.Flag(
-		"web.listen-address",
+	showVersion = flag.Bool(
+		"version", false,
+		"Print version information.",
+	)
+	listenAddress = flag.String(
+		"web.listen-address", ":9104",
 		"Address to listen on for web interface and telemetry.",
-	).Default(":9104").String()
-	metricPath = kingpin.Flag(
-		"web.telemetry-path",
+	)
+	metricPath = flag.String(
+		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
-	).Default("/metrics").String()
-	configMycnf = kingpin.Flag(
-		"config.my-cnf",
+	)
+	configMycnf = flag.String(
+		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
 		"Path to .my.cnf file to read MySQL credentials from.",
-	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
-	webAuthFile = kingpin.Flag(
-		"web.auth-file",
+	)
+	webAuthFile = flag.String(
+		"web.auth-file", "",
 		"Path to YAML file with server_user, server_password options for http basic auth (overrides HTTP_AUTH env var).",
-	).String()
-	sslCertFile = kingpin.Flag(
-		"web.ssl-cert-file",
+	)
+	sslCertFile = flag.String(
+		"web.ssl-cert-file", "",
 		"Path to SSL certificate file.",
-	).String()
-	sslKeyFile = kingpin.Flag(
-		"web.ssl-key-file",
+	)
+	sslKeyFile = flag.String(
+		"web.ssl-key-file", "",
 		"Path to SSL key file.",
-	).String()
+	)
 	dsn string
 )
 
@@ -195,24 +199,21 @@ func main() {
 	// Generate ON/OFF flags for all scrapers.
 	scraperFlags := map[collector.Scraper]*bool{}
 	for scraper, enabledByDefault := range scrapers {
-		defaultOn := "false"
-		if enabledByDefault {
-			defaultOn = "true"
-		}
-
-		f := kingpin.Flag(
-			"collect."+scraper.Name(),
+		f := flag.Bool(
+			"collect."+scraper.Name(), enabledByDefault,
 			scraper.Help(),
-		).Default(defaultOn).Bool()
+		)
 
 		scraperFlags[scraper] = f
 	}
 
 	// Parse flags.
-	log.AddFlags(kingpin.CommandLine)
-	kingpin.Version(version.Print("mysqld_exporter"))
-	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.Print("mysqld_exporter"))
+		os.Exit(0)
+	}
 
 	// landingPage contains the HTML served at '/'.
 	// TODO: Make this nicer and more informative.

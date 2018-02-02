@@ -2,6 +2,7 @@ package collector
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,7 +13,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Metric name parts.
@@ -32,14 +32,14 @@ const (
 
 // Metric descriptors.
 var (
-	exporterLockTimeout = kingpin.Flag(
-		"exporter.lock_wait_timeout",
+	exporterLockTimeout = flag.Int(
+		"exporter.lock_wait_timeout", 2,
 		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
-	).Default("2").Int()
-	slowLogFilter = kingpin.Flag(
-		"exporter.log_slow_filter",
+	)
+	slowLogFilter = flag.Bool(
+		"exporter.log_slow_filter", false,
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
-	).Default("false").Bool()
+	)
 
 	scrapeDurationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),

@@ -4,10 +4,10 @@ package collector
 
 import (
 	"database/sql"
+	"flag"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const perfFileInstancesQuery = `
@@ -21,15 +21,15 @@ const perfFileInstancesQuery = `
 
 // Metric descriptors.
 var (
-	performanceSchemaFileInstancesFilter = kingpin.Flag(
-		"collect.perf_schema.file_instances.filter",
+	performanceSchemaFileInstancesFilter = flag.String(
+		"collect.perf_schema.file_instances.filter", ".*",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
-	).Default(".*").String()
+	)
 
-	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.file_instances.remove_prefix",
+	performanceSchemaFileInstancesRemovePrefix = flag.String(
+		"collect.perf_schema.file_instances.remove_prefix", "/var/lib/mysql/",
 		"Remove path prefix in performance_schema.file_summary_by_instance",
-	).Default("/var/lib/mysql/").String()
+	)
 
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),

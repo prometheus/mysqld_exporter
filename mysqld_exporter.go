@@ -168,7 +168,6 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.handler(w, r)
 }
-
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
 	cfg, err := ini.Load(config)
@@ -241,6 +240,7 @@ func main() {
 	kingpin.Parse()
 
 	// landingPage contains the HTML served at '/'.
+	// TODO: Make this nicer and more informative.
 	var landingPage = []byte(`<html>
 <head><title>MySQLd 3-in-1 exporter</title></head>
 <body>

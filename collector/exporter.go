@@ -34,11 +34,11 @@ const (
 var (
 	exporterLockTimeout = kingpin.Flag(
 		"exporter.lock_wait_timeout",
-		"Set the MySQL session lock_wait_timeout to avoid stuck metadata locks",
+		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
 	).Default("2").Int()
 	slowLogFilter = kingpin.Flag(
 		"exporter.log_slow_filter",
-		"Add a log_slow_filter to avoid excessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.",
+		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
 	).Default("false").Bool()
 
 	scrapeDurationDesc = prometheus.NewDesc(
@@ -68,10 +68,11 @@ func New(dsn string, scrapers []Scraper) *Exporter {
 	}
 
 	if strings.Contains(dsn, "?") {
-		dsn = dsn + "&" + strings.Join(dsnParams, "&")
+		dsn = dsn + "&"
 	} else {
-		dsn = dsn + "?" + strings.Join(dsnParams, "&")
+		dsn = dsn + "?"
 	}
+	dsn += strings.Join(dsnParams, "&")
 
 	return &Exporter{
 		dsn:      dsn,

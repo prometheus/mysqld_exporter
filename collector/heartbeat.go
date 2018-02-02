@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -18,6 +19,17 @@ const (
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
 	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `%s`.`%s`"
+)
+
+var (
+	collectHeartbeatDatabase = kingpin.Flag(
+		"collect.heartbeat.database",
+		"Database from where to collect heartbeat data",
+	).Default("heartbeat").String()
+	collectHeartbeatTable = kingpin.Flag(
+		"collect.heartbeat.table",
+		"Table from where to collect heartbeat data",
+	).Default("heartbeat").String()
 )
 
 // Metric descriptors.
@@ -41,8 +53,26 @@ var (
 //  ts                    varchar(26) NOT NULL,
 //  server_id             int unsigned NOT NULL PRIMARY KEY,
 // );
-func ScrapeHeartbeat(db *sql.DB, ch chan<- prometheus.Metric, collectDatabase, collectTable string) error {
-	query := fmt.Sprintf(heartbeatQuery, collectDatabase, collectTable)
+type ScrapeHeartbeat struct{}
+
+// Name of the Scraper.
+func (ScrapeHeartbeat) Name() string {
+	return "heartbeat"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeHeartbeat) Help() string {
+	return "Collect from heartbeat"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeHeartbeat) Version() float64 {
+	return 5.1
+}
+
+// Scrape collects data.
+func (ScrapeHeartbeat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+	query := fmt.Sprintf(heartbeatQuery, *collectHeartbeatDatabase, *collectHeartbeatTable)
 	heartbeatRows, err := db.Query(query)
 	if err != nil {
 		return err

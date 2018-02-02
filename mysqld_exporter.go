@@ -45,106 +45,6 @@ var (
 		"web.ssl-key-file",
 		"Path to SSL key file.",
 	).String()
-	collectProcesslist = kingpin.Flag(
-		"collect.info_schema.processlist",
-		"Collect current thread state counts from the information_schema.processlist",
-	).Default("false").Bool()
-	collectTableSchema = kingpin.Flag(
-		"collect.info_schema.tables",
-		"Collect metrics from information_schema.tables",
-	).Default("false").Bool()
-	collectInnodbTablespaces = kingpin.Flag(
-		"collect.info_schema.innodb_tablespaces",
-		"Collect metrics from information_schema.innodb_sys_tablespaces",
-	).Default("false").Bool()
-	collectInnodbMetrics = kingpin.Flag(
-		"collect.info_schema.innodb_metrics",
-		"Collect metrics from information_schema.innodb_metrics",
-	).Default("false").Bool()
-	collectGlobalStatus = kingpin.Flag(
-		"collect.global_status",
-		"Collect from SHOW GLOBAL STATUS",
-	).Default("false").Bool()
-	collectGlobalVariables = kingpin.Flag(
-		"collect.global_variables",
-		"Collect from SHOW GLOBAL VARIABLES",
-	).Default("false").Bool()
-	collectSlaveStatus = kingpin.Flag(
-		"collect.slave_status",
-		"Collect from SHOW SLAVE STATUS",
-	).Default("false").Bool()
-	collectAutoIncrementColumns = kingpin.Flag(
-		"collect.auto_increment.columns",
-		"Collect auto_increment columns and max values from information_schema",
-	).Default("false").Bool()
-	collectBinlogSize = kingpin.Flag(
-		"collect.binlog_size",
-		"Collect the current size of all registered binlog files",
-	).Default("false").Bool()
-	collectPerfTableIOWaits = kingpin.Flag(
-		"collect.perf_schema.tableiowaits",
-		"Collect metrics from performance_schema.table_io_waits_summary_by_table",
-	).Default("false").Bool()
-	collectPerfIndexIOWaits = kingpin.Flag(
-		"collect.perf_schema.indexiowaits",
-		"Collect metrics from performance_schema.table_io_waits_summary_by_index_usage",
-	).Default("false").Bool()
-	collectPerfTableLockWaits = kingpin.Flag(
-		"collect.perf_schema.tablelocks",
-		"Collect metrics from performance_schema.table_lock_waits_summary_by_table",
-	).Default("false").Bool()
-	collectPerfEventsStatements = kingpin.Flag(
-		"collect.perf_schema.eventsstatements",
-		"Collect metrics from performance_schema.events_statements_summary_by_digest",
-	).Default("false").Bool()
-	collectPerfEventsWaits = kingpin.Flag(
-		"collect.perf_schema.eventswaits",
-		"Collect metrics from performance_schema.events_waits_summary_global_by_event_name",
-	).Default("false").Bool()
-	collectPerfFileEvents = kingpin.Flag(
-		"collect.perf_schema.file_events",
-		"Collect metrics from performance_schema.file_summary_by_event_name",
-	).Default("false").Bool()
-	collectPerfFileInstances = kingpin.Flag(
-		"collect.perf_schema.file_instances",
-		"Collect metrics from performance_schema.file_summary_by_instance",
-	).Default("false").Bool()
-	collectUserStat = kingpin.Flag(
-		"collect.info_schema.userstats",
-		"If running with userstat=1, set to true to collect user statistics",
-	).Default("false").Bool()
-	collectClientStat = kingpin.Flag(
-		"collect.info_schema.clientstats",
-		"If running with userstat=1, set to true to collect client statistics",
-	).Default("false").Bool()
-	collectTableStat = kingpin.Flag(
-		"collect.info_schema.tablestats",
-		"If running with userstat=1, set to true to collect table statistics",
-	).Default("false").Bool()
-	collectQueryResponseTime = kingpin.Flag(
-		"collect.info_schema.query_response_time",
-		"Collect query response time distribution if query_response_time_stats is ON.",
-	).Default("false").Bool()
-	collectEngineTokudbStatus = kingpin.Flag(
-		"collect.engine_tokudb_status",
-		"Collect from SHOW ENGINE TOKUDB STATUS",
-	).Default("false").Bool()
-	collectEngineInnodbStatus = kingpin.Flag(
-		"collect.engine_innodb_status",
-		"Collect from SHOW ENGINE INNODB STATUS",
-	).Default("false").Bool()
-	collectHeartbeat = kingpin.Flag(
-		"collect.heartbeat",
-		"Collect from heartbeat",
-	).Default("false").Bool()
-	collectHeartbeatDatabase = kingpin.Flag(
-		"collect.heartbeat.database",
-		"Database from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatTable = kingpin.Flag(
-		"collect.heartbeat.table",
-		"Table from where to collect heartbeat data",
-	).Default("heartbeat").String()
 	dsn string
 )
 
@@ -168,6 +68,66 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.handler(w, r)
 }
+
+// scrapers lists all possible collection methods and if they should be enabled by default.
+var scrapers = map[collector.Scraper]bool{
+	collector.ScrapeGlobalStatus{}:                false,
+	collector.ScrapeGlobalVariables{}:             false,
+	collector.ScrapeSlaveStatus{}:                 false,
+	collector.ScrapeProcesslist{}:                 false,
+	collector.ScrapeTableSchema{}:                 false,
+	collector.ScrapeInfoSchemaInnodbTablespaces{}: false,
+	collector.ScrapeInnodbMetrics{}:               false,
+	collector.ScrapeAutoIncrementColumns{}:        false,
+	collector.ScrapeBinlogSize{}:                  false,
+	collector.ScrapePerfTableIOWaits{}:            false,
+	collector.ScrapePerfIndexIOWaits{}:            false,
+	collector.ScrapePerfTableLockWaits{}:          false,
+	collector.ScrapePerfEventsStatements{}:        false,
+	collector.ScrapePerfEventsWaits{}:             false,
+	collector.ScrapePerfFileEvents{}:              false,
+	collector.ScrapePerfFileInstances{}:           false,
+	collector.ScrapeUserStat{}:                    false,
+	collector.ScrapeClientStat{}:                  false,
+	collector.ScrapeTableStat{}:                   false,
+	collector.ScrapeQueryResponseTime{}:           false,
+	collector.ScrapeEngineTokudbStatus{}:          false,
+	collector.ScrapeEngineInnodbStatus{}:          false,
+	collector.ScrapeHeartbeat{}:                   false,
+}
+
+var scrapersHr = map[collector.Scraper]struct{}{
+	collector.ScrapeGlobalStatus{}:  {},
+	collector.ScrapeInnodbMetrics{}: {},
+}
+
+var scrapersMr = map[collector.Scraper]struct{}{
+	collector.ScrapeSlaveStatus{}:        {},
+	collector.ScrapeProcesslist{}:        {},
+	collector.ScrapePerfEventsWaits{}:    {},
+	collector.ScrapePerfFileEvents{}:     {},
+	collector.ScrapePerfTableLockWaits{}: {},
+	collector.ScrapeQueryResponseTime{}:  {},
+	collector.ScrapeEngineInnodbStatus{}: {},
+}
+
+var scrapersLr = map[collector.Scraper]struct{}{
+	collector.ScrapeGlobalVariables{}:             {},
+	collector.ScrapeTableSchema{}:                 {},
+	collector.ScrapeAutoIncrementColumns{}:        {},
+	collector.ScrapeBinlogSize{}:                  {},
+	collector.ScrapePerfTableIOWaits{}:            {},
+	collector.ScrapePerfIndexIOWaits{}:            {},
+	collector.ScrapePerfFileInstances{}:           {},
+	collector.ScrapeUserStat{}:                    {},
+	collector.ScrapeTableStat{}:                   {},
+	collector.ScrapePerfEventsStatements{}:        {},
+	collector.ScrapeClientStat{}:                  {},
+	collector.ScrapeInfoSchemaInnodbTablespaces{}: {},
+	collector.ScrapeEngineTokudbStatus{}:          {},
+	collector.ScrapeHeartbeat{}:                   {},
+}
+
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
 	cfg, err := ini.Load(config)
@@ -197,27 +157,26 @@ func init() {
 
 func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var filters map[string]bool
+		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
 		log.Debugln("collect query:", params)
 
 		if len(params) > 0 {
-			filters = make(map[string]bool)
+			filters := make(map[string]bool)
 			for _, param := range params {
 				filters[param] = true
 			}
 
-			var filteredScrapers []collector.Scraper
+			filteredScrapers = nil
 			for _, scraper := range scrapers {
 				if filters[scraper.Name()] {
 					filteredScrapers = append(filteredScrapers, scraper)
 				}
 			}
-			scrapers = filteredScrapers
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, scrapers))
+		registry.MustRegister(collector.New(dsn, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -230,10 +189,26 @@ func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
 		}
 		h.ServeHTTP(w, r)
 	}
-
 }
 
 func main() {
+	// Generate ON/OFF flags for all scrapers.
+	scraperFlags := map[collector.Scraper]*bool{}
+	for scraper, enabledByDefault := range scrapers {
+		defaultOn := "false"
+		if enabledByDefault {
+			defaultOn = "true"
+		}
+
+		f := kingpin.Flag(
+			"collect."+scraper.Name(),
+			scraper.Help(),
+		).Default(defaultOn).Bool()
+
+		scraperFlags[scraper] = f
+	}
+
+	// Parse flags.
 	log.AddFlags(kingpin.CommandLine)
 	kingpin.Version(version.Print("mysqld_exporter"))
 	kingpin.HelpFlag.Short('h')
@@ -263,6 +238,8 @@ func main() {
 		}
 	}
 
+	// Register only scrapers enabled by flag.
+	log.Infof("Enabled scrapers:")
 	cfg := &webAuth{}
 	httpAuth := os.Getenv("HTTP_AUTH")
 	if *webAuthFile != "" {
@@ -303,52 +280,11 @@ func main() {
 	// New http server
 	mux := http.NewServeMux()
 
-	// Defines what to scrape in high resolution.
-	scrapersHr := Scrapers{
-		{collector.ScraperGlobalStatus, *collectGlobalStatus},
-		{collector.ScraperInnodbMetrics, *collectInnodbMetrics},
-	}
-	mux.Handle(*metricPath+"-hr", newHandler(
-		cfg,
-		scrapersHr.CollectorActiveScrapers(),
-	))
-
-	// Defines what to scrape in medium resolution.
-	scrapersMr := Scrapers{
-		{collector.ScraperSlaveStatus, *collectSlaveStatus},
-		{collector.ScraperProcessList, *collectProcesslist},
-		{collector.ScraperPerfEventsWaits, *collectPerfEventsWaits},
-		{collector.ScraperPerfFileEvents, *collectPerfFileEvents},
-		{collector.ScraperPerfTableLockWaits, *collectPerfTableLockWaits},
-		{collector.ScraperQueryResponseTime, *collectQueryResponseTime},
-		{collector.ScraperEngineInnodbStatus, *collectEngineInnodbStatus},
-	}
-	mux.Handle(*metricPath+"-mr", newHandler(
-		cfg,
-		scrapersMr.CollectorActiveScrapers(),
-	))
-
-	// Defines what to scrape in low resolution.
-	scrapersLr := Scrapers{
-		{collector.ScraperGlobalVariables, *collectGlobalVariables},
-		{collector.ScraperTableSchema, *collectTableSchema},
-		{collector.ScraperAutoIncrementColumns, *collectAutoIncrementColumns},
-		{collector.ScraperBinlogSize, *collectBinlogSize},
-		{collector.ScraperPerfTableIOWaits, *collectPerfTableIOWaits},
-		{collector.ScraperPerfIndexIOWaits, *collectPerfIndexIOWaits},
-		{collector.ScraperPerfFileInstances, *collectPerfFileInstances},
-		{collector.ScraperUserStat, *collectUserStat},
-		{collector.ScraperTableStat, *collectTableStat},
-		{collector.ScraperPerfEventsStatements, *collectPerfEventsStatements},
-		{collector.ScraperClientStat, *collectClientStat},
-		{collector.ScraperInfoSchemaInnodbTablespaces, *collectInnodbTablespaces},
-		{collector.ScraperEngineTokudbStatus, *collectEngineTokudbStatus},
-		{collector.ScraperHeartbeat(*collectHeartbeatDatabase, *collectHeartbeatTable), *collectHeartbeat},
-	}
-	mux.Handle(*metricPath+"-lr", newHandler(
-		cfg,
-		scrapersLr.CollectorActiveScrapers(),
-	))
+	// Defines what to scrape in each resolution.
+	enabledScrapersHr, enabledScrapersMr, enabledScrapersLr := enabledScrapers(scraperFlags)
+	mux.Handle(*metricPath+"-hr", newHandler(cfg, enabledScrapersHr))
+	mux.Handle(*metricPath+"-mr", newHandler(cfg, enabledScrapersMr))
+	mux.Handle(*metricPath+"-lr", newHandler(cfg, enabledScrapersLr))
 
 	srv := &http.Server{
 		Addr:    *listenAddress,
@@ -387,21 +323,20 @@ func main() {
 	}
 }
 
-type Scraper struct {
-	scraper collector.Scraper
-	on      bool
-}
-
-type Scrapers []Scraper
-
-func (s Scrapers) CollectorActiveScrapers() []collector.Scraper {
-	var active []collector.Scraper
-	for _, scraper := range s {
-		if scraper.on {
-			active = append(active, scraper.scraper)
+func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []collector.Scraper) {
+	for scraper, enabled := range scraperFlags {
+		if *enabled {
+			if _, ok := scrapersHr[scraper]; ok {
+				hr = append(hr, scraper)
+			}
+			if _, ok := scrapersMr[scraper]; ok {
+				mr = append(mr, scraper)
+			}
+			if _, ok := scrapersLr[scraper]; ok {
+				lr = append(lr, scraper)
+			}
 		}
-
 	}
 
-	return active
+	return hr, mr, lr
 }

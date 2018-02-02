@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	// Scrape query
+	// Scrape query.
 	globalStatusQuery = `SHOW GLOBAL STATUS`
 	// Subsytem.
 	globalStatus = "global_status"
@@ -68,7 +68,25 @@ var (
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
-func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeGlobalStatus struct{}
+
+// Name of the Scraper.
+func (ScrapeGlobalStatus) Name() string {
+	return globalStatus
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeGlobalStatus) Help() string {
+	return "Collect from SHOW GLOBAL STATUS"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeGlobalStatus) Version() float64 {
+	return 5.1
+}
+
+// Scrape collects data.
+func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalStatusRows, err := db.Query(globalStatusQuery)
 	if err != nil {
 		return err

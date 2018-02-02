@@ -51,11 +51,11 @@ var (
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
 	dsn          string
+	scrapers     []Scraper
 	error        prometheus.Gauge
 	totalScrapes prometheus.Counter
 	scrapeErrors *prometheus.CounterVec
 	mysqldUp     prometheus.Gauge
-	scrapers     []Scraper
 }
 
 // New returns a new MySQL exporter for the provided DSN.

@@ -37,7 +37,25 @@ var (
 )
 
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-func ScrapePerfFileEvents(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfFileEvents struct{}
+
+// Name of the Scraper.
+func (ScrapePerfFileEvents) Name() string {
+	return "perf_schema.file_events"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfFileEvents) Help() string {
+	return "Collect metrics from performance_schema.file_summary_by_event_name"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapePerfFileEvents) Version() float64 {
+	return 5.6
+}
+
+// Scrape collects data.
+func (ScrapePerfFileEvents) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileEventsRows, err := db.Query(perfFileEventsQuery)
 	if err != nil {

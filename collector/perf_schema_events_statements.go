@@ -135,7 +135,25 @@ var (
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
-func ScrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfEventsStatements struct{}
+
+// Name of the Scraper.
+func (ScrapePerfEventsStatements) Name() string {
+	return "perf_schema.eventsstatements"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfEventsStatements) Help() string {
+	return "Collect metrics from performance_schema.events_statements_summary_by_digest"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapePerfEventsStatements) Version() float64 {
+	return 5.6
+}
+
+// Scrape collects data.
+func (ScrapePerfEventsStatements) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,

@@ -33,7 +33,7 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapePerfFileInstances(db, ch); err != nil {
+		if err = (ScrapePerfFileInstances{}).Scrape(db, ch); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

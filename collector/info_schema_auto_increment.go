@@ -9,7 +9,7 @@ import (
 )
 
 const infoSchemaAutoIncrementQuery = `
-		SELECT table_schema, table_name, column_name, auto_increment,
+		SELECT t.table_schema, t.table_name, column_name, `+"`auto_increment`"+`,
 		  pow(2, case data_type
 		    when 'tinyint'   then 7
 		    when 'smallint'  then 15
@@ -18,7 +18,8 @@ const infoSchemaAutoIncrementQuery = `
 		    when 'bigint'    then 63
 		    end+(column_type like '% unsigned'))-1 as max_int
 		  FROM information_schema.tables t
-		  JOIN information_schema.columns c USING (table_schema,table_name)
+		  JOIN information_schema.columns c
+		    ON BINARY t.table_schema = c.table_schema AND BINARY t.table_name = c.table_name
 		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
 		`
 

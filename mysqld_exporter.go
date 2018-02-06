@@ -187,7 +187,12 @@ func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
 			registry,
 		}
 		// Delegate http serving to Prometheus client library, which will call collector.Collect.
-		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{
+			// mysqld_exporter has multiple collectors, if one fails,
+			// we still should report metrics from collectors that succeeded.
+			ErrorHandling: promhttp.ContinueOnError,
+			ErrorLog:      log.NewErrorLogger(),
+		})
 		if cfg.User != "" && cfg.Password != "" {
 			h = &basicAuthHandler{handler: h.ServeHTTP, user: cfg.User, password: cfg.Password}
 		}

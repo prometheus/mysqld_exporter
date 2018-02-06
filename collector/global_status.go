@@ -14,7 +14,7 @@ import (
 const (
 	// Scrape query.
 	globalStatusQuery = `SHOW GLOBAL STATUS`
-	// Subsytem.
+	// Subsystem.
 	globalStatus = "global_status"
 )
 
@@ -132,7 +132,7 @@ func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 				)
 			case "innodb_buffer_pool_pages":
 				switch match[2] {
-				case "data", "dirty", "free", "misc":
+				case "data", "dirty", "free", "misc", "old", "total":
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, match[2],
 					)

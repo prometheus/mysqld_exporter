@@ -148,7 +148,25 @@ func deriveThreadState(command string, state string) string {
 }
 
 // ScrapeProcesslist collects from `information_schema.processlist`.
-func ScrapeProcesslist(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeProcesslist struct{}
+
+// Name of the Scraper.
+func (ScrapeProcesslist) Name() string {
+	return informationSchema + ".processlist"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeProcesslist) Help() string {
+	return "Collect current thread state counts from the information_schema.processlist"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeProcesslist) Version() float64 {
+	return 5.1
+}
+
+// Scrape collects data.
+func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,

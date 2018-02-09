@@ -71,7 +71,8 @@ Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
-log_slow_filter                            | Add a log_slow_filter to avoid exessive MySQL slow logging.  NOTE: Not supported by Oracle MySQL.
+exporter.lock_wait_timeout                 | Set a lock_wait_timeout on the connection to avoid long metadata locking. (default: 2 seconds)
+exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
@@ -102,6 +103,36 @@ measured by heartbeat mechanisms. [Pt-heartbeat][pth] is the
 reference heartbeat implementation supported.
 
 [pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
+
+
+## Prometheus Configuration
+
+The mysqld exporter will expose all metrics from enabled collectors by default, but it can be passed an optional list of collectors to filter metrics. The `collect[]` parameter accepts values matching [Collector Flags](#collector-flags) names (without `collect.` prefix).
+
+This can be useful for specifying different scrape intervals for different collectors.
+
+```yaml
+scrape_configs:
+  - job_name: 'mysql global status'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+        - '192.168.1.2:9104'
+    params:
+      collect[]:
+        - global_status
+
+  - job_name: 'mysql performance'
+    scrape_interval: 1m
+    static_configs:
+      - targets:
+        - '192.168.1.2:9104'
+    params:
+      collect[]:
+        - perf_schema.tableiowaits
+        - perf_schema.indexiowaits
+        - perf_schema.tablelocks
+```
 
 ## Example Rules
 

@@ -34,7 +34,22 @@ const perfEventsStatementsQuery = `
 	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
 	    ORDER BY LAST_SEEN DESC
 	  )Q
-	  GROUP BY SCHEMA_NAME, DIGEST
+	  GROUP BY
+	    Q.SCHEMA_NAME,
+	    Q.DIGEST,
+	    Q.DIGEST_TEXT,
+	    Q.COUNT_STAR,
+	    Q.SUM_TIMER_WAIT,
+	    Q.SUM_ERRORS,
+	    Q.SUM_WARNINGS,
+	    Q.SUM_ROWS_AFFECTED,
+	    Q.SUM_ROWS_SENT,
+	    Q.SUM_ROWS_EXAMINED,
+	    Q.SUM_CREATED_TMP_DISK_TABLES,
+	    Q.SUM_CREATED_TMP_TABLES,
+	    Q.SUM_SORT_MERGE_PASSES,
+	    Q.SUM_SORT_ROWS,
+	    Q.SUM_NO_INDEX_USED
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`
@@ -120,7 +135,25 @@ var (
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
-func ScrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfEventsStatements struct{}
+
+// Name of the Scraper.
+func (ScrapePerfEventsStatements) Name() string {
+	return "perf_schema.eventsstatements"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfEventsStatements) Help() string {
+	return "Collect metrics from performance_schema.events_statements_summary_by_digest"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapePerfEventsStatements) Version() float64 {
+	return 5.6
+}
+
+// Scrape collects data.
+func (ScrapePerfEventsStatements) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,

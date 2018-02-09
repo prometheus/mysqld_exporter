@@ -105,7 +105,25 @@ var (
 )
 
 // ScrapeGlobalVariables collects from `SHOW GLOBAL VARIABLES`.
-func ScrapeGlobalVariables(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeGlobalVariables struct{}
+
+// Name of the Scraper.
+func (ScrapeGlobalVariables) Name() string {
+	return globalVariables
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeGlobalVariables) Help() string {
+	return "Collect from SHOW GLOBAL VARIABLES"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeGlobalVariables) Version() float64 {
+	return 5.1
+}
+
+// Scrape collects data.
+func (ScrapeGlobalVariables) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalVariablesRows, err := db.Query(globalVariablesQuery)
 	if err != nil {
 		return err

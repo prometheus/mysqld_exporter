@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestParseMycnf(t *testing.T) {
@@ -116,39 +115,13 @@ func TestParseMycnf(t *testing.T) {
 	})
 }
 
-func TestGetMySQLVersion(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error opening a stub database connection: %s", err)
-	}
-	defer db.Close()
-
-	convey.Convey("MySQL version extract", t, func() {
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(""))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("something"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("10.1.17-MariaDB"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 10.1)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.7.13-6-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.7)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.6.30-76.3-56-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.6)
-		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.5.51-38.1"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.5)
-	})
-
-	// Ensure all SQL queries were executed
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
-	}
-}
-
-type binData struct {
-	bin  string
+// bin stores information about path of executable and attached port
+type bin struct {
+	path string
 	port int
 }
 
+// TestBin builds, runs and tests binary.
 func TestBin(t *testing.T) {
 	var err error
 	binName := "mysqld_exporter"
@@ -165,7 +138,7 @@ func TestBin(t *testing.T) {
 	}()
 
 	importpath := "github.com/percona/mysqld_exporter/vendor/github.com/prometheus/common"
-	bin := binDir + "/" + binName
+	path := binDir + "/" + binName
 	xVariables := map[string]string{
 		importpath + "/version.Version":  "gotest-version",
 		importpath + "/version.Branch":   "gotest-branch",
@@ -179,7 +152,7 @@ func TestBin(t *testing.T) {
 		"go",
 		"build",
 		"-o",
-		bin,
+		path,
 		"-ldflags",
 		strings.Join(ldflags, " "),
 	)
@@ -190,7 +163,7 @@ func TestBin(t *testing.T) {
 		t.Fatalf("Failed to build: %s", err)
 	}
 
-	tests := []func(*testing.T, binData){
+	tests := []func(*testing.T, bin){
 		testLandingPage,
 		testVersion,
 		testDefaultGatherer,
@@ -202,8 +175,8 @@ func TestBin(t *testing.T) {
 			f := f // capture range variable
 			fName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 			portStart++
-			data := binData{
-				bin:  bin,
+			data := bin{
+				path: path,
 				port: portStart,
 			}
 			t.Run(fName, func(t *testing.T) {
@@ -214,13 +187,13 @@ func TestBin(t *testing.T) {
 	})
 }
 
-func testVersion(t *testing.T, data binData) {
+func testVersion(t *testing.T, data bin) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(
 		ctx,
-		data.bin,
+		data.path,
 		"--version",
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
@@ -271,25 +244,26 @@ func testVersion(t *testing.T, data binData) {
 	}
 }
 
-func testLandingPage(t *testing.T, data binData) {
+func testLandingPage(t *testing.T, data bin) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Run exporter.
 	cmd := exec.CommandContext(
 		ctx,
-		data.bin,
+		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
 	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
-
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer cmd.Wait()
 	defer cmd.Process.Kill()
 
-	// Get the main page, but we need to wait a bit for http server
-	body, err := get(fmt.Sprintf("http://127.0.0.1:%d", data.port))
+	// Get the main page.
+	urlToGet := fmt.Sprintf("http://127.0.0.1:%d", data.port)
+	body, err := waitForBody(urlToGet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,14 +284,14 @@ func testLandingPage(t *testing.T, data binData) {
 	}
 }
 
-func testDefaultGatherer(t *testing.T, data binData) {
+func testDefaultGatherer(t *testing.T, data bin) {
 	metricPath := "/metrics"
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(
 		ctx,
-		data.bin,
+		data.path,
 		"--web.telemetry-path", metricPath,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
@@ -330,7 +304,7 @@ func testDefaultGatherer(t *testing.T, data binData) {
 	defer cmd.Process.Kill()
 
 	const resolution = "hr"
-	body, err := get(fmt.Sprintf("http://127.0.0.1:%d%s-%s", data.port, metricPath, resolution))
+	body, err := waitForBody(fmt.Sprintf("http://127.0.0.1:%d%s-%s", data.port, metricPath, resolution))
 	if err != nil {
 		t.Fatalf("unable to get metrics for '%s' resolution: %s", resolution, err)
 	}
@@ -349,18 +323,20 @@ func testDefaultGatherer(t *testing.T, data binData) {
 	}
 }
 
-func get(urlToGet string) (body []byte, err error) {
+// waitForBody is a helper function which makes http calls until http server is up
+// and then returns body of the successful call.
+func waitForBody(urlToGet string) (body []byte, err error) {
 	tries := 60
 
-	// Get data, but we need to wait a bit for http server
+	// Get data, but we need to wait a bit for http server.
 	for i := 0; i <= tries; i++ {
-		// Try to get main page
+		// Try to get web page.
 		body, err = getBody(urlToGet)
 		if err == nil {
 			return body, err
 		}
 
-		// If there is a syscall.ECONNREFUSED error (web server not available) then retry
+		// If there is a syscall.ECONNREFUSED error (web server not available) then retry.
 		if urlError, ok := err.(*url.Error); ok {
 			if opError, ok := urlError.Err.(*net.OpError); ok {
 				if osSyscallError, ok := opError.Err.(*os.SyscallError); ok {
@@ -372,12 +348,14 @@ func get(urlToGet string) (body []byte, err error) {
 			}
 		}
 
+		// There was an error, and it wasn't syscall.ECONNREFUSED.
 		return nil, err
 	}
 
-	return nil, fmt.Errorf("failed to GET %s: %s", urlToGet, err)
+	return nil, fmt.Errorf("failed to GET %s after %d tries: %s", urlToGet, tries, err)
 }
 
+// getBody is a helper function which retrieves http body from given address.
 func getBody(urlToGet string) ([]byte, error) {
 	resp, err := http.Get(urlToGet)
 	if err != nil {

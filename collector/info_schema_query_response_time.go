@@ -86,7 +86,25 @@ func processQueryResponseTimeTable(db *sql.DB, ch chan<- prometheus.Metric, quer
 }
 
 // ScrapeQueryResponseTime collects from `information_schema.query_response_time`.
-func ScrapeQueryResponseTime(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeQueryResponseTime struct{}
+
+// Name of the Scraper.
+func (ScrapeQueryResponseTime) Name() string {
+	return "info_schema.query_response_time"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeQueryResponseTime) Help() string {
+	return "Collect query response time distribution if query_response_time_stats is ON."
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeQueryResponseTime) Version() float64 {
+	return 5.5
+}
+
+// Scrape collects data.
+func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var queryStats uint8
 	err := db.QueryRow(queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {

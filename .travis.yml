@@ -4,7 +4,8 @@ language: go
 
 go:
 - 1.9.x
-- tip
+- 1.9.x
+- master
 
 env:
 - MYSQL_IMAGE=mysql/mysql-server:5.5
@@ -25,8 +26,8 @@ before_script:
 - docker-compose up -d
 
 script:
-  - make
-  - make test
+- make
+- make test
 
 notifications:
   email: false

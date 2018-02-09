@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/DATA-DOG/go-sqlmock.png)](https://travis-ci.org/DATA-DOG/go-sqlmock)
-[![GoDoc](https://godoc.org/github.com/DATA-DOG/go-sqlmock?status.png)](https://godoc.org/github.com/DATA-DOG/go-sqlmock)
+[![Build Status](https://travis-ci.org/DATA-DOG/go-sqlmock.svg)](https://travis-ci.org/DATA-DOG/go-sqlmock)
+[![GoDoc](https://godoc.org/github.com/DATA-DOG/go-sqlmock?status.svg)](https://godoc.org/github.com/DATA-DOG/go-sqlmock)
 [![codecov.io](https://codecov.io/github/DATA-DOG/go-sqlmock/branch/master/graph/badge.svg)](https://codecov.io/github/DATA-DOG/go-sqlmock)
 
 # Sql driver mock for Golang
@@ -15,6 +15,10 @@ maintain correct **TDD** workflow.
 - the driver allows to mock any sql driver method behavior.
 - has strict by default expectation order matching.
 - has no third party dependencies.
+
+**NOTE:** in **v1.2.0** **sqlmock.Rows** has changed to struct from interface, if you were using any type references to that
+interface, you will need to switch it to a pointer struct type. Also, **sqlmock.Rows** were used to implement **driver.Rows**
+interface, which was not required or useful for mocking and was removed. Hope it will not cause issues.
 
 ## Install
 
@@ -186,6 +190,8 @@ It only asserts that argument is of `time.Time` type.
 
 ## Change Log
 
+- **2017-09-01** - it is now possible to expect that prepared statement will be closed,
+  using **ExpectedPrepare.WillBeClosed**.
 - **2017-02-09** - implemented support for **go1.8** features. **Rows** interface was changed to struct
   but contains all methods as before and should maintain backwards compatibility. **ExpectedQuery.WillReturnRows** may now
   accept multiple row sets.

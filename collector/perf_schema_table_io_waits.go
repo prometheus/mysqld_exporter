@@ -32,7 +32,25 @@ var (
 )
 
 // ScrapePerfTableIOWaits collects from `performance_schema.table_io_waits_summary_by_table`.
-func ScrapePerfTableIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfTableIOWaits struct{}
+
+// Name of the Scraper.
+func (ScrapePerfTableIOWaits) Name() string {
+	return "perf_schema.tableiowaits"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapePerfTableIOWaits) Help() string {
+	return "Collect metrics from performance_schema.table_io_waits_summary_by_table"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapePerfTableIOWaits) Version() float64 {
+	return 5.6
+}
+
+// Scrape collects data.
+func (ScrapePerfTableIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfSchemaTableWaitsRows, err := db.Query(perfTableIOWaitsQuery)
 	if err != nil {
 		return err

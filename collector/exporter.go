@@ -2,11 +2,8 @@ package collector
 
 import (
 	"database/sql"
-	"flag"
-	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,24 +20,11 @@ const (
 
 // SQL Queries.
 const (
-	// System variable params formatting.
-	// See: https://github.com/go-sql-driver/mysql#system-variables
-	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
-	timeoutParam         = `lock_wait_timeout=%d`
-	versionQuery         = `SELECT @@version`
+	versionQuery = `SELECT @@version`
 )
 
 // Metric descriptors.
 var (
-	exporterLockTimeout = flag.Int(
-		"exporter.lock_wait_timeout", 2,
-		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
-	)
-	slowLogFilter = flag.Bool(
-		"exporter.log_slow_filter", false,
-		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
-	)
-
 	scrapeDurationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
 		"Collector time duration.",
@@ -50,7 +34,7 @@ var (
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
-	dsn          string
+	db           *sql.DB
 	scrapers     []Scraper
 	error        prometheus.Gauge
 	totalScrapes prometheus.Counter
@@ -59,23 +43,9 @@ type Exporter struct {
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, scrapers []Scraper) *Exporter {
-	// Setup extra params for the DSN, default to having a lock timeout.
-	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
-
-	if *slowLogFilter {
-		dsnParams = append(dsnParams, sessionSettingsParam)
-	}
-
-	if strings.Contains(dsn, "?") {
-		dsn = dsn + "&"
-	} else {
-		dsn = dsn + "?"
-	}
-	dsn += strings.Join(dsnParams, "&")
-
+func New(db *sql.DB, scrapers []Scraper) *Exporter {
 	return &Exporter{
-		dsn:      dsn,
+		db:       db,
 		scrapers: scrapers,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -146,21 +116,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	var err error
 
 	scrapeTime := time.Now()
-	db, err := sql.Open("mysql", e.dsn)
-	if err != nil {
-		log.Errorln("Error opening connection to database:", err)
-		e.error.Set(1)
-		return
-	}
-	defer db.Close()
-
-	// By design exporter should use maximum one connection per request.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	// Set max lifetime for a connection.
-	db.SetConnMaxLifetime(1 * time.Minute)
-
-	if err = db.Ping(); err != nil {
+	if err = e.db.Ping(); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.mysqldUp.Set(0)
 		e.error.Set(1)
@@ -169,7 +125,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	e.mysqldUp.Set(1)
 
-	versionNum := getMySQLVersion(db)
+	versionNum := getMySQLVersion(e.db)
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
@@ -184,7 +140,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(db, ch); err != nil {
+			if err := scraper.Scrape(e.db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.scrapeErrors.WithLabelValues(label).Inc()
 				e.error.Set(1)

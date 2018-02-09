@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -9,7 +10,9 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -18,6 +21,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/percona/mysqld_exporter/collector"
+)
+
+// System variable params formatting.
+// See: https://github.com/go-sql-driver/mysql#system-variables
+const (
+	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
+	timeoutParam         = `lock_wait_timeout=%d`
 )
 
 var (
@@ -49,6 +59,35 @@ var (
 		"web.ssl-key-file", "",
 		"Path to SSL key file.",
 	)
+	exporterLockTimeout = flag.Int(
+		"exporter.lock_wait_timeout", 2,
+		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
+	)
+	exporterLogSlowFilter = flag.Bool(
+		"exporter.log_slow_filter", false,
+		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
+	)
+	exporterGlobalConnPool = flag.Bool(
+		"exporter.global-conn-pool", true,
+		"Use global connection pool instead of creating new pool for each http request.",
+	)
+	exporterMaxOpenConns = flag.Int(
+		"exporter.max-open-conns", 3,
+		"Maximum number of open connections to the database. https://golang.org/pkg/database/sql/#DB.SetMaxOpenConns",
+	)
+	exporterMaxIdleConns = flag.Int(
+		"exporter.max-idle-conns", 3,
+		"Maximum number of connections in the idle connection pool. https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns",
+	)
+	exporterConnMaxLifetime = flag.Duration(
+		"exporter.conn-max-lifetime", 60*time.Second,
+		"Maximum amount of time a connection may be reused. https://golang.org/pkg/database/sql/#DB.SetConnMaxLifetime",
+	)
+	collectAll = flag.Bool(
+		"collect.all", false,
+		"Collect all metrics.",
+	)
+
 	dsn string
 )
 
@@ -159,12 +198,11 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(cfg *webAuth, db *sql.DB, scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
 		log.Debugln("collect query:", params)
-
 		if len(params) > 0 {
 			filters := make(map[string]bool)
 			for _, param := range params {
@@ -179,8 +217,20 @@ func newHandler(cfg *webAuth, scrapers []collector.Scraper) http.HandlerFunc {
 			}
 		}
 
+		// Copy db as local variable, so the pointer passed to newHandler doesn't get updated.
+		db := db
+		// If there is no global connection pool then create new.
+		var err error
+		if db == nil {
+			db, err = newDB(dsn)
+			if err != nil {
+				log.Fatalln("Error opening connection to database:", err)
+			}
+			defer db.Close()
+		}
+
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, filteredScrapers))
+		registry.MustRegister(collector.New(db, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -231,12 +281,37 @@ func main() {
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
+	// Get DSN.
 	dsn = os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	// Setup extra params for the DSN, default to having a lock timeout.
+	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
+	if *exporterLogSlowFilter {
+		dsnParams = append(dsnParams, sessionSettingsParam)
+	}
+
+	if strings.Contains(dsn, "?") {
+		dsn = dsn + "&"
+	} else {
+		dsn = dsn + "?"
+	}
+	dsn += strings.Join(dsnParams, "&")
+
+	// Open global connection pool if requested.
+	var db *sql.DB
+	var err error
+	if *exporterGlobalConnPool {
+		db, err = newDB(dsn)
+		if err != nil {
+			log.Fatalln("Error opening connection to database:", err)
+		}
+		defer db.Close()
 	}
 
 	cfg := &webAuth{}
@@ -281,9 +356,9 @@ func main() {
 
 	// Defines what to scrape in each resolution.
 	hr, mr, lr := enabledScrapers(scraperFlags)
-	mux.Handle(*metricPath+"-hr", newHandler(cfg, hr))
-	mux.Handle(*metricPath+"-mr", newHandler(cfg, mr))
-	mux.Handle(*metricPath+"-lr", newHandler(cfg, lr))
+	mux.Handle(*metricPath+"-hr", newHandler(cfg, db, hr))
+	mux.Handle(*metricPath+"-mr", newHandler(cfg, db, mr))
+	mux.Handle(*metricPath+"-lr", newHandler(cfg, db, lr))
 
 	// Log which scrapers are enabled.
 	if len(hr) > 0 {
@@ -344,7 +419,7 @@ func main() {
 
 func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []collector.Scraper) {
 	for scraper, enabled := range scraperFlags {
-		if *enabled {
+		if *collectAll || *enabled {
 			if _, ok := scrapersHr[scraper]; ok {
 				hr = append(hr, scraper)
 			}
@@ -358,4 +433,17 @@ func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []col
 	}
 
 	return hr, mr, lr
+}
+
+func newDB(dsn string) (*sql.DB, error) {
+	// Validate DSN, and open connection pool.
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(*exporterMaxOpenConns)
+	db.SetMaxIdleConns(*exporterMaxIdleConns)
+	db.SetConnMaxLifetime(*exporterConnMaxLifetime)
+
+	return db, nil
 }

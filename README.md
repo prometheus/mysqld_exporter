@@ -35,7 +35,7 @@ Running using ~/.my.cnf:
 Name                                                   | MySQL Version | Description
 -------------------------------------------------------|---------------|------------------------------------------------------------------------------------
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
-collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
+collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files.
 collect.engine_innodb_status                           | 5.1           | Collect from SHOW ENGINE INNODB STATUS.
 collect.engine_tokudb_status                           | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                  | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
@@ -64,7 +64,7 @@ collect.slave_status                                   | 5.1           | Collect
 collect.heartbeat                                      | 5.1           | Collect from [heartbeat](#heartbeat).
 collect.heartbeat.database                             | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.table                                | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
-
+collect.all                                            | -             | Collect all metrics.
 
 ### General Flags
 Name                                       | Description
@@ -73,6 +73,10 @@ config.my-cnf                              | Path to .my.cnf file to read MySQL 
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout on the connection to avoid long metadata locking. (default: 2 seconds)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+exporter.global-conn-pool                  | Use global connection pool instead of creating new pool for each http request.
+exporter.max-open-conns                    | Maximum number of open connections to the database. https://golang.org/pkg/database/sql/#DB.SetMaxOpenConns
+exporter.max-idle-conns                    | Maximum number of connections in the idle connection pool. https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns
+exporter.conn-max-lifetime                 | Maximum amount of time a connection may be reused. https://golang.org/pkg/database/sql/#DB.SetConnMaxLifetime
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.

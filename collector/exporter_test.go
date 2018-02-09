@@ -9,14 +9,18 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-const dsn = "root@/mysql"
-
 func TestExporter(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short is passed, skipping test")
 	}
 
-	exporter := New(dsn, []Scraper{
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	exporter := New(db, []Scraper{
 		ScrapeGlobalStatus{},
 	})
 
@@ -45,6 +49,11 @@ func TestExporter(t *testing.T) {
 			}
 		}
 	})
+
+	// We make sure that all expectations were met.
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
 
 func TestGetMySQLVersion(t *testing.T) {

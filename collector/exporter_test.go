@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -9,14 +10,16 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
+const dsn = "root@/mysql"
+
 func TestExporter(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short is passed, skipping test")
 	}
 
-	db, mock, err := sqlmock.New()
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		t.Fatalf("error opening a stub database connection: %s", err)
+		t.Fatal(err)
 	}
 	defer db.Close()
 
@@ -49,11 +52,6 @@ func TestExporter(t *testing.T) {
 			}
 		}
 	})
-
-	// We make sure that all expectations were met.
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-	}
 }
 
 func TestGetMySQLVersion(t *testing.T) {

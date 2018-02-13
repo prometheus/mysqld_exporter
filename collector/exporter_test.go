@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,7 +17,13 @@ func TestExporter(t *testing.T) {
 		t.Skip("-short is passed, skipping test")
 	}
 
-	exporter := New(dsn, []Scraper{
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	exporter := New(db, []Scraper{
 		ScrapeGlobalStatus{},
 	})
 

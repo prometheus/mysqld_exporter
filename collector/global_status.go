@@ -5,17 +5,26 @@ package collector
 import (
 	"database/sql"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	// Scrape query
+	// Scrape query.
 	globalStatusQuery = `SHOW GLOBAL STATUS`
-	// Subsytem.
+	// Subsystem.
 	globalStatus = "global_status"
 )
+
+var replLatencyMap = []string{
+	"Minimum",
+	"Average",
+	"Maximum",
+	"Standard Deviation",
+	"Sample Size",
+}
 
 // Regexp to match various groups of status vars.
 var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
@@ -59,7 +68,25 @@ var (
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
-func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeGlobalStatus struct{}
+
+// Name of the Scraper.
+func (ScrapeGlobalStatus) Name() string {
+	return globalStatus
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeGlobalStatus) Help() string {
+	return "Collect from SHOW GLOBAL STATUS"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeGlobalStatus) Version() float64 {
+	return 5.1
+}
+
+// Scrape collects data.
+func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalStatusRows, err := db.Query(globalStatusQuery)
 	if err != nil {
 		return err
@@ -72,6 +99,7 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 		"wsrep_local_state_uuid":   "",
 		"wsrep_cluster_state_uuid": "",
 		"wsrep_provider_version":   "",
+		"wsrep_evs_repl_latency":   "",
 	}
 
 	for globalStatusRows.Next() {
@@ -104,7 +132,7 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 				)
 			case "innodb_buffer_pool_pages":
 				switch match[2] {
-				case "data", "dirty", "free", "misc":
+				case "data", "dirty", "free", "misc", "old", "total":
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, match[2],
 					)
@@ -134,6 +162,26 @@ func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
 				[]string{"wsrep_local_state_uuid", "wsrep_cluster_state_uuid", "wsrep_provider_version"}, nil),
 			prometheus.GaugeValue, 1, textItems["wsrep_local_state_uuid"], textItems["wsrep_cluster_state_uuid"], textItems["wsrep_provider_version"],
 		)
+	}
+
+	if textItems["wsrep_evs_repl_latency"] != "" {
+		galeraReplLatencyArray := strings.Split(textItems["wsrep_evs_repl_latency"], "/")
+
+		// check if galeraReplLatencyArray contains all needed values
+		if len(galeraReplLatencyArray) == len(replLatencyMap) {
+			galeraReplLatencyDesc := prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, globalStatus, "wsrep_evs_repl_latency"),
+				"PXC/Galera replication latency on group communication.",
+				[]string{"aggregator"}, nil,
+			)
+			for index, label := range replLatencyMap {
+				if floatVal, err := strconv.ParseFloat(galeraReplLatencyArray[index], 64); err == nil {
+					ch <- prometheus.MustNewConstMetric(
+						galeraReplLatencyDesc, prometheus.GaugeValue, floatVal, label,
+					)
+				}
+			}
+		}
 	}
 
 	return nil

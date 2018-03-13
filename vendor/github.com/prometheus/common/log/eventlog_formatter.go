@@ -21,22 +21,22 @@ import (
 
 	"golang.org/x/sys/windows/svc/eventlog"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 func init() {
-	setEventlogFormatter = func(l logger, name string, debugAsInfo bool) error {
+	setEventlogFormatter = func(name string, debugAsInfo bool) error {
 		if name == "" {
 			return fmt.Errorf("missing name parameter")
 		}
 
-		fmter, err := newEventlogger(name, debugAsInfo, l.entry.Logger.Formatter)
+		fmter, err := newEventlogger(name, debugAsInfo, origLogger.Formatter)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error creating eventlog formatter: %v\n", err)
-			l.Errorf("can't connect logger to eventlog: %v", err)
+			origLogger.Errorf("can't connect logger to eventlog: %v", err)
 			return err
 		}
-		l.entry.Logger.Formatter = fmter
+		origLogger.Formatter = fmter
 		return nil
 	}
 }

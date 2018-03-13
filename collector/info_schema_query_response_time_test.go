@@ -37,7 +37,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapeQueryResponseTime(db, ch); err != nil {
+		if err = (ScrapeQueryResponseTime{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -1,9 +1,4 @@
-# MySQL Server Exporter [![Build Status](https://travis-ci.org/prometheus/mysqld_exporter.svg)][travis]
-
-[![CircleCI](https://circleci.com/gh/prometheus/mysqld_exporter/tree/master.svg?style=shield)][circleci]
-[![Docker Repository on Quay](https://quay.io/repository/prometheus/mysqld-exporter/status)][quay]
-[![Docker Pulls](https://img.shields.io/docker/pulls/prom/mysqld-exporter.svg?maxAge=604800)][hub]
-[![Go Report Card](https://goreportcard.com/badge/github.com/prometheus/mysqld_exporter)](https://goreportcard.com/report/github.com/prometheus/mysqld_exporter)
+# Percona MySQL Server Exporter [![Build Status](https://travis-ci.org/percona/mysqld_exporter.svg?branch=master)](https://travis-ci.org/percona/mysqld_exporter)
 
 Prometheus exporter for MySQL server metrics.
 Supported MySQL versions: 5.1 and up.
@@ -35,22 +30,12 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
-Example format for flags for version > 0.10.0:
-  
-    --collect.auto_increment.columns
-    --no-collect.auto_increment.columns
-  
-Example format for flags for version <= 0.10.0:
-  
-    -collect.auto_increment.columns
-    -collect.auto_increment.columns=[true|false]
-
 ### Collector Flags
 
 Name                                                   | MySQL Version | Description
 -------------------------------------------------------|---------------|------------------------------------------------------------------------------------
 collect.auto_increment.columns                         | 5.1           | Collect auto_increment columns and max values from information_schema.
-collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files
+collect.binlog_size                                    | 5.1           | Collect the current size of all registered binlog files.
 collect.engine_innodb_status                           | 5.1           | Collect from SHOW ENGINE INNODB STATUS.
 collect.engine_tokudb_status                           | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                  | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
@@ -79,7 +64,7 @@ collect.slave_status                                   | 5.1           | Collect
 collect.heartbeat                                      | 5.1           | Collect from [heartbeat](#heartbeat).
 collect.heartbeat.database                             | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.table                                | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
-
+collect.all                                            | -             | Collect all metrics.
 
 ### General Flags
 Name                                       | Description
@@ -88,6 +73,10 @@ config.my-cnf                              | Path to .my.cnf file to read MySQL 
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout on the connection to avoid long metadata locking. (default: 2 seconds)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+exporter.global-conn-pool                  | Use global connection pool instead of creating new pool for each http request.
+exporter.max-open-conns                    | Maximum number of open connections to the database. https://golang.org/pkg/database/sql/#DB.SetMaxOpenConns
+exporter.max-idle-conns                    | Maximum number of connections in the idle connection pool. https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns
+exporter.conn-max-lifetime                 | Maximum amount of time a connection may be reused. https://golang.org/pkg/database/sql/#DB.SetConnMaxLifetime
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
@@ -153,7 +142,26 @@ scrape_configs:
 
 There are some sample rules available in [example.rules](example.rules)
 
-[circleci]: https://circleci.com/gh/prometheus/mysqld_exporter
-[hub]: https://hub.docker.com/r/prom/mysqld-exporter/
-[travis]: https://travis-ci.org/prometheus/mysqld_exporter
-[quay]: https://quay.io/repository/prometheus/mysqld-exporter
+## Visualize
+
+There is a Grafana dashboard for MySQL available as a part of [PMM](https://www.percona.com/doc/percona-monitoring-and-management/index.html) project, you can see the demo [here](https://pmmdemo.percona.com/graph/dashboard/db/mysql-overview).
+
+## Submit Bug Report
+If you find a bug in Percona MySQL Exporter or one of the related projects, you should submit a report to that project's [JIRA](https://jira.percona.com) issue tracker.
+
+Your first step should be to search the existing set of open tickets for a similar report. If you find that someone else has already reported your problem, then you can upvote that report to increase its visibility.
+
+If there is no existing report, submit a report following these steps:
+
+1.  [Sign in to Percona JIRA.](https://jira.percona.com/login.jsp) You will need to create an account if you do not have one.
+2.  [Go to the Create Issue screen and select the relevant project.](https://jira.percona.com/secure/CreateIssueDetails!init.jspa?pid=11600&issuetype=1&priority=3&components=11709)
+3.  Fill in the fields of Summary, Description, Steps To Reproduce, and Affects Version to the best you can. If the bug corresponds to a crash, attach the stack trace from the logs.
+
+An excellent resource is [Elika Etemad's article on filing good bug reports.](http://fantasai.inkedblade.net/style/talks/filing-good-bugs/).
+
+As a general rule of thumb, please try to create bug reports that are:
+
+-   *Reproducible.* Include steps to reproduce the problem.
+-   *Specific.* Include as much detail as possible: which version, what environment, etc.
+-   *Unique.* Do not duplicate existing tickets.
+-   *Scoped to a Single Bug.* One bug per report.

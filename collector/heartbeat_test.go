@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"flag"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,6 +11,15 @@ import (
 )
 
 func TestScrapeHeartbeat(t *testing.T) {
+	err := flag.Set("collect.heartbeat.database", "heartbeat-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = flag.Set("collect.heartbeat.table", "heartbeat-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -19,13 +29,11 @@ func TestScrapeHeartbeat(t *testing.T) {
 	columns := []string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"}
 	rows := sqlmock.NewRows(columns).
 		AddRow("1487597613.001320", "1487598113.448042", 1)
-	mock.ExpectQuery(sanitizeQuery("SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat`.`heartbeat`")).WillReturnRows(rows)
+	mock.ExpectQuery(sanitizeQuery("SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`")).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		database := "heartbeat"
-		table := "heartbeat"
-		if err = ScrapeHeartbeat(db, ch, database, table); err != nil {
+		if err = (ScrapeHeartbeat{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

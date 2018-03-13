@@ -20,13 +20,13 @@ import (
 	"log/syslog"
 	"os"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 var _ logrus.Formatter = (*syslogger)(nil)
 
 func init() {
-	setSyslogFormatter = func(l logger, appname, local string) error {
+	setSyslogFormatter = func(appname, local string) error {
 		if appname == "" {
 			return fmt.Errorf("missing appname parameter")
 		}
@@ -34,13 +34,13 @@ func init() {
 			return fmt.Errorf("missing local parameter")
 		}
 
-		fmter, err := newSyslogger(appname, local, l.entry.Logger.Formatter)
+		fmter, err := newSyslogger(appname, local, origLogger.Formatter)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error creating syslog formatter: %v\n", err)
-			l.entry.Errorf("can't connect logger to syslog: %v", err)
+			origLogger.Errorf("can't connect logger to syslog: %v", err)
 			return err
 		}
-		l.entry.Logger.Formatter = fmter
+		origLogger.Formatter = fmter
 		return nil
 	}
 }

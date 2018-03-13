@@ -39,7 +39,25 @@ var (
 )
 
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
-func ScrapeInfoSchemaInnodbTablespaces(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeInfoSchemaInnodbTablespaces struct{}
+
+// Name of the Scraper.
+func (ScrapeInfoSchemaInnodbTablespaces) Name() string {
+	return informationSchema + ".innodb_tablespaces"
+}
+
+// Help returns additional information about Scraper.
+func (ScrapeInfoSchemaInnodbTablespaces) Help() string {
+	return "Collect metrics from information_schema.innodb_sys_tablespaces"
+}
+
+// Version of MySQL from which scraper is available.
+func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
+	return 5.7
+}
+
+// Scrape collects data.
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	tablespacesRows, err := db.Query(innodbTablespacesQuery)
 	if err != nil {
 		return err

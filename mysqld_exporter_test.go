@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -134,7 +137,7 @@ func TestBin(t *testing.T) {
 		}
 	}()
 
-	importpath := "github.com/prometheus/mysqld_exporter/vendor/github.com/prometheus/common"
+	importpath := "github.com/percona/mysqld_exporter/vendor/github.com/prometheus/common"
 	path := binDir + "/" + binName
 	xVariables := map[string]string{
 		importpath + "/version.Version":  "gotest-version",
@@ -162,6 +165,8 @@ func TestBin(t *testing.T) {
 
 	tests := []func(*testing.T, bin){
 		testLandingPage,
+		testVersion,
+		testDefaultGatherer,
 	}
 
 	portStart := 56000
@@ -180,6 +185,63 @@ func TestBin(t *testing.T) {
 			})
 		}
 	})
+}
+
+func testVersion(t *testing.T, data bin) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--version",
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+	)
+
+	b := &bytes.Buffer{}
+	cmd.Stdout = b
+	cmd.Stderr = b
+
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRegexp := `mysqld_exporter, version gotest-version \(branch: gotest-branch, revision: gotest-revision\)
+  build user:
+  build date:
+  go version:
+`
+
+	expectedScanner := bufio.NewScanner(bytes.NewBufferString(expectedRegexp))
+	defer func() {
+		if err := expectedScanner.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	gotScanner := bufio.NewScanner(b)
+	defer func() {
+		if err := gotScanner.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	for gotScanner.Scan() {
+		if !expectedScanner.Scan() {
+			t.Fatalf("didn't expected more data but got '%s'", gotScanner.Text())
+		}
+		ok, err := regexp.MatchString(expectedScanner.Text(), gotScanner.Text())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ok {
+			t.Fatalf("'%s' does not match regexp '%s'", gotScanner.Text(), expectedScanner.Text())
+		}
+	}
+
+	if expectedScanner.Scan() {
+		t.Errorf("expected '%s' but didn't got more data", expectedScanner.Text())
+	}
 }
 
 func testLandingPage(t *testing.T, data bin) {
@@ -208,15 +270,56 @@ func testLandingPage(t *testing.T, data bin) {
 	got := string(body)
 
 	expected := `<html>
-<head><title>MySQLd exporter</title></head>
+<head><title>MySQLd 3-in-1 exporter</title></head>
 <body>
-<h1>MySQLd exporter</h1>
-<p><a href='/metrics'>Metrics</a></p>
+<h1>MySQL 3-in-1 exporter</h1>
+<li><a href="/metrics-hr">high-res metrics</a></li>
+<li><a href="/metrics-mr">medium-res metrics</a></li>
+<li><a href="/metrics-lr">low-res metrics</a></li>
 </body>
 </html>
 `
 	if got != expected {
 		t.Fatalf("got '%s' but expected '%s'", got, expected)
+	}
+}
+
+func testDefaultGatherer(t *testing.T, data bin) {
+	metricPath := "/metrics"
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--web.telemetry-path", metricPath,
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+	)
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	const resolution = "hr"
+	body, err := waitForBody(fmt.Sprintf("http://127.0.0.1:%d%s-%s", data.port, metricPath, resolution))
+	if err != nil {
+		t.Fatalf("unable to get metrics for '%s' resolution: %s", resolution, err)
+	}
+	got := string(body)
+
+	metricsPrefixes := []string{
+		"go_gc_duration_seconds",
+		"go_goroutines",
+		"go_memstats",
+	}
+
+	for _, prefix := range metricsPrefixes {
+		if !strings.Contains(got, prefix) {
+			t.Fatalf("no metric starting with %s in resolution %s", prefix, resolution)
+		}
 	}
 }
 

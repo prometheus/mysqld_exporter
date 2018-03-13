@@ -198,7 +198,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(cfg *webAuth, db *sql.DB, scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(cfg *webAuth, db *sql.DB, scrapers []collector.Scraper, stats *collector.Stats) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
@@ -230,7 +230,7 @@ func newHandler(cfg *webAuth, db *sql.DB, scrapers []collector.Scraper) http.Han
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(db, filteredScrapers))
+		registry.MustRegister(collector.New(db, filteredScrapers, stats))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -361,9 +361,9 @@ func main() {
 
 	// Defines what to scrape in each resolution.
 	hr, mr, lr := enabledScrapers(scraperFlags)
-	mux.Handle(*metricPath+"-hr", newHandler(cfg, db, hr))
-	mux.Handle(*metricPath+"-mr", newHandler(cfg, db, mr))
-	mux.Handle(*metricPath+"-lr", newHandler(cfg, db, lr))
+	mux.Handle(*metricPath+"-hr", newHandler(cfg, db, hr, collector.NewStats("hr")))
+	mux.Handle(*metricPath+"-mr", newHandler(cfg, db, mr, collector.NewStats("mr")))
+	mux.Handle(*metricPath+"-lr", newHandler(cfg, db, lr, collector.NewStats("lr")))
 
 	// Log which scrapers are enabled.
 	if len(hr) > 0 {

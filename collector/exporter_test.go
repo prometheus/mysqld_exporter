@@ -23,9 +23,11 @@ func TestExporter(t *testing.T) {
 	}
 	defer db.Close()
 
-	exporter := New(db, []Scraper{
-		ScrapeGlobalStatus{},
-	})
+	exporter := New(
+		db,
+		[]Scraper{ScrapeGlobalStatus{}},
+		NewStats(""),
+	)
 
 	convey.Convey("Metrics describing", t, func() {
 		ch := make(chan *prometheus.Desc)

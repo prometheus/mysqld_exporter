@@ -51,7 +51,7 @@ var (
 	}
 )
 
-// ScrapeClientStat collects from `information_schema.client_statistics`.
+// ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
 type ScrapeInnodbCmp struct{}
 
 // Name of the Scraper.

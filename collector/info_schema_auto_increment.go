@@ -9,7 +9,7 @@ import (
 )
 
 const infoSchemaAutoIncrementQuery = `
-		SELECT t.table_schema, t.table_name, column_name, `+"`auto_increment`"+`,
+		SELECT t.table_schema, t.table_name, column_name, ` + "`auto_increment`" + `,
 		  pow(2, case data_type
 		    when 'tinyint'   then 7
 		    when 'smallint'  then 15

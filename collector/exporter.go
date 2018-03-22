@@ -37,7 +37,6 @@ type Exporter struct {
 	db       *sql.DB
 	scrapers []Scraper
 	stats    *Stats
-	error    prometheus.Gauge
 	mysqldUp prometheus.Gauge
 }
 
@@ -47,12 +46,6 @@ func New(db *sql.DB, scrapers []Scraper, stats *Stats) *Exporter {
 		db:       db,
 		scrapers: scrapers,
 		stats:    stats,
-		error: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "last_scrape_error",
-			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
-		}),
 		mysqldUp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "up",
@@ -94,7 +87,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
 
 	ch <- e.stats.TotalScrapes
-	ch <- e.error
+	ch <- e.stats.Error
 	e.stats.ScrapeErrors.Collect(ch)
 	ch <- e.mysqldUp
 }
@@ -107,7 +100,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	if err = e.db.Ping(); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.mysqldUp.Set(0)
-		e.error.Set(1)
+		e.stats.Error.Set(1)
 		return
 	}
 	e.mysqldUp.Set(1)
@@ -128,7 +121,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			if err := scraper.Scrape(e.db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.stats.ScrapeErrors.WithLabelValues(label).Inc()
-				e.error.Set(1)
+				e.stats.Error.Set(1)
 			}
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
@@ -155,6 +148,7 @@ func getMySQLVersion(db *sql.DB) float64 {
 type Stats struct {
 	TotalScrapes prometheus.Counter
 	ScrapeErrors *prometheus.CounterVec
+	Error        prometheus.Gauge
 }
 
 func NewStats(resolution string) *Stats {
@@ -175,5 +169,11 @@ func NewStats(resolution string) *Stats {
 			Name:      "scrape_errors_total",
 			Help:      "Total number of times an error occurred scraping a MySQL.",
 		}, []string{"collector"}),
+		Error: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "last_scrape_error",
+			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
 	}
 }

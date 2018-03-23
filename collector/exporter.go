@@ -93,6 +93,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+	e.stats.Error.Set(0)
 	e.stats.TotalScrapes.Inc()
 	var err error
 

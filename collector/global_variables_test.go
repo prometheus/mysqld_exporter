@@ -76,7 +76,7 @@ func TestParseWsrepProviderOptions(t *testing.T) {
 	convey.Convey("Parse wsrep_provider_options", t, func() {
 		convey.So(parseWsrepProviderOptions(testE), convey.ShouldEqual, 0)
 		convey.So(parseWsrepProviderOptions(testM), convey.ShouldEqual, 128*1024*1024)
-		convey.So(parseWsrepProviderOptions(testG), convey.ShouldEqual, 2*1024*1024*1024)
+		convey.So(parseWsrepProviderOptions(testG), convey.ShouldEqual, int64(2*1024*1024*1024))
 		convey.So(parseWsrepProviderOptions(testB), convey.ShouldEqual, 131072)
 	})
 }

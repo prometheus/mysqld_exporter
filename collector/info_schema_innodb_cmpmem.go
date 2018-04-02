@@ -17,6 +17,7 @@ const innodbCmpMemQuery = `
                   FROM information_schema.INNODB_CMPMEM
                 `
 
+//Metric descriptors.
 var (
 	// Map known innodb_cmp values to types. Unknown types will be mapped as
 	// untyped.
@@ -24,30 +25,22 @@ var (
 		vtype prometheus.ValueType
 		desc  *prometheus.Desc
 	}{
-		"page_size": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_page_size"),
-				"Block size in bytes.",
-				[]string{"page_size"}, nil)},
-		"buffer_pool_instance": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_buffer_pool_instance"),
-				"A unique identifier for the buffer pool instance.",
-				[]string{"page_size"}, nil)},
 		"pages_used": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_used"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_used_total"),
 				"Number of blocks of the size PAGE_SIZE that are currently in use.",
-				[]string{"page_size"}, nil)},
+				[]string{"page_size", "buffer"}, nil)},
 		"pages_free": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_free"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_free_total"),
 				"Number of blocks of the size PAGE_SIZE that are currently available for allocation.",
-				[]string{"page_size"}, nil)},
+				[]string{"page_size", "buffer"}, nil)},
 		"relocation_ops": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_ops"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_ops_total"),
 				"Number of times a block of the size PAGE_SIZE has been relocated.",
-				[]string{"page_size"}, nil)},
+				[]string{"page_size", "buffer"}, nil)},
 		"relocation_time": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_time"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_time_seconds_total"),
 				"Total time in microseconds spent in relocating blocks of the size PAGE_SIZE.",
-				[]string{"page_size"}, nil)},
+				[]string{"page_size", "buffer"}, nil)},
 	}
 )
 
@@ -80,9 +73,10 @@ func (ScrapeInnodbCmpMem) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 
 	// The client column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
 	// Because of the client column, clientStatData[0] maps to columnNames[1] when reading off the metrics
-	// (because clientStatScanArgs is mapped as [ &client, &clientData[0], &clientData[1] ... &clientdata[n] ]
+	// (because clientStatScanArgs is mapped as [ &client, &buffer, &clientData[0], &clientData[1] ... &clientdata[n] ]
 	// To map metrics to names therefore we always range over columnNames[1:]
 	columnNames, err := informationSchemaInnodbCmpMemRows.Columns()
+
 	if err != nil {
 		log.Debugln("INNODB_CMPMEM stats are not available.")
 		return err
@@ -90,30 +84,35 @@ func (ScrapeInnodbCmpMem) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 
 	var (
 		client             string                                // Holds the client name, which should be in column 0.
-		clientStatData     = make([]float64, len(columnNames)-1) // 1 less because of the client column.
+		buffer             string                                // Holds the buffer number, which should be in column 1.
+		clientStatData     = make([]float64, len(columnNames)-2) // 2 less because of the client column.
 		clientStatScanArgs = make([]interface{}, len(columnNames))
 	)
 
 	clientStatScanArgs[0] = &client
+	clientStatScanArgs[1] = &buffer
 	for i := range clientStatData {
-		clientStatScanArgs[i+1] = &clientStatData[i]
+		clientStatScanArgs[i+2] = &clientStatData[i]
 	}
 
 	for informationSchemaInnodbCmpMemRows.Next() {
 		if err := informationSchemaInnodbCmpMemRows.Scan(clientStatScanArgs...); err != nil {
 			return err
 		}
-
 		// Loop over column names, and match to scan data. Unknown columns
 		// will be filled with an untyped metric number. We assume other then
 		// cient, that we'll only get numbers.
-		for idx, columnName := range columnNames[1:] {
+		for idx, columnName := range columnNames[2:] {
 			if metricType, ok := informationSchemaInnodbCmpMemTypes[columnName]; ok {
-				ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(clientStatData[idx]), client)
+				if columnName == "relocation_time" {
+					ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(clientStatData[idx]/1000), client, buffer)
+				} else {
+					ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(clientStatData[idx]), client, buffer)
+				}
 			} else {
 				// Unknown metric. Report as untyped.
-				desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("innodb_cmpmem_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"page_size"}, nil)
-				ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(clientStatData[idx]), client)
+				desc := prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, fmt.Sprintf("innodb_cmpmem_%s", strings.ToLower(columnName))), fmt.Sprintf("Unsupported metric from column %s", columnName), []string{"page_size", "buffer"}, nil)
+				ch <- prometheus.MustNewConstMetric(desc, prometheus.UntypedValue, float64(clientStatData[idx]), client, buffer)
 			}
 		}
 	}

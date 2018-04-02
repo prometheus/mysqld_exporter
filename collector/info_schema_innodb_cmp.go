@@ -24,34 +24,30 @@ var (
 		vtype prometheus.ValueType
 		desc  *prometheus.Desc
 	}{
-		"page_size": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_page_size"),
-				"Compressed page size in bytes.",
-				[]string{"page_size"}, nil)},
 		"compress_ops": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_total"),
 				"Number of times a B-tree page of the size PAGE_SIZE has been compressed.",
 				[]string{"page_size"}, nil)},
 		"compress_ops_ok": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_ok"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_ok_total"),
 				"Number of times a B-tree page of the size PAGE_SIZE has been successfully compressed.",
 				[]string{"page_size"}, nil)},
 		"compress_time": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_time"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_time_seconds_total"),
 				"Total time in seconds spent in attempts to compress B-tree pages.",
 				[]string{"page_size"}, nil)},
 		"uncompress_ops": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_ops"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_ops_total"),
 				"Number of times a B-tree page has been uncompressed.",
 				[]string{"page_size"}, nil)},
 		"uncompress_time": {prometheus.CounterValue,
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_time"),
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_time_seconds_total"),
 				"Total time in seconds spent in uncompressing B-tree pages.",
 				[]string{"page_size"}, nil)},
 	}
 )
 
-// ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
+// ScrapeClientStat collects from `information_schema.client_statistics`.
 type ScrapeInnodbCmp struct{}
 
 // Name of the Scraper.

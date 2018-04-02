@@ -44,7 +44,7 @@ var (
 	}
 )
 
-// ScrapeClientStat collects from `information_schema.innodb_cmpmem`.
+// ScrapeInnodbCmpMem collects from `information_schema.innodb_cmpmem`.
 type ScrapeInnodbCmpMem struct{}
 
 // Name of the Scraper.

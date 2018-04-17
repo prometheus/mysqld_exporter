@@ -70,6 +70,7 @@ func ScrapeInnodbCmp(db *sql.DB, ch chan<- prometheus.Metric) error {
 	for i := range clientCmpData {
 		clientCmpScanArgs[i+1] = &clientCmpData[i]
 	}
+
 	for informationSchemaInnodbCmpRows.Next() {
 		if err := informationSchemaInnodbCmpRows.Scan(clientCmpScanArgs...); err != nil {
 			return err

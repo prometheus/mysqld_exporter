@@ -51,44 +51,25 @@ func ScrapeInnodbCmp(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	defer informationSchemaInnodbCmpRows.Close()
 
-	// The client column is assumed to be column[0], while all other data is assumed to be coerceable to float64.
-	// Because of the client column, clientStatData[0] maps to columnNames[1] when reading off the metrics
-	// (because clientStatScanArgs is mapped as [ &client, &clientData[0], &clientData[1] ... &clientdata[n] ]
-	// To map metrics to names therefore we always range over columnNames[1:]
-	columnNames, err := informationSchemaInnodbCmpRows.Columns()
-	if err != nil {
-		return err
-	}
-
 	var (
-		page_size         string                                // Holds the client name, which should be in column 0.
-		clientCmpData     = make([]float64, len(columnNames)-1) // 1 less because of the client column.
-		clientCmpScanArgs = make([]interface{}, len(columnNames))
+		page_size                                                                     string
+		compress_ops, compress_ops_ok, compress_time, uncompress_ops, uncompress_time float64
 	)
 
-	clientCmpScanArgs[0] = &page_size
-	for i := range clientCmpData {
-		clientCmpScanArgs[i+1] = &clientCmpData[i]
-	}
 	for informationSchemaInnodbCmpRows.Next() {
-		if err := informationSchemaInnodbCmpRows.Scan(clientCmpScanArgs...); err != nil {
+
+		if err := informationSchemaInnodbCmpRows.Scan(
+			&page_size, &compress_ops, &compress_ops_ok, &compress_time, &uncompress_ops, &uncompress_time,
+		); err != nil {
 			return err
 		}
 
-		for idx, columnName := range columnNames[1:] {
-			switch columnName {
-			case "compress_ops":
-				ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOps, prometheus.CounterValue, float64(clientCmpData[idx]), page_size)
-			case "compress_ops_ok":
-				ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOpsOk, prometheus.CounterValue, float64(clientCmpData[idx]), page_size)
-			case "compress_time":
-				ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressTime, prometheus.CounterValue, float64(clientCmpData[idx]), page_size)
-			case "uncompress_ops":
-				ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressOps, prometheus.CounterValue, float64(clientCmpData[idx]), page_size)
-			case "uncompress_time":
-				ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressTime, prometheus.CounterValue, float64(clientCmpData[idx]), page_size)
-			}
-		}
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOps, prometheus.CounterValue, compress_ops, page_size)
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOpsOk, prometheus.CounterValue, compress_ops_ok, page_size)
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressTime, prometheus.CounterValue, compress_time, page_size)
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressOps, prometheus.CounterValue, uncompress_ops, page_size)
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressTime, prometheus.CounterValue, uncompress_time, page_size)
+
 	}
 
 	return nil

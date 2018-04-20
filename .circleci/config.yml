@@ -51,6 +51,9 @@ jobs:
             make docker DOCKER_IMAGE_NAME=$QUAY_IMAGE_NAME
           fi
     - run: docker images
+    - run: docker network create mysql-test
+    - run: docker run --network mysql-test -e MYSQL_ROOT_PASSWORD=secret -p 3306:3306 -d percona/percona-server:latest
+
     - run: docker run --rm -t -v "$(pwd):/app" "${DOCKER_TEST_IMAGE_NAME}" -i "${REPO_PATH}" -T
     - run:
         command: |

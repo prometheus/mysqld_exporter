@@ -28,7 +28,7 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 Running using an environment variable:
 
-    export DATA_SOURCE_NAME='login:password@(hostname:port)/'
+    export DATA_SOURCE_NAME='user:password@(hostname:3306)/'
     ./mysqld_exporter <flags>
 
 Running using ~/.my.cnf:
@@ -106,10 +106,14 @@ You can deploy this exporter using the [prom/mysqld-exporter](https://registry.h
 For example:
 
 ```bash
+docker network create my-mysql-network
 docker pull prom/mysqld-exporter
 
-docker run -d -p 9104:9104 --link=my_mysql_container:bdd  \
-        -e DATA_SOURCE_NAME="user:password@(bdd:3306)/database" prom/mysqld-exporter
+docker run -d \
+  -p 9104:9104 \
+  --network my-mysql-network  \
+  -e DATA_SOURCE_NAME="user:password@(my-mysql-network:3306)/" \
+  prom/mysqld-exporter
 ```
 
 ## heartbeat

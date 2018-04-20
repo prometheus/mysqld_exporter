@@ -13,7 +13,7 @@ import (
 const (
 	// Scrape query
 	globalStatusQuery = `SHOW GLOBAL STATUS`
-	// Subsytem.
+	// Subsystem.
 	globalStatus = "global_status"
 )
 

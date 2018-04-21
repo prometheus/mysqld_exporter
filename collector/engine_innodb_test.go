@@ -160,6 +160,6 @@ END OF INNODB MONITOR OUTPUT
 
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
+		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
 }

@@ -68,7 +68,7 @@ type Collect struct {
 	UserStat                bool
 	ClientStat              bool
 	TableStat               bool
-       InnodbCmp               bool
+	InnodbCmp               bool
 	InnodbCmpMem            bool
 	QueryResponseTime       bool
 	EngineTokudbStatus      bool

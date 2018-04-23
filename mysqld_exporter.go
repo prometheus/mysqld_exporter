@@ -113,6 +113,14 @@ var (
 		"collect.info_schema.query_response_time",
 		"Collect query response time distribution if query_response_time_stats is ON.",
 	).Default("false").Bool()
+	collectInnodbCmp = kingpin.Flag(
+		"collect.info_schema.innodbcmp",
+		"If running with innodbcmp=1, set to true to collect innodb cmp statistics",
+	).Default("false").Bool()
+	collectInnodbCmpMem = kingpin.Flag(
+		"collect.info_schema.innodbcmpmem",
+		"If running with innodbcmpmem=1, set to true to collect innodb cmpmem statistics",
+	).Default("false").Bool()
 	collectEngineTokudbStatus = kingpin.Flag(
 		"collect.engine_tokudb_status",
 		"Collect from SHOW ENGINE TOKUDB STATUS",
@@ -202,6 +210,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		PerfRepGroupMemberStats: filter(filters, "perf_schema.replication_group_member_stats", *collectPerfRepGroupMemberStats),
 		UserStat:                filter(filters, "info_schema.userstats", *collectUserStat),
 		ClientStat:              filter(filters, "info_schema.clientstats", *collectClientStat),
+		InnodbCmp:               filter(filters, "info_schema.innodbcmp", *collectInnodbCmp),
+		InnodbCmpMem:            filter(filters, "info_schema.innodbcmpmem", *collectInnodbCmpMem),
 		TableStat:               filter(filters, "info_schema.tablestats", *collectTableStat),
 		QueryResponseTime:       filter(filters, "info_schema.query_response_time", *collectQueryResponseTime),
 		EngineTokudbStatus:      filter(filters, "engine_tokudb_status", *collectEngineTokudbStatus),

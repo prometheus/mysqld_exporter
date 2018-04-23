@@ -58,6 +58,8 @@ collect.global_variables                               | 5.1           | Collect
 collect.info_schema.clientstats                        | 5.5           | If running with userstat=1, set to true to collect client statistics.
 collect.info_schema.innodb_metrics                     | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.info_schema.innodb_tablespaces                 | 5.7           | Collect metrics from information_schema.innodb_sys_tablespaces.
+collect.info_schema.innodb_cmp                         | 5.5           | Collect InnoDB compressed tables metrics from information_schema.innodb_cmp.
+collect.info_schema.innodb_cmpmem                      | 5.5           | Collect InnoDB buffer pool compression metrics from information_schema.innodb_cmpmem.
 collect.info_schema.processlist                        | 5.1           | Collect thread state counts from information_schema.processlist.
 collect.info_schema.processlist.min_time               | 5.1           | Minimum time a thread must be in each state to be counted. (default: 0)
 collect.info_schema.query_response_time                | 5.5           | Collect query response time distribution if query_response_time_stats is ON.

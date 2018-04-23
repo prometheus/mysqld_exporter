@@ -68,6 +68,8 @@ type Collect struct {
 	UserStat                bool
 	ClientStat              bool
 	TableStat               bool
+	InnodbCmp               bool
+	InnodbCmpMem            bool
 	QueryResponseTime       bool
 	EngineTokudbStatus      bool
 	EngineInnodbStatus      bool
@@ -361,6 +363,24 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			e.error.Set(1)
 		}
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.userstats")
+	}
+	if e.collect.InnodbCmp {
+		scrapeTime = time.Now()
+		if err = ScrapeInnodbCmp(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.innodbcmp:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodbcmp").Inc()
+			e.error.Set(1)
+		}
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.innodbcmp")
+	}
+	if e.collect.InnodbCmpMem {
+		scrapeTime = time.Now()
+		if err = ScrapeInnodbCmpMem(db, ch); err != nil {
+			log.Errorln("Error scraping for collect.info_schema.innodbcmpmem:", err)
+			e.scrapeErrors.WithLabelValues("collect.info_schema.innodbcmpmem").Inc()
+			e.error.Set(1)
+		}
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.info_schema.innodbcmpmem")
 	}
 	if e.collect.ClientStat {
 		scrapeTime = time.Now()

@@ -54,7 +54,7 @@ const perfEventsStatementsQuery = `
 	  LIMIT %d
 	`
 
-// Tuning flags.
+// Tunable flags.
 var (
 	perfEventsStatementsLimit = kingpin.Flag(
 		"collect.perf_schema.eventsstatements.limit",
@@ -135,7 +135,20 @@ var (
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
-func ScrapePerfEventsStatements(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfEventsStatements struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapePerfEventsStatements) Name() string {
+	return "perf_schema.eventsstatements"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapePerfEventsStatements) Help() string {
+	return "Collect metrics from performance_schema.events_statements_summary_by_digest"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapePerfEventsStatements) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,

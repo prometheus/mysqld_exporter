@@ -23,7 +23,7 @@ func TestScrapeSlaveStatus(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapeSlaveStatus(db, ch); err != nil {
+		if err = (ScrapeSlaveStatus{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

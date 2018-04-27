@@ -26,7 +26,7 @@ func TestScrapeUserStat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapeUserStat(db, ch); err != nil {
+		if err = (ScrapeUserStat{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

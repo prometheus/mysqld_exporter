@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// Scrape query
+	// Scrape query.
 	globalStatusQuery = `SHOW GLOBAL STATUS`
 	// Subsystem.
 	globalStatus = "global_status"
@@ -20,6 +20,7 @@ const (
 // Regexp to match various groups of status vars.
 var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
 
+// Metric descriptors.
 var (
 	globalCommandsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "commands_total"),
@@ -59,7 +60,20 @@ var (
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
-func ScrapeGlobalStatus(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapeGlobalStatus struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapeGlobalStatus) Name() string {
+	return globalStatus
+}
+
+// Help describes the role of the Scraper.
+func (ScrapeGlobalStatus) Help() string {
+	return "Collect from SHOW GLOBAL STATUS"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalStatusRows, err := db.Query(globalStatusQuery)
 	if err != nil {
 		return err

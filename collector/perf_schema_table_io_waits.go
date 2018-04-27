@@ -32,7 +32,20 @@ var (
 )
 
 // ScrapePerfTableIOWaits collects from `performance_schema.table_io_waits_summary_by_table`.
-func ScrapePerfTableIOWaits(db *sql.DB, ch chan<- prometheus.Metric) error {
+type ScrapePerfTableIOWaits struct{}
+
+// Name of the Scraper. Should be unique.
+func (ScrapePerfTableIOWaits) Name() string {
+	return "perf_schema.tableiowaits"
+}
+
+// Help describes the role of the Scraper.
+func (ScrapePerfTableIOWaits) Help() string {
+	return "Collect metrics from performance_schema.table_io_waits_summary_by_table"
+}
+
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapePerfTableIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfSchemaTableWaitsRows, err := db.Query(perfTableIOWaitsQuery)
 	if err != nil {
 		return err

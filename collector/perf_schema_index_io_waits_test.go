@@ -25,7 +25,7 @@ func TestScrapePerfIndexIOWaits(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = ScrapePerfIndexIOWaits(db, ch); err != nil {
+		if err = (ScrapePerfIndexIOWaits{}).Scrape(db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

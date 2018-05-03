@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -14,6 +16,45 @@ import (
 	"gopkg.in/ini.v1"
 
 	"github.com/prometheus/mysqld_exporter/collector"
+)
+
+// Tunable flags.
+var (
+	exporterLockTimeout = kingpin.Flag(
+		"exporter.lock_wait_timeout",
+		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
+	).Default("2").Int()
+	exporterLogSlowFilter = kingpin.Flag(
+		"exporter.log_slow_filter",
+		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
+	).Default("false").Bool()
+	exporterGlobalConnPool = kingpin.Flag(
+		"exporter.global-conn-pool",
+		"Use global connection pool instead of creating new pool for each http request.",
+	).Default("false").Bool()
+	exporterMaxOpenConns = kingpin.Flag(
+		"exporter.max-open-conns",
+		"Maximum number of open connections to the database. https://golang.org/pkg/database/sql/#DB.SetMaxOpenConns",
+	).Default("1").Int()
+	exporterMaxIdleConns = kingpin.Flag(
+		"exporter.max-idle-conns",
+		"Maximum number of connections in the idle connection pool. https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns",
+	).Default("1").Int()
+	exporterConnMaxLifetime = kingpin.Flag(
+		"exporter.conn-max-lifetime",
+		"Maximum amount of time a connection may be reused. https://golang.org/pkg/database/sql/#DB.SetConnMaxLifetime",
+	).Default("60s").Duration()
+	collectAll = kingpin.Flag(
+		"collect.all",
+		"Collect all metrics.",
+	).Default("false").Bool()
+)
+
+// System variable params formatting.
+// See: https://github.com/go-sql-driver/mysql#system-variables
+const (
+	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
+	timeoutParam         = `lock_wait_timeout=%d`
 )
 
 var (
@@ -89,7 +130,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(globalDB *sql.DB, scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
@@ -110,8 +151,19 @@ func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
 			}
 		}
 
+		// If there is no global connection pool then create new.
+		db := globalDB
+		var err error
+		if globalDB == nil {
+			db, err = newDB(dsn)
+			if err != nil {
+				log.Fatalln("Error opening connection to database:", err)
+			}
+			defer db.Close()
+		}
+
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, filteredScrapers))
+		registry.MustRegister(collector.New(db, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -160,6 +212,7 @@ func main() {
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
+	// Get DSN.
 	dsn = os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
 		var err error
@@ -168,20 +221,57 @@ func main() {
 		}
 	}
 
+	// Setup extra params for the DSN, default to having a lock timeout.
+	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
+	if *exporterLogSlowFilter {
+		dsnParams = append(dsnParams, sessionSettingsParam)
+	}
+
+	if strings.Contains(dsn, "?") {
+		dsn = dsn + "&"
+	} else {
+		dsn = dsn + "?"
+	}
+	dsn += strings.Join(dsnParams, "&")
+
+	// Open global connection pool if requested.
+	var db *sql.DB
+	var err error
+	if *exporterGlobalConnPool {
+		db, err = newDB(dsn)
+		if err != nil {
+			log.Fatalln("Error opening connection to database:", err)
+		}
+		defer db.Close()
+	}
+
 	// Register only scrapers enabled by flag.
-	log.Infof("Enabled scrapers:")
+	log.Info("Enabled scrapers:")
 	enabledScrapers := []collector.Scraper{}
 	for scraper, enabled := range scraperFlags {
-		if *enabled {
+		if *collectAll || *enabled {
 			log.Infof(" --collect.%s", scraper.Name())
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", newHandler(enabledScrapers)))
+	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", newHandler(db, enabledScrapers)))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
 
 	log.Infoln("Listening on", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+}
+
+func newDB(dsn string) (*sql.DB, error) {
+	// Validate DSN, and open connection pool.
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(*exporterMaxOpenConns)
+	db.SetMaxIdleConns(*exporterMaxIdleConns)
+	db.SetConnMaxLifetime(*exporterConnMaxLifetime)
+
+	return db, nil
 }

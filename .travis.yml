@@ -7,6 +7,10 @@ go:
 - 1.10.x
 - master
 
+matrix:
+  allow_failures:
+    - go: master
+
 env:
 - MYSQL_IMAGE=mysql/mysql-server:5.5
 - MYSQL_IMAGE=mysql/mysql-server:5.6

@@ -173,7 +173,11 @@ var scrapersLr = map[collector.Scraper]struct{}{
 
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
-	cfg, err := ini.Load(config)
+	opts := ini.LoadOptions{
+		// PMM-2469: my.cnf can have boolean keys.
+		AllowBooleanKeys: true,
+	}
+	cfg, err := ini.LoadSources(opts, config)
 	if err != nil {
 		return dsn, fmt.Errorf("failed reading ini file: %s", err)
 	}

@@ -4,8 +4,9 @@ package collector
 
 import (
 	"database/sql"
-	"github.com/satori/go.uuid"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/satori/go.uuid"
 )
 
 const (
@@ -69,7 +70,6 @@ func (ScrapeSlaveHosts) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 			return err
 		}
 
-
 		// Check to see if slaveUuidOrMasterId resembles a UUID or not
 		// to find out if we are using an old version of MySQL
 		if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
@@ -81,7 +81,6 @@ func (ScrapeSlaveHosts) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 			slaveUuid = slaveUuidOrMasterId
 			masterId = rrrOrMasterId
 		}
-
 
 		ch <- prometheus.MustNewConstMetric(
 			SlaveHostsInfo,

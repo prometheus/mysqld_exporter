@@ -54,6 +54,14 @@ func TestParseMycnf(t *testing.T) {
 			host = 1.2.3.4
 			port = 3307
 		`
+		ignoreBooleanKeys = `
+			[client]
+			user = root
+			password = abc123
+
+			[mysql]
+			skip-auto-rehash
+		`
 		badConfig = `
 			[client]
 			user = root
@@ -67,10 +75,7 @@ func TestParseMycnf(t *testing.T) {
 			[hello]
 			world = ismine
 		`
-		badConfig4 = `
-			[hello]
-			world
-		`
+		badConfig4 = `[hello`
 	)
 	convey.Convey("Various .my.cnf configurations", t, func() {
 		convey.Convey("Local tcp connection", func() {
@@ -93,21 +98,25 @@ func TestParseMycnf(t *testing.T) {
 			dsn, _ := parseMycnf([]byte(remoteConfig))
 			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
 		})
+		convey.Convey("Ignore boolean keys", func() {
+			dsn, _ := parseMycnf([]byte(ignoreBooleanKeys))
+			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
+		})
 		convey.Convey("Missed user", func() {
 			_, err := parseMycnf([]byte(badConfig))
-			convey.So(err, convey.ShouldNotBeNil)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig))
 		})
 		convey.Convey("Missed password", func() {
 			_, err := parseMycnf([]byte(badConfig2))
-			convey.So(err, convey.ShouldNotBeNil)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig2))
 		})
 		convey.Convey("No [client] section", func() {
 			_, err := parseMycnf([]byte(badConfig3))
-			convey.So(err, convey.ShouldNotBeNil)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig3))
 		})
 		convey.Convey("Invalid config", func() {
 			_, err := parseMycnf([]byte(badConfig4))
-			convey.So(err, convey.ShouldNotBeNil)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("failed reading ini file: unclosed section: %s", badConfig4))
 		})
 	})
 }

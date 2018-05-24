@@ -6,16 +6,11 @@ go:
 - 1.9.x
 - 1.10.x
 
-matrix:
-  allow_failures:
-    - go: master
-
 env:
 - MYSQL_IMAGE=mysql/mysql-server:5.5
 - MYSQL_IMAGE=mysql/mysql-server:5.6
 - MYSQL_IMAGE=mysql/mysql-server:5.7
 - MYSQL_IMAGE=mysql/mysql-server:8.0
-- MYSQL_IMAGE=percona/percona-server:5.5
 - MYSQL_IMAGE=percona/percona-server:5.6
 - MYSQL_IMAGE=percona/percona-server:5.7
 

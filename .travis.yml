@@ -11,11 +11,16 @@ env:
 - MYSQL_IMAGE=mysql/mysql-server:5.6
 - MYSQL_IMAGE=mysql/mysql-server:5.7
 - MYSQL_IMAGE=mysql/mysql-server:8.0
-- MYSQL_IMAGE=library/mariadb:10.0
-- MYSQL_IMAGE=library/mariadb:10.1
-- MYSQL_IMAGE=library/mariadb:10.2
+- MYSQL_IMAGE=mariadb:5.5
+- MYSQL_IMAGE=mariadb:10.0
+- MYSQL_IMAGE=mariadb:10.1
+- MYSQL_IMAGE=mariadb:10.2
+- MYSQL_IMAGE=mariadb:10.3
 - MYSQL_IMAGE=percona/percona-server:5.6
 - MYSQL_IMAGE=percona/percona-server:5.7
+- MYSQL_IMAGE=percona:5.5
+- MYSQL_IMAGE=percona:5.6
+- MYSQL_IMAGE=percona:5.7
 
 services:
 - docker

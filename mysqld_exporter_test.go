@@ -162,6 +162,7 @@ func TestBin(t *testing.T) {
 
 	tests := []func(*testing.T, bin){
 		testLandingPage,
+		testMysqlHealthPageFail,
 	}
 
 	portStart := 56000
@@ -216,6 +217,38 @@ func testLandingPage(t *testing.T, data bin) {
 </html>
 `
 	if got != expected {
+		t.Fatalf("got '%s' but expected '%s'", got, expected)
+	}
+}
+
+func testMysqlHealthPageFail(t *testing.T, data bin) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Run exporter.
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+	)
+	// wrong mysql dsn
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3300")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	// Get the mysqlhealth page.
+	urlToGet := fmt.Sprintf("http://127.0.0.1:%d/-/mysqld_healthy", data.port)
+	body, err := waitForBody(urlToGet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+
+	expected := `critical: mysql_up`
+	if strings.HasPrefix(got, expected) {
 		t.Fatalf("got '%s' but expected '%s'", got, expected)
 	}
 }

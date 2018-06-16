@@ -14,6 +14,7 @@
 package log
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,8 +26,24 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
+
+type levelFlag string
+
+// String implements flag.Value.
+func (f levelFlag) String() string {
+	return fmt.Sprintf("%q", origLogger.Level.String())
+}
+
+// Set implements flag.Value.
+func (f levelFlag) Set(level string) error {
+	l, err := logrus.ParseLevel(level)
+	if err != nil {
+		return err
+	}
+	origLogger.Level = l
+	return nil
+}
 
 // setSyslogFormatter is nil if the target architecture does not support syslog.
 var setSyslogFormatter func(logger, string, string) error
@@ -38,32 +55,38 @@ func setJSONFormatter() {
 	origLogger.Formatter = &logrus.JSONFormatter{}
 }
 
-type loggerSettings struct {
-	level  string
-	format string
+type logFormatFlag url.URL
+
+// String implements flag.Value.
+func (f logFormatFlag) String() string {
+	u := url.URL(f)
+	return fmt.Sprintf("%q", u.String())
 }
 
-func (s *loggerSettings) apply(ctx *kingpin.ParseContext) error {
-	err := baseLogger.SetLevel(s.level)
-	if err != nil {
-		return err
-	}
-	err = baseLogger.SetFormat(s.format)
-	return err
+// Set implements flag.Value.
+func (f logFormatFlag) Set(format string) error {
+	return baseLogger.SetFormat(format)
 }
 
-// AddFlags adds the flags used by this package to the Kingpin application.
-// To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
-func AddFlags(a *kingpin.Application) {
-	s := loggerSettings{}
-	a.Flag("log.level", "Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]").
-		Default(origLogger.Level.String()).
-		StringVar(&s.level)
-	defaultFormat := url.URL{Scheme: "logger", Opaque: "stderr"}
-	a.Flag("log.format", `Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"`).
-		Default(defaultFormat.String()).
-		StringVar(&s.format)
-	a.Action(s.apply)
+func init() {
+	AddFlags(flag.CommandLine)
+}
+
+// AddFlags adds the flags used by this package to the given FlagSet. That's
+// useful if working with a custom FlagSet. The init function of this package
+// adds the flags to flag.CommandLine anyway. Thus, it's usually enough to call
+// flag.Parse() to make the logging flags take effect.
+func AddFlags(fs *flag.FlagSet) {
+	fs.Var(
+		levelFlag(origLogger.Level.String()),
+		"log.level",
+		"Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]",
+	)
+	fs.Var(
+		logFormatFlag(url.URL{Scheme: "logger", Opaque: "stderr"}),
+		"log.format",
+		`Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"`,
+	)
 }
 
 // Logger is the interface for loggers used in the Prometheus components.
@@ -343,11 +366,6 @@ func Fatalln(args ...interface{}) {
 // Fatalf logs a message at level Fatal on the standard logger.
 func Fatalf(format string, args ...interface{}) {
 	baseLogger.sourced().Fatalf(format, args...)
-}
-
-// AddHook adds hook to Prometheus' original logger.
-func AddHook(hook logrus.Hook) {
-	origLogger.Hooks.Add(hook)
 }
 
 type errorLogWriter struct{}

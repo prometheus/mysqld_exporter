@@ -22,7 +22,7 @@ DOCKER_IMAGE_NAME   ?= mysqld-exporter
 DOCKER_IMAGE_TAG    ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 
 
-all: format build test-short
+all: verify-vendor format build test-short
 
 style:
 	@echo ">> checking code style"
@@ -35,6 +35,13 @@ test-short:
 test:
 	@echo ">> running tests"
 	@$(GO) test -race $(pkgs)
+
+verify-vendor:
+	@echo ">> verify that vendor/ is in sync with code and Gopkg.*"
+	curl https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -L -o ~/dep && chmod +x ~/dep
+	rm -fr vendor/
+	~/dep ensure -v -vendor-only
+	git diff --exit-code
 
 format:
 	@echo ">> formatting code"

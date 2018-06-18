@@ -1,0 +1,10 @@
+[prune]
+  go-tests = true
+  non-go = true
+  unused-packages = true
+
+[[override]]
+  name = "github.com/prometheus/common"
+  # Version before introducing kingpin.
+  # https://github.com/prometheus/common/pull/96
+  revision = "185c63bfc5a8c7a703687edb52940c895c818cb5"

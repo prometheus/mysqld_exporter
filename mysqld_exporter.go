@@ -137,6 +137,8 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeEngineTokudbStatus{}:          false,
 	collector.ScrapeEngineInnodbStatus{}:          false,
 	collector.ScrapeHeartbeat{}:                   false,
+	collector.ScrapeInnodbCmp{}:                   false,
+	collector.ScrapeInnodbCmpMem{}:                false,
 }
 
 var scrapersHr = map[collector.Scraper]struct{}{
@@ -152,6 +154,8 @@ var scrapersMr = map[collector.Scraper]struct{}{
 	collector.ScrapePerfTableLockWaits{}: {},
 	collector.ScrapeQueryResponseTime{}:  {},
 	collector.ScrapeEngineInnodbStatus{}: {},
+	collector.ScrapeInnodbCmp{}:          {},
+	collector.ScrapeInnodbCmpMem{}:       {},
 }
 
 var scrapersLr = map[collector.Scraper]struct{}{

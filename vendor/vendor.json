@@ -31,12 +31,12 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
-			"checksumSHA1": "xmTgJXWHguGKHPuZE50FIbs88L0=",
+			"checksumSHA1": "kxzfnN+IPF0sViI9iiUnI7aZVWM=",
 			"path": "github.com/go-sql-driver/mysql",
-			"revision": "a0583e0143b1624142adab07e0e97fe106d99561",
-			"revisionTime": "2016-12-01T11:50:36Z",
-			"version": "v1.3",
-			"versionExact": "v1.3"
+			"revision": "d523deb1b23d913de5bdada721a6071e71283618",
+			"revisionTime": "2018-06-03T12:45:54Z",
+			"version": "v1.4",
+			"versionExact": "v1.4.0"
 		},
 		{
 			"checksumSHA1": "yqF125xVSkmfLpIVGrLlfE05IUk=",
@@ -207,6 +207,12 @@
 			"path": "golang.org/x/sys/windows/svc/eventlog",
 			"revision": "810d7000345868fc619eb81f46307107118f4ae1",
 			"revisionTime": "2018-01-09T14:25:55Z"
+		},
+		{
+			"checksumSHA1": "LiyXfqOzaeQ8vgYZH3t2hUEdVTw=",
+			"path": "google.golang.org/appengine/cloudsql",
+			"revision": "b1f26356af11148e710935ed1ac8a7f5702c7612",
+			"revisionTime": "2018-05-21T22:34:13Z"
 		},
 		{
 			"checksumSHA1": "WfiM+grLatLDuXKj1roCcRDod/4=",

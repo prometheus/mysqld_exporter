@@ -65,7 +65,11 @@ var scrapers = map[collector.Scraper]bool{
 
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
-	cfg, err := ini.Load(config)
+	opts := ini.LoadOptions{
+		// MySQL ini file can have boolean keys.
+		AllowBooleanKeys: true,
+	}
+	cfg, err := ini.LoadSources(opts, config)
 	if err != nil {
 		return dsn, fmt.Errorf("failed reading ini file: %s", err)
 	}

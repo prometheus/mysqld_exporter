@@ -83,6 +83,9 @@ func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 // Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.metrics.TotalScrapes.Desc()
+	ch <- e.metrics.Error.Desc()
+	e.metrics.ScrapeErrors.Describe(ch)
+	ch <- e.metrics.MySQLUP.Desc()
 }
 
 // Collect implements prometheus.Collector.

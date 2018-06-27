@@ -94,7 +94,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
@@ -116,7 +116,7 @@ func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, filteredScrapers))
+		registry.MustRegister(collector.New(dsn, metrics, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -182,7 +182,8 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", newHandler(enabledScrapers)))
+	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers)
+	http.HandleFunc(*metricPath, prometheus.InstrumentHandlerFunc("metrics", handlerFunc))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})

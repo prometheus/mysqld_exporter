@@ -1,3 +1,30 @@
+## v0.10.0 / 2018-06-29
+
+### BREAKING CHANGES:
+* Flags now use the Kingpin library, and require double-dashes. #222
+
+This also changes the behavior of boolean flags.
+* Enable: `--collector.global_status`
+* Disable: `--no-collector.global_status`
+
+### Changes:
+* [CHANGE] Limit number and lifetime of connections #208
+* [ENHANCEMENT] Move session params to DSN #259
+* [ENHANCEMENT] Use native DB.Ping() instead of self-written implementation #210
+* [FEATURE] Add collector duration metrics #197
+* [FEATURE] Add 'collect[]' URL parameter to filter enabled collectors #235
+* [FEATURE] Set a `lock_wait_timeout` on the MySQL connection #252
+* [FEATURE] Set `last_scrape_error` when an error occurs #237
+* [FEATURE] Collect metrics from `performance_schema.replication_group_member_stats` #271
+* [FEATURE] Add innodb compression statistic #275
+* [FEATURE] Add metrics for the output of `SHOW SLAVE HOSTS` #279
+* [FEATURE] Support custom CA truststore and client SSL keypair. #255
+* [BUGFIX] Fix perfEventsStatementsQuery #213
+* [BUGFIX] Fix `file_instances` metric collector #205
+* [BUGFIX] Fix prefix removal in `perf_schema_file_instances` #257
+* [BUGFIX] Fix 32bit compile issue #273
+* [BUGFIX] Ignore boolean keys in my.cnf. #283
+
 ## v0.10.0 / 2017-04-25
 
 BREAKING CHANGES:

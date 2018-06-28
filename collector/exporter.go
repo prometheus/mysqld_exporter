@@ -36,75 +36,50 @@ var (
 type Exporter struct {
 	db       *sql.DB
 	scrapers []Scraper
-	stats    *Stats
-	mysqldUp prometheus.Gauge
+	metrics  Metrics
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(db *sql.DB, scrapers []Scraper, stats *Stats) *Exporter {
+func New(db *sql.DB, metrics Metrics, scrapers []Scraper) *Exporter {
 	return &Exporter{
 		db:       db,
 		scrapers: scrapers,
-		stats:    stats,
-		mysqldUp: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "up",
-			Help:      "Whether the MySQL server is up.",
-		}),
+		metrics:  metrics,
 	}
 }
 
 // Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	// We cannot know in advance what metrics the exporter will generate
-	// from MySQL. So we use the poor man's describe method: Run a collect
-	// and send the descriptors of all the collected metrics. The problem
-	// here is that we need to connect to the MySQL DB. If it is currently
-	// unavailable, the descriptors will be incomplete. Since this is a
-	// stand-alone exporter and not used as a library within other code
-	// implementing additional metrics, the worst that can happen is that we
-	// don't detect inconsistent metrics created by this exporter
-	// itself. Also, a change in the monitored MySQL instance may change the
-	// exported metrics during the runtime of the exporter.
-
-	metricCh := make(chan prometheus.Metric)
-	doneCh := make(chan struct{})
-
-	go func() {
-		for m := range metricCh {
-			ch <- m.Desc()
-		}
-		close(doneCh)
-	}()
-
-	e.Collect(metricCh)
-	close(metricCh)
-	<-doneCh
+	ch <- e.metrics.TotalScrapes.Desc()
+	ch <- e.metrics.Error.Desc()
+	e.metrics.ScrapeErrors.Describe(ch)
+	ch <- e.metrics.MySQLUp.Desc()
 }
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
 
-	ch <- e.stats.TotalScrapes
-	ch <- e.stats.Error
-	e.stats.ScrapeErrors.Collect(ch)
-	ch <- e.mysqldUp
+	ch <- e.metrics.TotalScrapes
+	ch <- e.metrics.Error
+	e.metrics.ScrapeErrors.Collect(ch)
+	ch <- e.metrics.MySQLUp
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
-	e.stats.Error.Set(0)
-	e.stats.TotalScrapes.Inc()
+	e.metrics.Error.Set(0)
+	e.metrics.TotalScrapes.Inc()
 	var err error
 
 	scrapeTime := time.Now()
 	if err = e.db.Ping(); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
-		e.mysqldUp.Set(0)
-		e.stats.Error.Set(1)
+		e.metrics.MySQLUp.Set(0)
+		e.metrics.Error.Set(1)
 		return
 	}
-	e.mysqldUp.Set(1)
+	e.metrics.MySQLUp.Set(1)
+
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
 	versionNum := getMySQLVersion(e.db)
@@ -121,8 +96,8 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			scrapeTime := time.Now()
 			if err := scraper.Scrape(e.db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
-				e.stats.ScrapeErrors.WithLabelValues(label).Inc()
-				e.stats.Error.Set(1)
+				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
+				e.metrics.Error.Set(1)
 			}
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
@@ -146,18 +121,21 @@ func getMySQLVersion(db *sql.DB) float64 {
 	return versionNum
 }
 
-type Stats struct {
+// Metrics represents exporter metrics which values can be carried between http requests.
+type Metrics struct {
 	TotalScrapes prometheus.Counter
 	ScrapeErrors *prometheus.CounterVec
 	Error        prometheus.Gauge
+	MySQLUp      prometheus.Gauge
 }
 
-func NewStats(resolution string) *Stats {
+// NewMetrics creates new Metrics instance.
+func NewMetrics(resolution string) Metrics {
 	subsystem := exporter
 	if resolution != "" {
 		subsystem = exporter + "_" + resolution
 	}
-	return &Stats{
+	return Metrics{
 		TotalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
@@ -175,6 +153,11 @@ func NewStats(resolution string) *Stats {
 			Subsystem: subsystem,
 			Name:      "last_scrape_error",
 			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
+		MySQLUp: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "up",
+			Help:      "Whether the MySQL server is up.",
 		}),
 	}
 }

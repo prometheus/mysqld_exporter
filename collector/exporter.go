@@ -25,8 +25,6 @@ const (
 	// See: https://github.com/go-sql-driver/mysql#system-variables
 	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
 	timeoutParam         = `lock_wait_timeout=%d`
-
-	upQuery = `SELECT 1`
 )
 
 // Tunable flags.
@@ -117,14 +115,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	// Set max lifetime for a connection.
 	db.SetConnMaxLifetime(1 * time.Minute)
 
-	isUpRows, err := db.Query(upQuery)
-	if err != nil {
+	if err := db.Ping(); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
 		return
 	}
-	isUpRows.Close()
 
 	e.metrics.MySQLUp.Set(1)
 

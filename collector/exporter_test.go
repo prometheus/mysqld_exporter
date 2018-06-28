@@ -15,9 +15,12 @@ func TestExporter(t *testing.T) {
 		t.Skip("-short is passed, skipping test")
 	}
 
-	exporter := New(dsn, []Scraper{
-		ScrapeGlobalStatus{},
-	})
+	exporter := New(
+		dsn,
+		NewMetrics(),
+		[]Scraper{
+			ScrapeGlobalStatus{},
+		})
 
 	convey.Convey("Metrics describing", t, func() {
 		ch := make(chan *prometheus.Desc)

@@ -52,16 +52,13 @@ var (
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
-	dsn          string
-	scrapers     []Scraper
-	error        prometheus.Gauge
-	totalScrapes prometheus.Counter
-	scrapeErrors *prometheus.CounterVec
-	mysqldUp     prometheus.Gauge
+	dsn      string
+	scrapers []Scraper
+	metrics  Metrics
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, scrapers []Scraper) *Exporter {
+func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -79,79 +76,37 @@ func New(dsn string, scrapers []Scraper) *Exporter {
 	return &Exporter{
 		dsn:      dsn,
 		scrapers: scrapers,
-		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "scrapes_total",
-			Help:      "Total number of times MySQL was scraped for metrics.",
-		}),
-		scrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "scrape_errors_total",
-			Help:      "Total number of times an error occurred scraping a MySQL.",
-		}, []string{"collector"}),
-		error: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "last_scrape_error",
-			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
-		}),
-		mysqldUp: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "up",
-			Help:      "Whether the MySQL server is up.",
-		}),
+		metrics:  metrics,
 	}
 }
 
 // Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	// We cannot know in advance what metrics the exporter will generate
-	// from MySQL. So we use the poor man's describe method: Run a collect
-	// and send the descriptors of all the collected metrics. The problem
-	// here is that we need to connect to the MySQL DB. If it is currently
-	// unavailable, the descriptors will be incomplete. Since this is a
-	// stand-alone exporter and not used as a library within other code
-	// implementing additional metrics, the worst that can happen is that we
-	// don't detect inconsistent metrics created by this exporter
-	// itself. Also, a change in the monitored MySQL instance may change the
-	// exported metrics during the runtime of the exporter.
-
-	metricCh := make(chan prometheus.Metric)
-	doneCh := make(chan struct{})
-
-	go func() {
-		for m := range metricCh {
-			ch <- m.Desc()
-		}
-		close(doneCh)
-	}()
-
-	e.Collect(metricCh)
-	close(metricCh)
-	<-doneCh
+	ch <- e.metrics.TotalScrapes.Desc()
+	ch <- e.metrics.Error.Desc()
+	e.metrics.ScrapeErrors.Describe(ch)
+	ch <- e.metrics.MySQLUp.Desc()
 }
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
 
-	ch <- e.totalScrapes
-	ch <- e.error
-	e.scrapeErrors.Collect(ch)
-	ch <- e.mysqldUp
+	ch <- e.metrics.TotalScrapes
+	ch <- e.metrics.Error
+	e.metrics.ScrapeErrors.Collect(ch)
+	ch <- e.metrics.MySQLUp
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
-	e.totalScrapes.Inc()
+	e.metrics.TotalScrapes.Inc()
 	var err error
 
 	scrapeTime := time.Now()
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		log.Errorln("Error opening connection to database:", err)
-		e.error.Set(1)
+		e.metrics.Error.Set(1)
 		return
 	}
 	defer db.Close()
@@ -165,13 +120,13 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	isUpRows, err := db.Query(upQuery)
 	if err != nil {
 		log.Errorln("Error pinging mysqld:", err)
-		e.mysqldUp.Set(0)
-		e.error.Set(1)
+		e.metrics.MySQLUp.Set(0)
+		e.metrics.Error.Set(1)
 		return
 	}
 	isUpRows.Close()
 
-	e.mysqldUp.Set(1)
+	e.metrics.MySQLUp.Set(1)
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
@@ -185,10 +140,48 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			scrapeTime := time.Now()
 			if err := scraper.Scrape(db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
-				e.scrapeErrors.WithLabelValues(label).Inc()
-				e.error.Set(1)
+				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
+				e.metrics.Error.Set(1)
 			}
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
+	}
+}
+
+// Metrics represents exporter metrics which values can be carried between http requests.
+type Metrics struct {
+	TotalScrapes prometheus.Counter
+	ScrapeErrors *prometheus.CounterVec
+	Error        prometheus.Gauge
+	MySQLUp      prometheus.Gauge
+}
+
+// NewMetrics creates new Metrics instance.
+func NewMetrics() Metrics {
+	subsystem := exporter
+	return Metrics{
+		TotalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "scrapes_total",
+			Help:      "Total number of times MySQL was scraped for metrics.",
+		}),
+		ScrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "scrape_errors_total",
+			Help:      "Total number of times an error occurred scraping a MySQL.",
+		}, []string{"collector"}),
+		Error: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "last_scrape_error",
+			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+		}),
+		MySQLUp: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "up",
+			Help:      "Whether the MySQL server is up.",
+		}),
 	}
 }

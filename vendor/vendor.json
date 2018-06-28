@@ -64,23 +64,21 @@
 			"checksumSHA1": "bKMZjd2wPw13VwoE7mBeSv5djFA=",
 			"path": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
-			"revisionTime": "2016-04-24T11:30:07Z"
+			"revisionTime": "2016-04-24T11:30:07Z",
+			"version": "v1.0.1",
+			"versionExact": "v1.0.1"
 		},
 		{
-			"checksumSHA1": "WSCsSdD3I7Are0ntaIq6zR9tl0s=",
+			"checksumSHA1": "WVgL9pNO2RZCCcaXfSYSNEPgtCo=",
 			"path": "github.com/prometheus/client_golang/prometheus",
-			"revision": "f02bfc3484a6b03d1fc00d72d86add103ef9567b",
-			"revisionTime": "2018-01-11T15:59:30Z",
-			"version": "v0.8.0",
-			"versionExact": "v0.8.0"
+			"revision": "77e8f2ddcfed59ece3a8151879efb2304b5cbbcf",
+			"revisionTime": "2018-06-23T15:59:54Z"
 		},
 		{
-			"checksumSHA1": "0AZfw0mlRpOkYPR+d4ftlPUwtlc=",
+			"checksumSHA1": "MYqKV5uVTfCxP9zBug7naBQ1vr8=",
 			"path": "github.com/prometheus/client_golang/prometheus/promhttp",
-			"revision": "f02bfc3484a6b03d1fc00d72d86add103ef9567b",
-			"revisionTime": "2018-01-11T15:59:30Z",
-			"version": "v0.8.0",
-			"versionExact": "v0.8.0"
+			"revision": "77e8f2ddcfed59ece3a8151879efb2304b5cbbcf",
+			"revisionTime": "2018-06-23T15:59:54Z"
 		},
 		{
 			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",
@@ -89,46 +87,58 @@
 			"revisionTime": "2017-11-17T10:05:41Z"
 		},
 		{
-			"checksumSHA1": "xfnn0THnqNwjwimeTClsxahYrIo=",
+			"checksumSHA1": "vPdC/DzEm7YbzRir2wwnpLPfay8=",
 			"path": "github.com/prometheus/common/expfmt",
-			"revision": "89604d197083d4781071d3c65855d24ecfb0a563",
-			"revisionTime": "2018-01-10T21:49:58Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
 			"checksumSHA1": "GWlM3d2vPYyNATtTFgftS10/A9w=",
 			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
-			"revision": "89604d197083d4781071d3c65855d24ecfb0a563",
-			"revisionTime": "2018-01-10T21:49:58Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
 			"checksumSHA1": "MGnqHnmEqc1fjnYiWReSiW8C27A=",
 			"path": "github.com/prometheus/common/log",
-			"revision": "89604d197083d4781071d3c65855d24ecfb0a563",
-			"revisionTime": "2018-01-10T21:49:58Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
-			"checksumSHA1": "YU+/K48IMawQnToO4ETE6a+hhj4=",
+			"checksumSHA1": "EXTRY7DL9gFW8c341Dk6LDXCBn8=",
 			"path": "github.com/prometheus/common/model",
-			"revision": "89604d197083d4781071d3c65855d24ecfb0a563",
-			"revisionTime": "2018-01-10T21:49:58Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
 			"checksumSHA1": "91KYK0SpvkaMJJA2+BcxbVnyRO0=",
 			"path": "github.com/prometheus/common/version",
-			"revision": "89604d197083d4781071d3c65855d24ecfb0a563",
-			"revisionTime": "2018-01-10T21:49:58Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
-			"checksumSHA1": "53Wwu3eXhNXZl5GsiOJJyVAY+6s=",
+			"checksumSHA1": "s8OGVwKHbYx/oNKNyZ8f7wWK0dA=",
 			"path": "github.com/prometheus/procfs",
-			"revision": "b15cd069a83443be3154b719d0cc9fe8117f09fb",
-			"revisionTime": "2017-12-26T18:39:07Z"
+			"revision": "7d6f385de8bea29190f15ba9931442a0eaef9af7",
+			"revisionTime": "2018-06-12T22:21:13Z"
 		},
 		{
-			"checksumSHA1": "xCiFAAwVTrjsfZT1BIJQ3DgeNCY=",
+			"checksumSHA1": "lv9rIcjbVEGo8AT1UCUZXhXrfQc=",
+			"path": "github.com/prometheus/procfs/internal/util",
+			"revision": "7d6f385de8bea29190f15ba9931442a0eaef9af7",
+			"revisionTime": "2018-06-12T22:21:13Z"
+		},
+		{
+			"checksumSHA1": "HSP5hVT0CNMRa8+Xtz4z2Ic5U0E=",
+			"path": "github.com/prometheus/procfs/nfs",
+			"revision": "7d6f385de8bea29190f15ba9931442a0eaef9af7",
+			"revisionTime": "2018-06-12T22:21:13Z"
+		},
+		{
+			"checksumSHA1": "yItvTQLUVqm/ArLEbvEhqG0T5a0=",
 			"path": "github.com/prometheus/procfs/xfs",
-			"revision": "b15cd069a83443be3154b719d0cc9fe8117f09fb",
-			"revisionTime": "2017-12-26T18:39:07Z"
+			"revision": "7d6f385de8bea29190f15ba9931442a0eaef9af7",
+			"revisionTime": "2018-06-12T22:21:13Z"
 		},
 		{
 			"checksumSHA1": "eDQ6f1EsNf+frcRO/9XukSEchm8=",

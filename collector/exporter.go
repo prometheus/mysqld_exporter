@@ -85,7 +85,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.metrics.TotalScrapes.Desc()
 	ch <- e.metrics.Error.Desc()
 	e.metrics.ScrapeErrors.Describe(ch)
-	ch <- e.metrics.MySQLUP.Desc()
+	ch <- e.metrics.MySQLUp.Desc()
 }
 
 // Collect implements prometheus.Collector.
@@ -95,7 +95,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.metrics.TotalScrapes
 	ch <- e.metrics.Error
 	e.metrics.ScrapeErrors.Collect(ch)
-	ch <- e.metrics.MySQLUP
+	ch <- e.metrics.MySQLUp
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
@@ -120,13 +120,13 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	isUpRows, err := db.Query(upQuery)
 	if err != nil {
 		log.Errorln("Error pinging mysqld:", err)
-		e.metrics.MySQLUP.Set(0)
+		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
 		return
 	}
 	isUpRows.Close()
 
-	e.metrics.MySQLUP.Set(1)
+	e.metrics.MySQLUp.Set(1)
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
@@ -153,7 +153,7 @@ type Metrics struct {
 	TotalScrapes prometheus.Counter
 	ScrapeErrors *prometheus.CounterVec
 	Error        prometheus.Gauge
-	MySQLUP      prometheus.Gauge
+	MySQLUp      prometheus.Gauge
 }
 
 // NewMetrics creates new Metrics instance.
@@ -178,7 +178,7 @@ func NewMetrics() Metrics {
 			Name:      "last_scrape_error",
 			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
 		}),
-		MySQLUP: prometheus.NewGauge(prometheus.GaugeOpts{
+		MySQLUp: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name:      "up",
 			Help:      "Whether the MySQL server is up.",

@@ -25,8 +25,10 @@ func TestExporter(t *testing.T) {
 
 	exporter := New(
 		db,
-		[]Scraper{ScrapeGlobalStatus{}},
-		NewStats(""),
+		NewMetrics(""),
+		[]Scraper{
+			ScrapeGlobalStatus{},
+		},
 	)
 
 	convey.Convey("Metrics describing", t, func() {

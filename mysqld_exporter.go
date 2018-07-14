@@ -67,28 +67,32 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeSlaveHosts{}:                      false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
-	var dsn string
+func parseMycnf(config interface{}) (*mysql.Config, error) {
+	mysqlConfig := mysql.NewConfig()
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
 	}
 	cfg, err := ini.LoadSources(opts, config)
 	if err != nil {
-		return dsn, fmt.Errorf("failed reading ini file: %s", err)
+		return nil, fmt.Errorf("failed reading ini file: %s", err)
 	}
 	user := cfg.Section("client").Key("user").String()
 	password := cfg.Section("client").Key("password").String()
 	if (user == "") || (password == "") {
-		return dsn, fmt.Errorf("no user or password specified under [client] in %s", config)
+		return nil, fmt.Errorf("no user or password specified under [client] in %s", config)
 	}
+	mysqlConfig.User = user
+	mysqlConfig.Passwd = password
 	host := cfg.Section("client").Key("host").MustString("localhost")
 	port := cfg.Section("client").Key("port").MustUint(3306)
 	socket := cfg.Section("client").Key("socket").String()
 	if socket != "" {
-		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
+		mysqlConfig.Net = "unix"
+		mysqlConfig.Addr = socket
 	} else {
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+		mysqlConfig.Net = "tcp"
+		mysqlConfig.Addr = fmt.Sprintf("%s:%d", host, port)
 	}
 	sslCA := cfg.Section("client").Key("ssl-ca").String()
 	sslCert := cfg.Section("client").Key("ssl-cert").String()
@@ -96,13 +100,12 @@ func parseMycnf(config interface{}) (string, error) {
 	if sslCA != "" {
 		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
 			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-			return dsn, tlsErr
+			return nil, tlsErr
 		}
-		dsn = fmt.Sprintf("%s?tls=custom", dsn)
+		mysqlConfig.TLSConfig = "custom"
 	}
 
-	log.Debugln(dsn)
-	return dsn, nil
+	return mysqlConfig, nil
 }
 
 func customizeTLS(sslCA string, sslCert string, sslKey string) error {
@@ -169,6 +172,23 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 	}
 }
 
+func getDSN() (string, error) {
+	var mysqlConfig *mysql.Config
+	var err error
+	dsn := os.Getenv("DATA_SOURCE_NAME")
+	if len(dsn) != 0 {
+		if mysqlConfig, err = mysql.ParseDSN(dsn); err != nil {
+			return "", err
+		}
+	} else {
+		if mysqlConfig, err = parseMycnf(*configMycnf); err != nil {
+			return "", err
+		}
+	}
+	log.Debugln(mysqlConfig.FormatDSN())
+	return mysqlConfig.FormatDSN(), nil
+}
+
 func main() {
 	// Generate ON/OFF flags for all scrapers.
 	scraperFlags := map[collector.Scraper]*bool{}
@@ -206,12 +226,9 @@ func main() {
 	log.Infoln("Starting mysqld_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			log.Fatal(err)
-		}
+	var err error
+	if dsn, err = getDSN(); err != nil {
+		log.Fatal(err)
 	}
 
 	// Register only scrapers enabled by flag.

@@ -79,28 +79,28 @@ func TestParseMycnf(t *testing.T) {
 	)
 	convey.Convey("Various .my.cnf configurations", t, func() {
 		convey.Convey("Local tcp connection", func() {
-			dsn, _ := parseMycnf([]byte(tcpConfig))
-			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
+			config, _ := parseMycnf([]byte(tcpConfig))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
 		})
 		convey.Convey("Local tcp connection on non-default port", func() {
-			dsn, _ := parseMycnf([]byte(tcpConfig2))
-			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3308)/")
+			config, _ := parseMycnf([]byte(tcpConfig2))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "root:abc123@tcp(localhost:3308)/")
 		})
 		convey.Convey("Socket connection", func() {
-			dsn, _ := parseMycnf([]byte(socketConfig))
-			convey.So(dsn, convey.ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
+			config, _ := parseMycnf([]byte(socketConfig))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
 		})
 		convey.Convey("Socket connection ignoring defined host", func() {
-			dsn, _ := parseMycnf([]byte(socketConfig2))
-			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
+			config, _ := parseMycnf([]byte(socketConfig2))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
 		})
 		convey.Convey("Remote connection", func() {
-			dsn, _ := parseMycnf([]byte(remoteConfig))
-			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
+			config, _ := parseMycnf([]byte(remoteConfig))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
 		})
 		convey.Convey("Ignore boolean keys", func() {
-			dsn, _ := parseMycnf([]byte(ignoreBooleanKeys))
-			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
+			config, _ := parseMycnf([]byte(ignoreBooleanKeys))
+			convey.So(config.FormatDSN(), convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
 		})
 		convey.Convey("Missed user", func() {
 			_, err := parseMycnf([]byte(badConfig))

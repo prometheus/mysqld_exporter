@@ -67,7 +67,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeSlaveHosts{}:                      false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
+func parseMycnf(config interface{}) (*mysql.Config, error) {
 	mysqlConfig := mysql.NewConfig()
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
@@ -75,12 +75,12 @@ func parseMycnf(config interface{}) (string, error) {
 	}
 	cfg, err := ini.LoadSources(opts, config)
 	if err != nil {
-		return "", fmt.Errorf("failed reading ini file: %s", err)
+		return nil, fmt.Errorf("failed reading ini file: %s", err)
 	}
 	user := cfg.Section("client").Key("user").String()
 	password := cfg.Section("client").Key("password").String()
 	if (user == "") || (password == "") {
-		return "", fmt.Errorf("no user or password specified under [client] in %s", config)
+		return nil, fmt.Errorf("no user or password specified under [client] in %s", config)
 	}
 	mysqlConfig.User = user
 	mysqlConfig.Passwd = password
@@ -100,13 +100,12 @@ func parseMycnf(config interface{}) (string, error) {
 	if sslCA != "" {
 		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
 			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-			return mysqlConfig.FormatDSN(), tlsErr
+			return nil, tlsErr
 		}
 		mysqlConfig.TLSConfig = "custom"
 	}
 
-	log.Debugln(mysqlConfig.FormatDSN())
-	return mysqlConfig.FormatDSN(), nil
+	return mysqlConfig, nil
 }
 
 func customizeTLS(sslCA string, sslCert string, sslKey string) error {
@@ -174,13 +173,20 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 }
 
 func getDSN() (string, error) {
+	var mysqlConfig *mysql.Config
+	var err error
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) != 0 {
-		mysqlConfig, err := mysql.ParseDSN(dsn)
-		log.Infoln("", mysqlConfig)
-		return mysqlConfig.FormatDSN(), err
+		if mysqlConfig, err = mysql.ParseDSN(dsn); err != nil {
+			return "", err
+		}
+	} else {
+		if mysqlConfig, err = parseMycnf(*configMycnf); err != nil {
+			return "", err
+		}
 	}
-	return parseMycnf(*configMycnf)
+	log.Debugln(mysqlConfig.FormatDSN())
+	return mysqlConfig.FormatDSN(), nil
 }
 
 func main() {

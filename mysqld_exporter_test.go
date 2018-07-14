@@ -201,7 +201,7 @@ func testLandingPage(t *testing.T, data bin) {
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=tcp(127.0.0.1:3306)/")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

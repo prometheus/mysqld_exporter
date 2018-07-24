@@ -145,7 +145,7 @@ func (ScrapeGlobalVariables) Scrape(db *sql.DB, ch chan<- prometheus.Metric) err
 			return err
 		}
 
-		key = strings.ToLower(key)
+		key = validPrometheusName(key)
 		if floatVal, ok := parseStatus(val); ok {
 			help := globalVariablesHelp[key]
 			if help == "" {
@@ -210,4 +210,10 @@ func parseWsrepProviderOptions(opts string) float64 {
 	}
 
 	return val
+}
+
+func validPrometheusName(s string) string {
+	s = strings.ToLower(s)
+	s = strings.Replace(s, ".", "_", -1)
+	return s
 }

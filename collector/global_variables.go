@@ -53,7 +53,7 @@ func (ScrapeGlobalVariables) Scrape(db *sql.DB, ch chan<- prometheus.Metric) err
 		if err := globalVariablesRows.Scan(&key, &val); err != nil {
 			return err
 		}
-		key = strings.ToLower(key)
+		key = validPrometheusName(key)
 		if floatVal, ok := parseStatus(val); ok {
 			ch <- prometheus.MustNewConstMetric(
 				newDesc(globalVariables, key, "Generic gauge metric from SHOW GLOBAL VARIABLES."),
@@ -112,4 +112,10 @@ func parseWsrepProviderOptions(opts string) float64 {
 	}
 
 	return val
+}
+
+func validPrometheusName(s string) string {
+	s = strings.ToLower(s)
+	s = strings.Replace(s, ".", "_", -1)
+	return s
 }

@@ -4,8 +4,8 @@
 * Flags now use the Kingpin library, and require double-dashes. #222
 
 This also changes the behavior of boolean flags.
-* Enable: `--collector.global_status`
-* Disable: `--no-collector.global_status`
+* Enable: `--collect.global_status`
+* Disable: `--no-collect.global_status`
 
 ### Changes:
 * [CHANGE] Limit number and lifetime of connections #208

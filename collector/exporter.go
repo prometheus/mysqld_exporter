@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 	"strconv"
@@ -32,16 +33,21 @@ var (
 	)
 )
 
+// Verify if Exporter implements prometheus.Collector
+var _ prometheus.Collector = (*Exporter)(nil)
+
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
+	ctx      context.Context
 	db       *sql.DB
 	scrapers []Scraper
 	metrics  Metrics
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(db *sql.DB, metrics Metrics, scrapers []Scraper) *Exporter {
+func New(ctx context.Context, db *sql.DB, metrics Metrics, scrapers []Scraper) *Exporter {
 	return &Exporter{
+		ctx:      ctx,
 		db:       db,
 		scrapers: scrapers,
 		metrics:  metrics,
@@ -58,7 +64,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	e.scrape(ch)
+	e.scrape(e.ctx, ch)
 
 	ch <- e.metrics.TotalScrapes
 	ch <- e.metrics.Error
@@ -66,13 +72,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.metrics.MySQLUp
 }
 
-func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	e.metrics.Error.Set(0)
 	e.metrics.TotalScrapes.Inc()
 	var err error
 
 	scrapeTime := time.Now()
-	if err = e.db.Ping(); err != nil {
+	if err = e.db.PingContext(ctx); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
@@ -82,7 +88,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	versionNum := getMySQLVersion(e.db)
+	versionNum := getMySQLVersion(ctx, e.db)
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
@@ -94,7 +100,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(e.db, ch); err != nil {
+			if err := scraper.Scrape(ctx, e.db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)
@@ -104,12 +110,12 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	}
 }
 
-func getMySQLVersion(db *sql.DB) float64 {
+func getMySQLVersion(ctx context.Context, db *sql.DB) float64 {
 	var (
 		versionStr string
 		versionNum float64
 	)
-	err := db.QueryRow(versionQuery).Scan(&versionStr)
+	err := db.QueryRowContext(ctx, versionQuery).Scan(&versionStr)
 	if err == nil {
 		r, _ := regexp.Compile(`^\d+\.\d+`)
 		versionNum, _ = strconv.ParseFloat(r.FindString(versionStr), 64)

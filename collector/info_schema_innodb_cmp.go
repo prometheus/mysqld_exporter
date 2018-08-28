@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -66,8 +67,8 @@ func (ScrapeInnodbCmp) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeInnodbCmp) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	informationSchemaInnodbCmpRows, err := db.Query(innodbCmpQuery)
+func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	informationSchemaInnodbCmpRows, err := db.QueryContext(ctx, innodbCmpQuery)
 	if err != nil {
 		log.Debugln("INNODB_CMP stats are not available.")
 		return err

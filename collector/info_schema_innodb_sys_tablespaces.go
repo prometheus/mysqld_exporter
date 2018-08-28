@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -57,8 +58,8 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	tablespacesRows, err := db.Query(innodbTablespacesQuery)
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	tablespacesRows, err := db.QueryContext(ctx, innodbTablespacesQuery)
 	if err != nil {
 		return err
 	}

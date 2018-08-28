@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -54,18 +55,18 @@ func (ScrapeSlaveStatus) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeSlaveStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var (
 		slaveStatusRows *sql.Rows
 		err             error
 	)
 	// Try the both syntax for MySQL/Percona and MariaDB
 	for _, query := range slaveStatusQueries {
-		slaveStatusRows, err = db.Query(query)
+		slaveStatusRows, err = db.QueryContext(ctx, query)
 		if err != nil { // MySQL/Percona
 			// Leverage lock-free SHOW SLAVE STATUS by guessing the right suffix
 			for _, suffix := range slaveStatusQuerySuffixes {
-				slaveStatusRows, err = db.Query(fmt.Sprint(query, suffix))
+				slaveStatusRows, err = db.QueryContext(ctx, fmt.Sprint(query, suffix))
 				if err == nil {
 					break
 				}

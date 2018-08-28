@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,7 +24,7 @@ func TestScrapeInnodbCmpMem(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInnodbCmpMem{}).Scrape(db, ch); err != nil {
+		if err = (ScrapeInnodbCmpMem{}).Scrape(context.Background(), db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

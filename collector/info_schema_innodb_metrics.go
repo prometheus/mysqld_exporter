@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 
@@ -67,8 +68,8 @@ func (ScrapeInnodbMetrics) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeInnodbMetrics) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	innodbMetricsRows, err := db.Query(infoSchemaInnodbMetricsQuery)
+func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	innodbMetricsRows, err := db.QueryContext(ctx, infoSchemaInnodbMetricsQuery)
 	if err != nil {
 		return err
 	}

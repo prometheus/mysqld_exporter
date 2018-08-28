@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"testing"
@@ -33,7 +34,7 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfFileInstances{}).Scrape(db, ch); err != nil {
+		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), db, ch); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

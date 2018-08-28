@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -44,8 +45,8 @@ func (ScrapePerfIndexIOWaits) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfIndexIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	perfSchemaIndexWaitsRows, err := db.Query(perfIndexIOWaitsQuery)
+func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	perfSchemaIndexWaitsRows, err := db.QueryContext(ctx, perfIndexIOWaitsQuery)
 	if err != nil {
 		return err
 	}

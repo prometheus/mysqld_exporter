@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 	"strconv"
@@ -32,8 +33,8 @@ func (ScrapeGlobalVariables) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeGlobalVariables) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	globalVariablesRows, err := db.Query(globalVariablesQuery)
+func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	globalVariablesRows, err := db.QueryContext(ctx, globalVariablesQuery)
 	if err != nil {
 		return err
 	}

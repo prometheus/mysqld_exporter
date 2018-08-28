@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,8 +43,8 @@ func (ScrapeSlaveHosts) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveHosts) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	slaveHostsRows, err := db.Query(slaveHostsQuery)
+func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	slaveHostsRows, err := db.QueryContext(ctx, slaveHostsQuery)
 	if err != nil {
 		return err
 	}

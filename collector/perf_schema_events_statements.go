@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -148,7 +149,7 @@ func (ScrapePerfEventsStatements) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsStatements) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,
@@ -156,7 +157,7 @@ func (ScrapePerfEventsStatements) Scrape(db *sql.DB, ch chan<- prometheus.Metric
 		*perfEventsStatementsLimit,
 	)
 	// Timers here are returned in picoseconds.
-	perfSchemaEventsStatementsRows, err := db.Query(perfQuery)
+	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)
 	if err != nil {
 		return err
 	}

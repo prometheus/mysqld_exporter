@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 	"strconv"
@@ -32,8 +33,8 @@ func (ScrapeEngineInnodbStatus) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeEngineInnodbStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	rows, err := db.Query(engineInnodbStatusQuery)
+func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	rows, err := db.QueryContext(ctx, engineInnodbStatusQuery)
 	if err != nil {
 		return err
 	}

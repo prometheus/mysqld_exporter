@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -77,10 +78,10 @@ func (ScrapeTableSchema) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
-		dbListRows, err := db.Query(dbListQuery)
+		dbListRows, err := db.QueryContext(ctx, dbListQuery)
 		if err != nil {
 			return err
 		}
@@ -101,7 +102,7 @@ func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	for _, database := range dbList {
-		tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, database))
+		tableSchemaRows, err := db.QueryContext(ctx, fmt.Sprintf(tableSchemaQuery, database))
 		if err != nil {
 			return err
 		}

@@ -45,6 +45,10 @@ var (
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
+	scrapeTimeoutPercent = flag.Float64(
+		"web.scrape-timeout-percent", 0.8,
+		"Stop collecting data after reaching scrape-timeout-percent of scrape timeout provided by X-Prometheus-Scrape-Timeout-Seconds header.",
+	)
 	configMycnf = flag.String(
 		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
 		"Path to .my.cnf file to read MySQL credentials from.",
@@ -220,6 +224,7 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 			if err != nil {
 				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
 			} else {
+				timeoutSeconds = timeoutSeconds * *scrapeTimeoutPercent
 				var cancel context.CancelFunc
 				// Create new timeout context with request context as parent.
 				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))

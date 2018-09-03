@@ -6,7 +6,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/prometheus/mysqld_exporter)](https://goreportcard.com/report/github.com/prometheus/mysqld_exporter)
 
 Prometheus exporter for MySQL server metrics.
-Supported MySQL versions: 5.1 and up.
+
+Supported MySQL versions: 5.5 and up.
+
 NOTE: Not all collection methods are supported on MySQL < 5.6
 
 ## Building and running

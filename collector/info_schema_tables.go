@@ -90,6 +90,11 @@ func (ScrapeTableSchema) Help() string {
 	return "Collect metrics from information_schema.tables"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeTableSchema) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var dbList []string
@@ -177,3 +182,6 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeTableSchema{}

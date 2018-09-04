@@ -25,9 +25,14 @@ import (
 type Scraper interface {
 	// Name of the Scraper. Should be unique.
 	Name() string
+
 	// Help describes the role of the Scraper.
 	// Example: "Collect from SHOW ENGINE INNODB STATUS"
 	Help() string
+
+	// Version of MySQL from which scraper is available.
+	Version() float64
+
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
 	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error
 }

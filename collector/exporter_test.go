@@ -8,6 +8,12 @@ import (
 	"github.com/smartystreets/goconvey/convey"
 )
 
+// enable query tags for all tests
+func init() {
+	t := true
+	tagQueries = &t
+}
+
 const dsn = "root@/mysql"
 
 func TestExporter(t *testing.T) {

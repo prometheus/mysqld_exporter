@@ -37,6 +37,10 @@ var (
 		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
 	).Default("false").Bool()
+	tagQueries = kingpin.Flag(
+		"exporter.tag-queries",
+		"TODO",
+	).Default("false").Bool()
 )
 
 // Metric descriptors.
@@ -142,6 +146,15 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
 	}
+}
+
+func queryTag(query, name string) string {
+	if !*tagQueries {
+		return query
+	}
+
+	parts := strings.Split(query, " ")
+	return parts[0] + " /* mysqld_exporter:" + name + " */ " + strings.Join(parts[1:], " ")
 }
 
 // Metrics represents exporter metrics which values can be carried between http requests.

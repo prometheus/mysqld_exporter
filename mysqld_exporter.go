@@ -45,9 +45,9 @@ var (
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
 	)
-	scrapeTimeoutPercent = flag.Float64(
-		"web.scrape-timeout-percent", 0.8,
-		"Stop collecting data after reaching scrape-timeout-percent of scrape timeout provided by X-Prometheus-Scrape-Timeout-Seconds header.",
+	timeoutOffset = flag.Float64(
+		"timeout-offset", 0.5,
+		"Offset to subtract from timeout in seconds.",
 	)
 	configMycnf = flag.String(
 		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
@@ -224,9 +224,19 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 			if err != nil {
 				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
 			} else {
-				timeoutSeconds = timeoutSeconds * *scrapeTimeoutPercent
-				var cancel context.CancelFunc
+				if *timeoutOffset >= timeoutSeconds {
+					// Ignore timeout offset if it doesn't leave time to scrape.
+					log.Errorf(
+						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
+						*timeoutOffset,
+						timeoutSeconds,
+					)
+				} else {
+					// Subtract timeout offset from timeout.
+					timeoutSeconds -= *timeoutOffset
+				}
 				// Create new timeout context with request context as parent.
+				var cancel context.CancelFunc
 				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
 				defer cancel()
 				// Overwrite request with timeout context.

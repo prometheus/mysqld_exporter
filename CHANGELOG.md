@@ -1,3 +1,19 @@
+## master / unreleased
+
+### BREAKING CHANGES:
+
+The minimum supported MySQL version is now 5.5.
+
+### Changes:
+
+* [CHANGE]
+* [BUGFIX]
+* [ENHANCEMENT]
+* [FEATURE]
+
+* [CHANGE] Update defaults for MySQL 5.5 #318
+* [BUGFIX] Sanitize metric names in global variables #307
+
 ## 0.11.0 / 2018-06-29
 
 ### BREAKING CHANGES:

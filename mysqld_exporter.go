@@ -154,7 +154,15 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 			if err != nil {
 				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
 			} else {
-				if timeoutSeconds-*timeoutOffset > 0 {
+				if *timeoutOffset >= timeoutSeconds {
+					// Ignore timeout offset if it doesn't leave time to scrape.
+					log.Errorf(
+						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
+						*timeoutOffset,
+						timeoutSeconds,
+					)
+				} else {
+					// Subtract timeout offset from timeout.
 					timeoutSeconds -= *timeoutOffset
 				}
 				// Create new timeout context with request context as parent.

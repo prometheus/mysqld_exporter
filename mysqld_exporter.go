@@ -35,7 +35,7 @@ var (
 	timeoutOffset = kingpin.Flag(
 		"timeout-offset",
 		"Offset to subtract from timeout in seconds.",
-	).Default("0.1").Float64()
+	).Default("0.25").Float64()
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",

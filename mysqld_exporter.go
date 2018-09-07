@@ -46,7 +46,7 @@ var (
 		"Path under which to expose metrics.",
 	)
 	timeoutOffset = flag.Float64(
-		"timeout-offset", 0.5,
+		"timeout-offset", 0.25,
 		"Offset to subtract from timeout in seconds.",
 	)
 	configMycnf = flag.String(

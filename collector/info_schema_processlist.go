@@ -19,6 +19,16 @@ const infoSchemaProcesslistQuery = `
 		  GROUP BY command,state
 		  ORDER BY null
 		`
+const infoSchemaProcessesByUserQuery = `
+		SELECT user, count(user) processes
+		  FROM information_schema.processlist
+		  GROUP BY user
+		`
+const infoSchemaProcessesByHostQuery = `
+		SELECT LEFT(host, LOCATE(':', host) - 1) host, count(*) processes
+		FROM information_schema.processlist
+		GROUP BY host
+	`
 
 // Tunable flags.
 var (
@@ -26,6 +36,14 @@ var (
 		"collect.info_schema.processlist.min_time",
 		"Minimum time a thread must be in each state to be counted",
 	).Default("0").Int()
+	processesByUserFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_user",
+		"Collect the number of processes by user",
+	).Default("false").Bool()
+	processesByHostFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_host",
+		"Collect the number of processes by host",
+	).Default("false").Bool()
 )
 
 // Metric descriptors.
@@ -38,6 +56,15 @@ var (
 		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
 		"The number of seconds threads (connections) have used split by current state.",
 		[]string{"state"}, nil)
+	processesByUserDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
+		"The number of processes by user.",
+		[]string{"src_user"}, nil)
+	processesByHostDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
+		"The number of processes by host.",
+		[]string{"src_host"}, nil)
+
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -121,6 +148,52 @@ var (
 	}
 )
 
+func processesByUser(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+	connectionsByUserRows, err := db.Query(infoSchemaProcessesByUserQuery)
+	if err != nil {
+                return err
+        }
+	defer connectionsByUserRows.Close()
+
+        var (
+                user      string
+                processes uint32
+        )
+
+	for connectionsByUserRows.Next() {
+		err = connectionsByUserRows.Scan(&user, &processes)
+		if err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+	}
+
+	return nil
+}
+
+func processesByHost(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+	connectionsByHostRows, err := db.Query(infoSchemaProcessesByHostQuery)
+	if err != nil {
+                return err
+        }
+	defer connectionsByHostRows.Close()
+
+        var (
+                host      string
+                processes uint32
+        )
+
+	for connectionsByHostRows.Next() {
+		err = connectionsByHostRows.Scan(&host, &processes)
+		if err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+	}
+
+	return nil
+}
+
 // ScrapeProcesslist collects from `information_schema.processlist`.
 type ScrapeProcesslist struct{}
 
@@ -136,6 +209,13 @@ func (ScrapeProcesslist) Help() string {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+	if *processesByUserFlag == true {
+		processesByUser(db, ch, infoSchemaProcessesByUserQuery, 1)
+	}
+	if *processesByHostFlag == true {
+		processesByHost(db, ch, infoSchemaProcessesByHostQuery, 1)
+	}
+
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,

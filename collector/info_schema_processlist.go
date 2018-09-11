@@ -64,7 +64,6 @@ var (
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
 		"The number of processes by host.",
 		[]string{"src_host"}, nil)
-
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -151,14 +150,14 @@ var (
 func processesByUser(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
 	connectionsByUserRows, err := db.Query(infoSchemaProcessesByUserQuery)
 	if err != nil {
-                return err
-        }
+		return err
+	}
 	defer connectionsByUserRows.Close()
 
-        var (
-                user      string
-                processes uint32
-        )
+	var (
+		user      string
+		processes uint32
+	)
 
 	for connectionsByUserRows.Next() {
 		err = connectionsByUserRows.Scan(&user, &processes)
@@ -174,14 +173,14 @@ func processesByUser(db *sql.DB, ch chan<- prometheus.Metric, query string, i in
 func processesByHost(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
 	connectionsByHostRows, err := db.Query(infoSchemaProcessesByHostQuery)
 	if err != nil {
-                return err
-        }
+		return err
+	}
 	defer connectionsByHostRows.Close()
 
-        var (
-                host      string
-                processes uint32
-        )
+	var (
+		host      string
+		processes uint32
+	)
 
 	for connectionsByHostRows.Next() {
 		err = connectionsByHostRows.Scan(&host, &processes)

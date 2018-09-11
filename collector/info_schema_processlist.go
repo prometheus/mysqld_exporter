@@ -147,7 +147,7 @@ var (
 	}
 )
 
-func processesByUser(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+func processesByUser(db *sql.DB, ch chan<- prometheus.Metric) error {
 	connectionsByUserRows, err := db.Query(infoSchemaProcessesByUserQuery)
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func processesByUser(db *sql.DB, ch chan<- prometheus.Metric, query string, i in
 	return nil
 }
 
-func processesByHost(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+func processesByHost(db *sql.DB, ch chan<- prometheus.Metric) error {
 	connectionsByHostRows, err := db.Query(infoSchemaProcessesByHostQuery)
 	if err != nil {
 		return err
@@ -209,10 +209,10 @@ func (ScrapeProcesslist) Help() string {
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	if *processesByUserFlag == true {
-		processesByUser(db, ch, infoSchemaProcessesByUserQuery, 1)
+		processesByUser(db, ch)
 	}
 	if *processesByHostFlag == true {
-		processesByHost(db, ch, infoSchemaProcessesByHostQuery, 1)
+		processesByHost(db, ch)
 	}
 
 	processQuery := fmt.Sprintf(

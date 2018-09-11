@@ -27,7 +27,7 @@ const infoSchemaProcessesByUserQuery = `
 const infoSchemaProcessesByHostQuery = `
 		SELECT LEFT(host, LOCATE(':', host) - 1) host, count(*) processes
 		FROM information_schema.processlist
-		GROUP BY host
+		GROUP BY LEFT(host, LOCATE(':', host) - 1)
 	`
 
 // Tunable flags.

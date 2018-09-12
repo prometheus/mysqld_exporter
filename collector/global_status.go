@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 	"strconv"
@@ -86,8 +87,8 @@ func (ScrapeGlobalStatus) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	globalStatusRows, err := db.Query(globalStatusQuery)
+func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	globalStatusRows, err := db.QueryContext(ctx, globalStatusQuery)
 	if err != nil {
 		return err
 	}

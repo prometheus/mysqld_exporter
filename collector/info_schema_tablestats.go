@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -56,9 +57,9 @@ func (ScrapeTableStat) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeTableStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
-	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
+	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed table stats are not available.")
 		return nil
@@ -68,7 +69,7 @@ func (ScrapeTableStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	informationSchemaTableStatisticsRows, err := db.Query(tableStatQuery)
+	informationSchemaTableStatisticsRows, err := db.QueryContext(ctx, tableStatQuery)
 	if err != nil {
 		return err
 	}

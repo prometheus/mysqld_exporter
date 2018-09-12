@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -24,6 +25,7 @@ func TestExporter(t *testing.T) {
 	defer db.Close()
 
 	exporter := New(
+		context.Background(),
 		db,
 		NewMetrics(""),
 		[]Scraper{
@@ -65,19 +67,20 @@ func TestGetMySQLVersion(t *testing.T) {
 	}
 	defer db.Close()
 
+	ctx := context.Background()
 	convey.Convey("MySQL version extract", t, func() {
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(""))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 999)
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("something"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 999)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 999)
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("10.1.17-MariaDB"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 10.1)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 10.1)
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.7.13-6-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.7)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 5.7)
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.6.30-76.3-56-log"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.6)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 5.6)
 		mock.ExpectQuery(versionQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow("5.5.51-38.1"))
-		convey.So(getMySQLVersion(db), convey.ShouldEqual, 5.5)
+		convey.So(getMySQLVersion(ctx, db), convey.ShouldEqual, 5.5)
 	})
 
 	// Ensure all SQL queries were executed

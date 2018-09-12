@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,8 +56,8 @@ func (ScrapeAutoIncrementColumns) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeAutoIncrementColumns) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	autoIncrementRows, err := db.Query(infoSchemaAutoIncrementQuery)
+func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	autoIncrementRows, err := db.QueryContext(ctx, infoSchemaAutoIncrementQuery)
 	if err != nil {
 		return err
 	}

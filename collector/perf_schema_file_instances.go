@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"strings"
@@ -62,9 +63,9 @@ func (ScrapePerfFileInstances) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapePerfFileInstances) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	// Timers here are returned in picoseconds.
-	perfSchemaFileInstancesRows, err := db.Query(perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
+	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
 	if err != nil {
 		return err
 	}

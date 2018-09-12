@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -142,9 +143,9 @@ func (ScrapeUserStat) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeUserStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeUserStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
-	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
+	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed user stats are not available.")
 		return nil
@@ -154,7 +155,7 @@ func (ScrapeUserStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	informationSchemaUserStatisticsRows, err := db.Query(userStatQuery)
+	informationSchemaUserStatisticsRows, err := db.QueryContext(ctx, userStatQuery)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"database/sql"
 	"flag"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +44,10 @@ var (
 	metricPath = flag.String(
 		"web.telemetry-path", "/metrics",
 		"Path under which to expose metrics.",
+	)
+	timeoutOffset = flag.Float64(
+		"timeout-offset", 0.25,
+		"Offset to subtract from timeout in seconds.",
 	)
 	configMycnf = flag.String(
 		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
@@ -210,6 +216,33 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
+		// Use request context for cancellation when connection gets closed.
+		ctx := r.Context()
+		// If a timeout is configured via the Prometheus header, add it to the context.
+		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+			timeoutSeconds, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
+			} else {
+				if *timeoutOffset >= timeoutSeconds {
+					// Ignore timeout offset if it doesn't leave time to scrape.
+					log.Errorf(
+						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
+						*timeoutOffset,
+						timeoutSeconds,
+					)
+				} else {
+					// Subtract timeout offset from timeout.
+					timeoutSeconds -= *timeoutOffset
+				}
+				// Create new timeout context with request context as parent.
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
+				defer cancel()
+				// Overwrite request with timeout context.
+				r = r.WithContext(ctx)
+			}
+		}
 		log.Debugln("collect query:", params)
 		if len(params) > 0 {
 			filters := make(map[string]bool)
@@ -238,7 +271,7 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(db, metrics, filteredScrapers))
+		registry.MustRegister(collector.New(ctx, db, metrics, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{}
 		if defaultGatherer {

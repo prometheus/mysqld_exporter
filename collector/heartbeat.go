@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -71,9 +72,9 @@ func (ScrapeHeartbeat) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeHeartbeat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	query := fmt.Sprintf(heartbeatQuery, *collectHeartbeatDatabase, *collectHeartbeatTable)
-	heartbeatRows, err := db.Query(query)
+	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}

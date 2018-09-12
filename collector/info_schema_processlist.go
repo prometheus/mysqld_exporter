@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -166,12 +167,12 @@ func (ScrapeProcesslist) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
 	)
-	processlistRows, err := db.Query(processQuery)
+	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
@@ -53,8 +54,8 @@ func (ScrapeEngineTokudbStatus) Version() float64 {
 }
 
 // Scrape collects data.
-func (ScrapeEngineTokudbStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	tokudbRows, err := db.Query(engineTokudbStatusQuery)
+func (ScrapeEngineTokudbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	tokudbRows, err := db.QueryContext(ctx, engineTokudbStatusQuery)
 	if err != nil {
 		return err
 	}

@@ -32,6 +32,14 @@ var (
 		"collect.info_schema.processlist.min_time",
 		"Minimum time a thread must be in each state to be counted",
 	).Default("0").Int()
+	processesDisableByUserFlag = kingpin.Flag(
+		"collect.info_schema.processlist.disable_processes_by_user",
+		"Disable collecting the number of processes by user",
+	).Default("false").Bool()
+	processesDisableByHostFlag = kingpin.Flag(
+		"collect.info_schema.processlist.disable_processes_by_host",
+		"Disable collecting the number of processes by host",
+	).Default("false").Bool()
 )
 
 // Metric descriptors.
@@ -189,12 +197,16 @@ func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		userCount[user] = userCount[user] + processes
 	}
 
-	for host, processes := range hostCount {
-		ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+	if *processesDisableByHostFlag == false {
+		for host, processes := range hostCount {
+			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+		}
 	}
 
-	for user, processes := range userCount {
-		ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+	if *processesDisableByUserFlag == false {
+		for user, processes := range userCount {
+			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+		}
 	}
 
 	for state, processes := range stateCounts {

@@ -12,11 +12,17 @@ import (
 )
 
 const infoSchemaProcesslistQuery = `
-		SELECT COALESCE(command,''),COALESCE(state,''),count(*),sum(time)
+		  SELECT
+		    user,
+		    SUBSTRING_INDEX(host, ':', 1) AS host,
+		    COALESCE(command,'') AS command,
+		    COALESCE(state,'') AS state,
+		    count(*) AS processes,
+		    sum(time) AS seconds
 		  FROM information_schema.processlist
 		  WHERE ID != connection_id()
 		    AND TIME >= %d
-		  GROUP BY command,state
+		  GROUP BY user,SUBSTRING_INDEX(host, ':', 1),command,state
 		  ORDER BY null
 		`
 
@@ -26,6 +32,14 @@ var (
 		"collect.info_schema.processlist.min_time",
 		"Minimum time a thread must be in each state to be counted",
 	).Default("0").Int()
+	processesByUserFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_user",
+		"Enable collecting the number of processes by user",
+	).Default("true").Bool()
+	processesByHostFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_host",
+		"Enable collecting the number of processes by host",
+	).Default("true").Bool()
 )
 
 // Metric descriptors.
@@ -38,6 +52,14 @@ var (
 		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
 		"The number of seconds threads (connections) have used split by current state.",
 		[]string{"state"}, nil)
+	processesByUserDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
+		"The number of processes by user.",
+		[]string{"src_user"}, nil)
+	processesByHostDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
+		"The number of processes by host.",
+		[]string{"src_host"}, nil)
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -147,30 +169,48 @@ func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	defer processlistRows.Close()
 
 	var (
-		command string
-		state   string
-		count   uint32
-		time    uint32
+		user      string
+		host      string
+		command   string
+		state     string
+		processes uint32
+		time      uint32
 	)
 	stateCounts := make(map[string]uint32, len(threadStateCounterMap))
 	stateTime := make(map[string]uint32, len(threadStateCounterMap))
+	hostCount := make(map[string]uint32)
+	userCount := make(map[string]uint32)
 	for k, v := range threadStateCounterMap {
 		stateCounts[k] = v
 		stateTime[k] = v
 	}
 
 	for processlistRows.Next() {
-		err = processlistRows.Scan(&command, &state, &count, &time)
+		err = processlistRows.Scan(&user, &host, &command, &state, &processes, &time)
 		if err != nil {
 			return err
 		}
 		realState := deriveThreadState(command, state)
-		stateCounts[realState] += count
+		stateCounts[realState] += processes
 		stateTime[realState] += time
+		hostCount[host] = hostCount[host] + processes
+		userCount[user] = userCount[user] + processes
 	}
 
-	for state, count := range stateCounts {
-		ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(count), state)
+	if *processesByHostFlag == true {
+		for host, processes := range hostCount {
+			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+		}
+	}
+
+	if *processesByUserFlag == true {
+		for user, processes := range userCount {
+			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+		}
+	}
+
+	for state, processes := range stateCounts {
+		ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(processes), state)
 	}
 	for state, time := range stateTime {
 		ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(time), state)

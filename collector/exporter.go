@@ -79,10 +79,16 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 
 	scrapeTime := time.Now()
 	if err = e.db.PingContext(ctx); err != nil {
-		log.Errorln("Error pinging mysqld:", err)
-		e.metrics.MySQLUp.Set(0)
-		e.metrics.Error.Set(1)
-		return
+		// BUG(arvenil): PMM-2726: When PingContext returns with context deadline exceeded
+		// the subsequent call will return `bad connection`.
+		// https://github.com/go-sql-driver/mysql/issues/858
+		// The PingContext is called second time as a workaround for this issue.
+		if err = e.db.PingContext(ctx); err != nil {
+			log.Errorln("Error pinging mysqld:", err)
+			e.metrics.MySQLUp.Set(0)
+			e.metrics.Error.Set(1)
+			return
+		}
 	}
 	e.metrics.MySQLUp.Set(1)
 

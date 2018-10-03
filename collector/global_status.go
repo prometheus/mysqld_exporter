@@ -5,7 +5,6 @@ package collector
 import (
 	"database/sql"
 	"regexp"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -93,7 +92,7 @@ func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 			return err
 		}
 		if floatVal, ok := parseStatus(val); ok { // Unparsable values are silently skipped.
-			key = strings.ToLower(key)
+			key = validPrometheusName(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
 				ch <- prometheus.MustNewConstMetric(

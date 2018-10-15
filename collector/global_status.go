@@ -5,6 +5,8 @@ package collector
 import (
 	"database/sql"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -85,6 +87,7 @@ func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 		"wsrep_local_state_uuid":   "",
 		"wsrep_cluster_state_uuid": "",
 		"wsrep_provider_version":   "",
+		"wsrep_evs_repl_latency":   "",
 	}
 
 	for globalStatusRows.Next() {
@@ -147,6 +150,45 @@ func (ScrapeGlobalStatus) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 				[]string{"wsrep_local_state_uuid", "wsrep_cluster_state_uuid", "wsrep_provider_version"}, nil),
 			prometheus.GaugeValue, 1, textItems["wsrep_local_state_uuid"], textItems["wsrep_cluster_state_uuid"], textItems["wsrep_provider_version"],
 		)
+	}
+
+	// mysql_galera_evs_repl_latency
+	if textItems["wsrep_evs_repl_latency"] != "" {
+
+		type evsValue struct {
+			name  string
+			value float64
+			index int
+			help  string
+		}
+
+		evsMap := []evsValue{
+			evsValue{name: "min_seconds", value: 0, index: 0, help: "PXC/Galera group communication latency. Min value."},
+			evsValue{name: "avg_seconds", value: 0, index: 1, help: "PXC/Galera group communication latency. Avg value."},
+			evsValue{name: "max_seconds", value: 0, index: 2, help: "PXC/Galera group communication latency. Max value."},
+			evsValue{name: "stdev", value: 0, index: 3, help: "PXC/Galera group communication latency. Standard Deviation."},
+			evsValue{name: "sample_size", value: 0, index: 4, help: "PXC/Galera group communication latency. Sample Size."},
+		}
+
+		evsParsingSuccess := true
+		values := strings.Split(textItems["wsrep_evs_repl_latency"], "/")
+
+		if len(evsMap) == len(values) {
+			for i, v := range evsMap {
+				evsMap[i].value, err = strconv.ParseFloat(values[v.index], 64)
+				if err != nil {
+					evsParsingSuccess = false
+				}
+			}
+
+			if evsParsingSuccess {
+				for _, v := range evsMap {
+					key := prometheus.BuildFQName(namespace, "galera_evs_repl_latency", v.name)
+					desc := prometheus.NewDesc(key, v.help, []string{}, nil)
+					ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v.value)
+				}
+			}
+		}
 	}
 
 	return nil

@@ -69,52 +69,64 @@
 			"versionExact": "v1.0.1"
 		},
 		{
-			"checksumSHA1": "WVgL9pNO2RZCCcaXfSYSNEPgtCo=",
+			"checksumSHA1": "frS661rlSEZWE9CezHhnFioQK/I=",
 			"path": "github.com/prometheus/client_golang/prometheus",
-			"revision": "77e8f2ddcfed59ece3a8151879efb2304b5cbbcf",
-			"revisionTime": "2018-06-23T15:59:54Z"
+			"revision": "1cafe34db7fdec6022e17e00e1c1ea501022f3e4",
+			"revisionTime": "2018-10-15T14:52:39Z",
+			"version": "v0.9",
+			"versionExact": "v0.9.0"
 		},
 		{
-			"checksumSHA1": "MYqKV5uVTfCxP9zBug7naBQ1vr8=",
+			"checksumSHA1": "UBqhkyjCz47+S19MVTigxJ2VjVQ=",
+			"path": "github.com/prometheus/client_golang/prometheus/internal",
+			"revision": "1cafe34db7fdec6022e17e00e1c1ea501022f3e4",
+			"revisionTime": "2018-10-15T14:52:39Z",
+			"version": "v0.9",
+			"versionExact": "v0.9.0"
+		},
+		{
+			"checksumSHA1": "d5BiEvD8MrgpWQ6PQJUvawJsMak=",
 			"path": "github.com/prometheus/client_golang/prometheus/promhttp",
-			"revision": "77e8f2ddcfed59ece3a8151879efb2304b5cbbcf",
-			"revisionTime": "2018-06-23T15:59:54Z"
+			"revision": "1cafe34db7fdec6022e17e00e1c1ea501022f3e4",
+			"revisionTime": "2018-10-15T14:52:39Z",
+			"version": "v0.9",
+			"versionExact": "v0.9.0"
 		},
 		{
-			"checksumSHA1": "DvwvOlPNAgRntBzt3b3OSRMS2N4=",
+			"checksumSHA1": "V8xkqgmP66sq2ZW4QO5wi9a4oZE=",
 			"path": "github.com/prometheus/client_model/go",
-			"revision": "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c",
-			"revisionTime": "2017-11-17T10:05:41Z"
+			"revision": "5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f",
+			"revisionTime": "2018-07-12T10:51:10Z"
 		},
 		{
-			"checksumSHA1": "vPdC/DzEm7YbzRir2wwnpLPfay8=",
+			"checksumSHA1": "hGf3xT6gRaJh2zAEbWj9YnV+K+0=",
 			"path": "github.com/prometheus/common/expfmt",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
-			"revisionTime": "2018-05-18T15:47:59Z"
+			"revision": "bcb74de08d37a417cb6789eec1d6c810040f0470",
+			"revisionTime": "2018-10-15T12:42:27Z"
 		},
 		{
 			"checksumSHA1": "GWlM3d2vPYyNATtTFgftS10/A9w=",
 			"path": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
-			"revisionTime": "2018-05-18T15:47:59Z"
+			"revision": "bcb74de08d37a417cb6789eec1d6c810040f0470",
+			"revisionTime": "2018-10-15T12:42:27Z"
 		},
 		{
 			"checksumSHA1": "MGnqHnmEqc1fjnYiWReSiW8C27A=",
 			"path": "github.com/prometheus/common/log",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
-			"revisionTime": "2018-05-18T15:47:59Z"
+			"revision": "bcb74de08d37a417cb6789eec1d6c810040f0470",
+			"revisionTime": "2018-10-15T12:42:27Z"
 		},
 		{
 			"checksumSHA1": "EXTRY7DL9gFW8c341Dk6LDXCBn8=",
 			"path": "github.com/prometheus/common/model",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
-			"revisionTime": "2018-05-18T15:47:59Z"
+			"revision": "bcb74de08d37a417cb6789eec1d6c810040f0470",
+			"revisionTime": "2018-10-15T12:42:27Z"
 		},
 		{
 			"checksumSHA1": "91KYK0SpvkaMJJA2+BcxbVnyRO0=",
 			"path": "github.com/prometheus/common/version",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
-			"revisionTime": "2018-05-18T15:47:59Z"
+			"revision": "bcb74de08d37a417cb6789eec1d6c810040f0470",
+			"revisionTime": "2018-10-15T12:42:27Z"
 		},
 		{
 			"checksumSHA1": "s8OGVwKHbYx/oNKNyZ8f7wWK0dA=",

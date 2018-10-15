@@ -34,7 +34,8 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		AddRow("wsrep_cluster_status", "Primary").
 		AddRow("wsrep_local_state_uuid", "6c06e583-686f-11e6-b9e3-8336ad58138c").
 		AddRow("wsrep_cluster_state_uuid", "6c06e583-686f-11e6-b9e3-8336ad58138c").
-		AddRow("wsrep_provider_version", "3.16(r5c765eb)")
+		AddRow("wsrep_provider_version", "3.16(r5c765eb)").
+		AddRow("wsrep_evs_repl_latency", "0.000227664/0.00034135/0.000544298/6.03708e-05/212")
 	mock.ExpectQuery(sanitizeQuery(globalStatusQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -60,6 +61,11 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{}, value: 11, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{"wsrep_local_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_cluster_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_provider_version": "3.16(r5c765eb)"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 0.000227664, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 0.00034135, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 0.000544298, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 6.03708e-05, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 212, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

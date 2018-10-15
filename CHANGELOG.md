@@ -14,6 +14,7 @@ The minimum supported MySQL version is now 5.5.
 * [CHANGE] Update defaults for MySQL 5.5 #318
 * [BUGFIX] Sanitize metric names in global variables #307
 * [FEATURE] Add by_user and by_host metrics to info_schema.processlist collector (PR #333) #334
+* [FEATURE] Add wsrep_evs_repl_latency metric collecting. (PR #338)
 
 ## 0.11.0 / 2018-06-29
 

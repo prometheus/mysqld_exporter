@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,7 +17,7 @@ func TestScrapeBinlogSize(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery(logbinQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT /* mysqld_exporter:binlog_size */ @@log_bin`)).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
 
 	columns := []string{"Log_name", "File_size"}
 	rows := sqlmock.NewRows(columns).

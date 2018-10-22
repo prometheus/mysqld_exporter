@@ -14,7 +14,6 @@ const (
 	// Subsystem.
 	binlog = "binlog"
 	// Queries.
-	logbinQuery = `SELECT @@log_bin`
 	binlogQuery = `SHOW BINARY LOGS`
 )
 
@@ -51,9 +50,9 @@ func (ScrapeBinlogSize) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeBinlogSize) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (s ScrapeBinlogSize) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	var logBin uint8
-	err := db.QueryRow(logbinQuery).Scan(&logBin)
+	err := db.QueryRow(queryTag(`SELECT @@log_bin`, s.Name())).Scan(&logBin)
 	if err != nil {
 		return err
 	}

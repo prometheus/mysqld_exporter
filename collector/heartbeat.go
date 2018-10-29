@@ -79,6 +79,11 @@ func (ScrapeHeartbeat) Help() string {
 	return "Collect from heartbeat"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeHeartbeat) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	query := fmt.Sprintf(heartbeatQuery, *collectHeartbeatDatabase, *collectHeartbeatTable)
@@ -126,3 +131,6 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeHeartbeat{}

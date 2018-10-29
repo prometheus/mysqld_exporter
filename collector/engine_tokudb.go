@@ -43,6 +43,11 @@ func (ScrapeEngineTokudbStatus) Help() string {
 	return "Collect from SHOW ENGINE TOKUDB STATUS"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeEngineTokudbStatus) Version() float64 {
+	return 5.6
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeEngineTokudbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	tokudbRows, err := db.QueryContext(ctx, engineTokudbStatusQuery)
@@ -87,3 +92,6 @@ func sanitizeTokudbMetric(metricName string) string {
 	}
 	return metricName
 }
+
+// check interface
+var _ Scraper = ScrapeEngineTokudbStatus{}

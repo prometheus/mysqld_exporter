@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `performance_schema.table_io_waits_summary_by_index_usage`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -43,9 +57,14 @@ func (ScrapePerfIndexIOWaits) Help() string {
 	return "Collect metrics from performance_schema.table_io_waits_summary_by_index_usage"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapePerfIndexIOWaits) Version() float64 {
+	return 5.6
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfIndexIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	perfSchemaIndexWaitsRows, err := db.Query(perfIndexIOWaitsQuery)
+func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	perfSchemaIndexWaitsRows, err := db.QueryContext(ctx, perfIndexIOWaitsQuery)
 	if err != nil {
 		return err
 	}
@@ -106,3 +125,6 @@ func (ScrapePerfIndexIOWaits) Scrape(db *sql.DB, ch chan<- prometheus.Metric) er
 	}
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapePerfIndexIOWaits{}

@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.INNODB_CMPMEM`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,7 +24,7 @@ import (
 
 const innodbCmpMemQuery = `
                 SELECT
-                  page_size, buffer_pool_instance, pages_used, pages_free, relocation_ops, relocation_time 
+                  page_size, buffer_pool_instance, pages_used, pages_free, relocation_ops, relocation_time
                   FROM information_schema.innodb_cmpmem
                 `
 
@@ -51,10 +65,14 @@ func (ScrapeInnodbCmpMem) Help() string {
 	return "Collect metrics from information_schema.innodb_cmpmem"
 }
 
-// Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbCmpMem) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+// Version of MySQL from which scraper is available.
+func (ScrapeInnodbCmpMem) Version() float64 {
+	return 5.5
+}
 
-	informationSchemaInnodbCmpMemRows, err := db.Query(innodbCmpMemQuery)
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeInnodbCmpMem) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	informationSchemaInnodbCmpMemRows, err := db.QueryContext(ctx, innodbCmpMemQuery)
 	if err != nil {
 		return err
 	}
@@ -76,7 +94,9 @@ func (ScrapeInnodbCmpMem) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error 
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemPagesFree, prometheus.CounterValue, pages_free, page_size, buffer_pool)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemRelocationOps, prometheus.CounterValue, relocation_ops, page_size, buffer_pool)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemRelocationTime, prometheus.CounterValue, (relocation_time / 1000), page_size, buffer_pool)
-
 	}
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeInnodbCmpMem{}

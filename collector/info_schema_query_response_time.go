@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.query_response_time*` tables.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"strconv"
 	"strings"
@@ -41,8 +55,8 @@ var (
 	}
 )
 
-func processQueryResponseTimeTable(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
-	queryDistributionRows, err := db.Query(query)
+func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+	queryDistributionRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -98,10 +112,15 @@ func (ScrapeQueryResponseTime) Help() string {
 	return "Collect query response time distribution if query_response_time_stats is ON."
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeQueryResponseTime) Version() float64 {
+	return 5.5
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var queryStats uint8
-	err := db.QueryRow(queryResponseCheckQuery).Scan(&queryStats)
+	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
 		log.Debugln("Query response time distribution is not present.")
 		return nil
@@ -112,7 +131,7 @@ func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) e
 	}
 
 	for i, query := range queryResponseTimeQueries {
-		err := processQueryResponseTimeTable(db, ch, query, i)
+		err := processQueryResponseTimeTable(ctx, db, ch, query, i)
 		// The first query should not fail if query_response_time_stats is ON,
 		// unlike the other two when the read/write tables exist only with Percona Server 5.6/5.7.
 		if i == 0 && err != nil {
@@ -121,3 +140,6 @@ func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) e
 	}
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeQueryResponseTime{}

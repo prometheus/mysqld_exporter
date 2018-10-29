@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.user_statistics`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -136,10 +150,15 @@ func (ScrapeUserStat) Help() string {
 	return "If running with userstat=1, set to true to collect user statistics"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeUserStat) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUserStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeUserStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
-	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
+	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed user stats are not available.")
 		return nil
@@ -149,7 +168,7 @@ func (ScrapeUserStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	informationSchemaUserStatisticsRows, err := db.Query(userStatQuery)
+	informationSchemaUserStatisticsRows, err := db.QueryContext(ctx, userStatQuery)
 	if err != nil {
 		return err
 	}
@@ -194,3 +213,6 @@ func (ScrapeUserStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeUserStat{}

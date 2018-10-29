@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.client_statistics`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -140,10 +154,15 @@ func (ScrapeClientStat) Help() string {
 	return "If running with userstat=1, set to true to collect client statistics"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeClientStat) Version() float64 {
+	return 5.5
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeClientStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
-	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
+	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed client stats are not available.")
 		return nil
@@ -153,7 +172,7 @@ func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	informationSchemaClientStatisticsRows, err := db.Query(clientStatQuery)
+	informationSchemaClientStatisticsRows, err := db.QueryContext(ctx, clientStatQuery)
 	if err != nil {
 		return err
 	}
@@ -199,3 +218,6 @@ func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeClientStat{}

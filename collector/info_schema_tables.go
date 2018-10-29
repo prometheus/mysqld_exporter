@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.tables`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -76,11 +90,16 @@ func (ScrapeTableSchema) Help() string {
 	return "Collect metrics from information_schema.tables"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeTableSchema) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
-		dbListRows, err := db.Query(dbListQuery)
+		dbListRows, err := db.QueryContext(ctx, dbListQuery)
 		if err != nil {
 			return err
 		}
@@ -101,7 +120,7 @@ func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	}
 
 	for _, database := range dbList {
-		tableSchemaRows, err := db.Query(fmt.Sprintf(tableSchemaQuery, database))
+		tableSchemaRows, err := db.QueryContext(ctx, fmt.Sprintf(tableSchemaQuery, database))
 		if err != nil {
 			return err
 		}
@@ -163,3 +182,6 @@ func (ScrapeTableSchema) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeTableSchema{}

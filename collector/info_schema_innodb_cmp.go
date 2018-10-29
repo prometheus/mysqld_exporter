@@ -1,16 +1,30 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.INNODB_CMP`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const innodbCmpQuery = `
-		SELECT 
-		  page_size, compress_ops, compress_ops_ok, compress_time, uncompress_ops, uncompress_time 
+		SELECT
+		  page_size, compress_ops, compress_ops_ok, compress_time, uncompress_ops, uncompress_time
 		  FROM information_schema.innodb_cmp
 		`
 
@@ -56,10 +70,14 @@ func (ScrapeInnodbCmp) Help() string {
 	return "Collect metrics from information_schema.innodb_cmp"
 }
 
-// Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbCmp) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+// Version of MySQL from which scraper is available.
+func (ScrapeInnodbCmp) Version() float64 {
+	return 5.5
+}
 
-	informationSchemaInnodbCmpRows, err := db.Query(innodbCmpQuery)
+// Scrape collects data from database connection and sends it over channel as prometheus metric.
+func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	informationSchemaInnodbCmpRows, err := db.QueryContext(ctx, innodbCmpQuery)
 	if err != nil {
 		return err
 	}
@@ -71,7 +89,6 @@ func (ScrapeInnodbCmp) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 	)
 
 	for informationSchemaInnodbCmpRows.Next() {
-
 		if err := informationSchemaInnodbCmpRows.Scan(
 			&page_size, &compress_ops, &compress_ops_ok, &compress_time, &uncompress_ops, &uncompress_time,
 		); err != nil {
@@ -83,8 +100,10 @@ func (ScrapeInnodbCmp) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressTime, prometheus.CounterValue, compress_time, page_size)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressOps, prometheus.CounterValue, uncompress_ops, page_size)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressTime, prometheus.CounterValue, uncompress_time, page_size)
-
 	}
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeInnodbCmp{}

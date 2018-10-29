@@ -1,8 +1,24 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,12 +35,18 @@ const (
 	exporter = "exporter"
 )
 
-// SQL Queries.
+// SQL queries and parameters.
 const (
+	versionQuery = `SELECT @@version`
+
 	// System variable params formatting.
 	// See: https://github.com/go-sql-driver/mysql#system-variables
 	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
 	timeoutParam         = `lock_wait_timeout=%d`
+)
+
+var (
+	versionRE = regexp.MustCompile(`^\d+\.\d+`)
 )
 
 // Tunable flags.
@@ -48,15 +70,19 @@ var (
 	)
 )
 
+// Verify if Exporter implements prometheus.Collector
+var _ prometheus.Collector = (*Exporter)(nil)
+
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
+	ctx      context.Context
 	dsn      string
 	scrapers []Scraper
 	metrics  Metrics
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
+func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -72,6 +98,7 @@ func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 	dsn += strings.Join(dsnParams, "&")
 
 	return &Exporter{
+		ctx:      ctx,
 		dsn:      dsn,
 		scrapers: scrapers,
 		metrics:  metrics,
@@ -88,7 +115,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	e.scrape(ch)
+	e.scrape(e.ctx, ch)
 
 	ch <- e.metrics.TotalScrapes
 	ch <- e.metrics.Error
@@ -96,7 +123,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.metrics.MySQLUp
 }
 
-func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	e.metrics.TotalScrapes.Inc()
 	var err error
 
@@ -115,7 +142,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	// Set max lifetime for a connection.
 	db.SetConnMaxLifetime(1 * time.Minute)
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
@@ -126,15 +153,20 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	wg := &sync.WaitGroup{}
+	version := getMySQLVersion(db)
+	var wg sync.WaitGroup
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
+		if version < scraper.Version() {
+			continue
+		}
+
 		wg.Add(1)
 		go func(scraper Scraper) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(db, ch); err != nil {
+			if err := scraper.Scrape(ctx, db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)
@@ -142,6 +174,19 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
 	}
+}
+
+func getMySQLVersion(db *sql.DB) float64 {
+	var versionStr string
+	var versionNum float64
+	if err := db.QueryRow(versionQuery).Scan(&versionStr); err == nil {
+		versionNum, _ = strconv.ParseFloat(versionRE.FindString(versionStr), 64)
+	}
+	// If we can't match/parse the version, set it some big value that matches all versions.
+	if versionNum == 0 {
+		versionNum = 999
+	}
+	return versionNum
 }
 
 // Metrics represents exporter metrics which values can be carried between http requests.

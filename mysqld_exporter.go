@@ -1,6 +1,20 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -8,6 +22,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,6 +45,10 @@ var (
 		"web.telemetry-path",
 		"Path under which to expose metrics.",
 	).Default("/metrics").String()
+	timeoutOffset = kingpin.Flag(
+		"timeout-offset",
+		"Offset to subtract from timeout in seconds.",
+	).Default("0.25").Float64()
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
@@ -140,6 +160,33 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
+		// Use request context for cancellation when connection gets closed.
+		ctx := r.Context()
+		// If a timeout is configured via the Prometheus header, add it to the context.
+		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+			timeoutSeconds, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
+			} else {
+				if *timeoutOffset >= timeoutSeconds {
+					// Ignore timeout offset if it doesn't leave time to scrape.
+					log.Errorf(
+						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
+						*timeoutOffset,
+						timeoutSeconds,
+					)
+				} else {
+					// Subtract timeout offset from timeout.
+					timeoutSeconds -= *timeoutOffset
+				}
+				// Create new timeout context with request context as parent.
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
+				defer cancel()
+				// Overwrite request with timeout context.
+				r = r.WithContext(ctx)
+			}
+		}
 		log.Debugln("collect query:", params)
 
 		// Check if we have some "collect[]" query parameters.
@@ -158,7 +205,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(dsn, metrics, filteredScrapers))
+		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,

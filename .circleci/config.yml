@@ -10,7 +10,7 @@ jobs:
     steps:
     - checkout
     - run: make promu
-    - run: make
+    - run: make check_license style staticcheck unused build test-short
     - run: rm -v mysqld_exporter
 
   codespell:

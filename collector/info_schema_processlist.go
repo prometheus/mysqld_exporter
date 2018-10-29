@@ -1,8 +1,22 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Scrape `information_schema.processlist`.
 
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -60,6 +74,11 @@ var (
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
 		"The number of processes by host.",
 		[]string{"client_host"}, nil)
+		[]string{"src_user"}, nil)
+	processesByHostDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
+		"The number of processes by host.",
+		[]string{"src_host"}, nil)
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -156,13 +175,18 @@ func (ScrapeProcesslist) Help() string {
 	return "Collect current thread state counts from the information_schema.processlist"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeProcesslist) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
 	)
-	processlistRows, err := db.Query(processQuery)
+	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
 		return err
 	}
@@ -195,6 +219,14 @@ func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		stateTime[realState] += time
 		hostCount[host] = hostCount[host] + processes
 		userCount[user] = userCount[user] + processes
+	}
+
+	if *processesByHostFlag == true {
+		for host, processes := range hostCount {
+			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+		}
+	}
+
 	}
 
 	if *processesByHostFlag == true {
@@ -247,3 +279,6 @@ func deriveThreadState(command string, state string) string {
 	}
 	return "other"
 }
+
+// check interface
+var _ Scraper = ScrapeProcesslist{}

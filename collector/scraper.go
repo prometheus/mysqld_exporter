@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -15,5 +16,5 @@ type Scraper interface {
 	// Example: "Collect from SHOW ENGINE INNODB STATUS"
 	Help() string
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
-	Scrape(db *sql.DB, ch chan<- prometheus.Metric) error
+	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error
 }

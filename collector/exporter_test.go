@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,6 +17,7 @@ func TestExporter(t *testing.T) {
 	}
 
 	exporter := New(
+		context.Background(),
 		dsn,
 		NewMetrics(),
 		[]Scraper{

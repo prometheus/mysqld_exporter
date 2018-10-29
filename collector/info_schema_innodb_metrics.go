@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"regexp"
 
@@ -62,8 +63,8 @@ func (ScrapeInnodbMetrics) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbMetrics) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-	innodbMetricsRows, err := db.Query(infoSchemaInnodbMetricsQuery)
+func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	innodbMetricsRows, err := db.QueryContext(ctx, infoSchemaInnodbMetricsQuery)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -141,9 +142,9 @@ func (ScrapeClientStat) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeClientStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var varName, varVal string
-	err := db.QueryRow(userstatCheckQuery).Scan(&varName, &varVal)
+	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		log.Debugln("Detailed client stats are not available.")
 		return nil
@@ -153,7 +154,7 @@ func (ScrapeClientStat) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	informationSchemaClientStatisticsRows, err := db.Query(clientStatQuery)
+	informationSchemaClientStatisticsRows, err := db.QueryContext(ctx, clientStatQuery)
 	if err != nil {
 		return err
 	}

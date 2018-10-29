@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -52,9 +53,8 @@ func (ScrapeInnodbCmpMem) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbCmpMem) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
-
-	informationSchemaInnodbCmpMemRows, err := db.Query(innodbCmpMemQuery)
+func (ScrapeInnodbCmpMem) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	informationSchemaInnodbCmpMemRows, err := db.QueryContext(ctx, innodbCmpMemQuery)
 	if err != nil {
 		return err
 	}

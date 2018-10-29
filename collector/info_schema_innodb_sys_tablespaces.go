@@ -66,6 +66,11 @@ func (ScrapeInfoSchemaInnodbTablespaces) Help() string {
 	return "Collect metrics from information_schema.innodb_sys_tablespaces"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
+	return 5.7
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	tablespacesRows, err := db.QueryContext(ctx, innodbTablespacesQuery)
@@ -113,3 +118,6 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeInfoSchemaInnodbTablespaces{}

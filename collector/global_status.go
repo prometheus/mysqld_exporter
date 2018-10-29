@@ -87,6 +87,11 @@ func (ScrapeGlobalStatus) Help() string {
 	return "Collect from SHOW GLOBAL STATUS"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeGlobalStatus) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	globalStatusRows, err := db.QueryContext(ctx, globalStatusQuery)
@@ -207,3 +212,6 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 
 	return nil
 }
+
+// check interface
+var _ Scraper = ScrapeGlobalStatus{}

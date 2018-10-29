@@ -17,6 +17,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,12 +35,18 @@ const (
 	exporter = "exporter"
 )
 
-// SQL Queries.
+// SQL queries and parameters.
 const (
+	versionQuery = `SELECT @@version`
+
 	// System variable params formatting.
 	// See: https://github.com/go-sql-driver/mysql#system-variables
 	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
 	timeoutParam         = `lock_wait_timeout=%d`
+)
+
+var (
+	versionRE = regexp.MustCompile(`^\d+\.\d+`)
 )
 
 // Tunable flags.
@@ -145,9 +153,14 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	wg := &sync.WaitGroup{}
+	version := getMySQLVersion(db)
+	var wg sync.WaitGroup
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
+		if version < scraper.Version() {
+			continue
+		}
+
 		wg.Add(1)
 		go func(scraper Scraper) {
 			defer wg.Done()
@@ -161,6 +174,19 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
 	}
+}
+
+func getMySQLVersion(db *sql.DB) float64 {
+	var versionStr string
+	var versionNum float64
+	if err := db.QueryRow(versionQuery).Scan(&versionStr); err == nil {
+		versionNum, _ = strconv.ParseFloat(versionRE.FindString(versionStr), 64)
+	}
+	// If we can't match/parse the version, set it some big value that matches all versions.
+	if versionNum == 0 {
+		versionNum = 999
+	}
+	return versionNum
 }
 
 // Metrics represents exporter metrics which values can be carried between http requests.

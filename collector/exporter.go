@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -48,15 +49,19 @@ var (
 	)
 )
 
+// Verify if Exporter implements prometheus.Collector
+var _ prometheus.Collector = (*Exporter)(nil)
+
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
+	ctx      context.Context
 	dsn      string
 	scrapers []Scraper
 	metrics  Metrics
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
+func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -72,6 +77,7 @@ func New(dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
 	dsn += strings.Join(dsnParams, "&")
 
 	return &Exporter{
+		ctx:      ctx,
 		dsn:      dsn,
 		scrapers: scrapers,
 		metrics:  metrics,
@@ -88,7 +94,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	e.scrape(ch)
+	e.scrape(e.ctx, ch)
 
 	ch <- e.metrics.TotalScrapes
 	ch <- e.metrics.Error
@@ -96,7 +102,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.metrics.MySQLUp
 }
 
-func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
+func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	e.metrics.TotalScrapes.Inc()
 	var err error
 
@@ -115,7 +121,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	// Set max lifetime for a connection.
 	db.SetConnMaxLifetime(1 * time.Minute)
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		log.Errorln("Error pinging mysqld:", err)
 		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
@@ -134,7 +140,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(db, ch); err != nil {
+			if err := scraper.Scrape(ctx, db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)

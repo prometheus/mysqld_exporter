@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,7 +33,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeHeartbeat{}).Scrape(db, ch); err != nil {
+		if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

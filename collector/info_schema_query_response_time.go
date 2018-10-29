@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"strconv"
 	"strings"
@@ -41,8 +42,8 @@ var (
 	}
 )
 
-func processQueryResponseTimeTable(db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
-	queryDistributionRows, err := db.Query(query)
+func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+	queryDistributionRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}
@@ -99,9 +100,9 @@ func (ScrapeQueryResponseTime) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var queryStats uint8
-	err := db.QueryRow(queryResponseCheckQuery).Scan(&queryStats)
+	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
 		log.Debugln("Query response time distribution is not present.")
 		return nil
@@ -112,7 +113,7 @@ func (ScrapeQueryResponseTime) Scrape(db *sql.DB, ch chan<- prometheus.Metric) e
 	}
 
 	for i, query := range queryResponseTimeQueries {
-		err := processQueryResponseTimeTable(db, ch, query, i)
+		err := processQueryResponseTimeTable(ctx, db, ch, query, i)
 		// The first query should not fail if query_response_time_stats is ON,
 		// unlike the other two when the read/write tables exist only with Percona Server 5.6/5.7.
 		if i == 0 && err != nil {

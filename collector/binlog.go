@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"strconv"
 	"strings"
@@ -51,9 +52,9 @@ func (ScrapeBinlogSize) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeBinlogSize) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	var logBin uint8
-	err := db.QueryRow(logbinQuery).Scan(&logBin)
+	err := db.QueryRowContext(ctx, logbinQuery).Scan(&logBin)
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,7 @@ func (ScrapeBinlogSize) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
 		return nil
 	}
 
-	masterLogRows, err := db.Query(binlogQuery)
+	masterLogRows, err := db.QueryContext(ctx, binlogQuery)
 	if err != nil {
 		return err
 	}

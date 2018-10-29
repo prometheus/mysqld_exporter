@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -157,12 +158,12 @@ func (ScrapeProcesslist) Help() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
 	)
-	processlistRows, err := db.Query(processQuery)
+	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
 		return err
 	}

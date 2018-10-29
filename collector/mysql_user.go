@@ -3,6 +3,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -211,10 +212,15 @@ func (ScrapeUser) Help() string {
 	return "Collect data from mysql.user"
 }
 
+// Version of MySQL from which scraper is available.
+func (ScrapeUser) Version() float64 {
+	return 5.1
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
 	userQuery := fmt.Sprint(mysqlUserQuery)
-	userRows, err := db.Query(userQuery)
+	userRows, err := db.QueryContext(ctx, userQuery)
 	if err != nil {
 		return err
 	}

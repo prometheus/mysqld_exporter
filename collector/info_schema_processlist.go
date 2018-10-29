@@ -74,11 +74,6 @@ var (
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
 		"The number of processes by host.",
 		[]string{"client_host"}, nil)
-		[]string{"src_user"}, nil)
-	processesByHostDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
-		"The number of processes by host.",
-		[]string{"src_host"}, nil)
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -219,14 +214,6 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		stateTime[realState] += time
 		hostCount[host] = hostCount[host] + processes
 		userCount[user] = userCount[user] + processes
-	}
-
-	if *processesByHostFlag == true {
-		for host, processes := range hostCount {
-			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
-		}
-	}
-
 	}
 
 	if *processesByHostFlag == true {

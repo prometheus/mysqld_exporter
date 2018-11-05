@@ -69,11 +69,11 @@ var (
 	processesByUserDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
 		"The number of processes by user.",
-		[]string{"src_user"}, nil)
+		[]string{"mysql_user"}, nil)
 	processesByHostDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
 		"The number of processes by host.",
-		[]string{"src_host"}, nil)
+		[]string{"client_host"}, nil)
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST

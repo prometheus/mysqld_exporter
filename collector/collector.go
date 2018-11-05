@@ -66,3 +66,13 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	value, err := strconv.ParseFloat(string(data), 64)
 	return value, err == nil
 }
+
+func parsePrivilege(data sql.RawBytes) (float64, bool) {
+	if bytes.Compare(data, []byte("Y")) == 0 {
+		return 1, true
+	}
+	if bytes.Compare(data, []byte("N")) == 0 {
+		return 0, true
+	}
+	return -1, false
+}

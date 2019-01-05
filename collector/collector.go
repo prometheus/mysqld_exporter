@@ -42,21 +42,21 @@ func newDesc(subsystem, name, help string) *prometheus.Desc {
 }
 
 func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Compare(data, []byte("Yes")) == 0 || bytes.Compare(data, []byte("ON")) == 0 {
+	if bytes.Equal(data, []byte("Yes")) || bytes.Equal(data, []byte("ON")) {
 		return 1, true
 	}
-	if bytes.Compare(data, []byte("No")) == 0 || bytes.Compare(data, []byte("OFF")) == 0 {
+	if bytes.Equal(data, []byte("No")) || bytes.Equal(data, []byte("OFF")) {
 		return 0, true
 	}
 	// SHOW SLAVE STATUS Slave_IO_Running can return "Connecting" which is a non-running state.
-	if bytes.Compare(data, []byte("Connecting")) == 0 {
+	if bytes.Equal(data, []byte("Connecting")) {
 		return 0, true
 	}
 	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "Non-Primary"/"Disconnected"
-	if bytes.Compare(data, []byte("Primary")) == 0 {
+	if bytes.Equal(data, []byte("Primary")) {
 		return 1, true
 	}
-	if bytes.Compare(data, []byte("Non-Primary")) == 0 || bytes.Compare(data, []byte("Disconnected")) == 0 {
+	if bytes.Equal(data, []byte("Non-Primary")) || bytes.Equal(data, []byte("Disconnected")) {
 		return 0, true
 	}
 	if logNum := logRE.Find(data); logNum != nil {
@@ -68,10 +68,10 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 }
 
 func parsePrivilege(data sql.RawBytes) (float64, bool) {
-	if bytes.Compare(data, []byte("Y")) == 0 {
+	if bytes.Equal(data, []byte("Y")) {
 		return 1, true
 	}
-	if bytes.Compare(data, []byte("N")) == 0 {
+	if bytes.Equal(data, []byte("N")) {
 		return 0, true
 	}
 	return -1, false

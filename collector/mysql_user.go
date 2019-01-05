@@ -209,7 +209,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 			return err
 		}
 
-		if *userPrivilegesFlag == true {
+		if *userPrivilegesFlag {
 			userCols, err := userRows.Columns()
 			if err != nil {
 				return err

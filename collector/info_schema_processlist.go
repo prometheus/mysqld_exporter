@@ -216,13 +216,13 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		userCount[user] = userCount[user] + processes
 	}
 
-	if *processesByHostFlag == true {
+	if *processesByHostFlag {
 		for host, processes := range hostCount {
 			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
 		}
 	}
 
-	if *processesByUserFlag == true {
+	if *processesByUserFlag {
 		for user, processes := range userCount {
 			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
 		}

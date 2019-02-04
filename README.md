@@ -68,6 +68,7 @@ collect.info_schema.query_response_time                | 5.5           | Collect
 collect.info_schema.tables                             | 5.1           | Collect metrics from information_schema.tables (Enabled by default)
 collect.info_schema.tables.databases                   | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
 collect.info_schema.tablestats                         | 5.1           | If running with userstat=1, set to true to collect table statistics.
+collect.info_schema.schemastats                        | 5.1           | If running with userstat=1, set to true to collect schema statistics
 collect.info_schema.userstats                          | 5.1           | If running with userstat=1, set to true to collect user statistics.
 collect.perf_schema.eventsstatements                   | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.digest_text_limit | 5.6           | Maximum length of the normalized statement text. (default: 120)

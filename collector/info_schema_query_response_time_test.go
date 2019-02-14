@@ -57,7 +57,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 		close(ch)
 	}()
 
-	// Test histogram
+	// Test Count histogram
 	expectCounts := map[float64]uint64{
 		1e-06:  124,
 		1e-05:  303,
@@ -81,7 +81,35 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 	gotPb := &dto.Metric{}
 	gotHistogram := <-ch // read the last item from channel
 	gotHistogram.Write(gotPb)
-	convey.Convey("Histogram comparison", t, func() {
+	convey.Convey("Histogram comparison of Counts", t, func() {
+		convey.So(expectPb.Histogram, convey.ShouldResemble, gotPb.Histogram)
+	})
+
+	// Test Total histogram
+	expectTotals := map[float64]uint64{
+		1e-06:  0,
+		1e-05:  797,
+		0.0001: 108118,
+		0.001:  443513,
+		0.01:   965776,
+		0.1:    1309985,
+		1:      1577354,
+		10:     1577354,
+		100:    1577354,
+		1000:   1577354,
+		10000:  1577354,
+		100000: 1577354,
+		1e+06:  1577354,
+	}
+	expectHistogram = prometheus.MustNewConstHistogram(infoSchemaQueryResponseTimeTotalDescs[0],
+		4528, 1.5773549999999998, expectTotals)
+	expectPb = &dto.Metric{}
+	expectHistogram.Write(expectPb)
+
+	gotPb = &dto.Metric{}
+	gotHistogram = <-ch // read the last item from channel
+	gotHistogram.Write(gotPb)
+	convey.Convey("Histogram comparison of Totals", t, func() {
 		convey.So(expectPb.Histogram, convey.ShouldResemble, gotPb.Histogram)
 	})
 

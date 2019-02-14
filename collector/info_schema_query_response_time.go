@@ -53,6 +53,24 @@ var (
 			[]string{}, nil,
 		),
 	}
+
+	infoSchemaQueryResponseTimeTotalDescs = [3]*prometheus.Desc{
+		prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_microseconds_total"),
+			"The total execution time in microseconds of all queries by duration they took to execute.",
+			[]string{}, nil,
+		),
+		prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, informationSchema, "read_query_response_time_microseconds_total"),
+			"The total execution time in microseconds of read queries by duration they took to execute.",
+			[]string{}, nil,
+		),
+		prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, informationSchema, "write_query_response_time_microseconds_total"),
+			"The total execution time in microseconds of write queries by duration they took to execute.",
+			[]string{}, nil,
+		),
+	}
 )
 
 func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
@@ -69,6 +87,7 @@ func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- pr
 		histogramCnt uint64
 		histogramSum float64
 		countBuckets = map[float64]uint64{}
+		totalBuckets = map[float64]uint64{}
 	)
 
 	for queryDistributionRows.Next() {
@@ -91,10 +110,14 @@ func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- pr
 			continue
 		}
 		countBuckets[length] = histogramCnt
+		totalBuckets[length] = uint64(histogramSum * 1000000) //convering seconds to microseconds
 	}
-	// Create histogram with query counts
+	// Create histograms with query counts and and totals
 	ch <- prometheus.MustNewConstHistogram(
 		infoSchemaQueryResponseTimeCountDescs[i], histogramCnt, histogramSum, countBuckets,
+	)
+	ch <- prometheus.MustNewConstHistogram(
+		infoSchemaQueryResponseTimeTotalDescs[i], histogramCnt, histogramSum, totalBuckets,
 	)
 	return nil
 }

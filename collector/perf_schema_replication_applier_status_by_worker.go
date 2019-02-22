@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2019 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -38,43 +38,43 @@ const perfReplicationApplierStatsByWorkerQuery = `
 // Metric descriptors.
 var (
 	performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionOriginalCommitSecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_original_commit_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_original_commit_timestamp_seconds"),
 		"A timestamp shows when the last transaction applied by this worker was committed on the original master.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionImmediateCommitSecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_immediate_commit_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_immediate_commit_timestamp_seconds"),
 		"A timestamp shows when the last transaction applied by this worker was committed on the immediate master.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionStartApplySecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_start_apply_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_start_apply_timestamp_seconds"),
 		"A timestamp shows when this worker started applying the last applied transaction.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionEndApplySecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_end_apply_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "last_applied_transaction_end_apply_timestamp_seconds"),
 		"A shows when this worker finished applying the last applied transaction.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionOriginalCommitSecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_original_commit_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_original_commit_timestamp_seconds"),
 		"A timestamp that shows when the transaction this worker is currently applying was committed on the original master.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionImmediateCommitSecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_immediate_commit_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_immediate_commit_timestamp_seconds"),
 		"A timestamp shows when the transaction this worker is currently applying was committed on the immediate master.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
 
 	performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionStartApplySecondDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_start_apply_second"),
+		prometheus.BuildFQName(namespace, performanceSchema, "applying_transaction_start_apply_timestamp_seconds"),
 		"A timestamp shows when this worker started its first attempt to apply the transaction that is currently being applied.",
 		[]string{"channel_name", "member_id"}, nil,
 	)
@@ -107,15 +107,15 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 	defer perfReplicationApplierStatsByWorkerRows.Close()
 
 	var (
-		channelName, workerId                                                                   string
-		lastAppliedTransactionOriginalCommitTime, lastAppliedTransactionImmediateCommitTime     time.Time
-		lastAppliedTransactionStartApplyTime, lastAppliedTransactionEndApplyTime                time.Time
-		applyingTransactionOriginalCommitTime, applyingTransactionImmediateCommitTime           time.Time
-		applyingTransactionStartApplyTime                                                       time.Time
-		lastAppliedTransactionOriginalCommitSecond, lastAppliedTransactionImmediateCommitSecond float64
-		lastAppliedTransactionStartApplySecond, lastAppliedTransactionEndApplySecond            float64
-		applyingTransactionOriginalCommitSecond, applyingTransactionImmediateCommitSecond       float64
-		applyingTransactionStartApplySecond                                                     float64
+		channelName, workerId                                                                     string
+		lastAppliedTransactionOriginalCommitTime, lastAppliedTransactionImmediateCommitTime       time.Time
+		lastAppliedTransactionStartApplyTime, lastAppliedTransactionEndApplyTime                  time.Time
+		applyingTransactionOriginalCommitTime, applyingTransactionImmediateCommitTime             time.Time
+		applyingTransactionStartApplyTime                                                         time.Time
+		lastAppliedTransactionOriginalCommitSeconds, lastAppliedTransactionImmediateCommitSeconds float64
+		lastAppliedTransactionStartApplySeconds, lastAppliedTransactionEndApplySeconds            float64
+		applyingTransactionOriginalCommitSeconds, applyingTransactionImmediateCommitSeconds       float64
+		applyingTransactionStartApplySeconds                                                      float64
 	)
 
 	for perfReplicationApplierStatsByWorkerRows.Next() {
@@ -131,73 +131,73 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 
 		// Check if the value is 0, use a real 0
 		if lastAppliedTransactionOriginalCommitTime.Nanosecond() != 0 {
-			lastAppliedTransactionOriginalCommitSecond = float64(lastAppliedTransactionOriginalCommitTime.Unix())
+			lastAppliedTransactionOriginalCommitSeconds = float64(lastAppliedTransactionOriginalCommitTime.UnixNano()) / 1e9
 		} else {
-			lastAppliedTransactionOriginalCommitSecond = 0
+			lastAppliedTransactionOriginalCommitSeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionOriginalCommitSecondDesc,
-			prometheus.GaugeValue, lastAppliedTransactionOriginalCommitSecond, channelName, workerId,
+			prometheus.GaugeValue, lastAppliedTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
 		if lastAppliedTransactionImmediateCommitTime.Nanosecond() != 0 {
-			lastAppliedTransactionImmediateCommitSecond = float64(lastAppliedTransactionImmediateCommitTime.Unix())
+			lastAppliedTransactionImmediateCommitSeconds = float64(lastAppliedTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
-			lastAppliedTransactionImmediateCommitSecond = 0
+			lastAppliedTransactionImmediateCommitSeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionImmediateCommitSecondDesc,
-			prometheus.GaugeValue, lastAppliedTransactionImmediateCommitSecond, channelName, workerId,
+			prometheus.GaugeValue, lastAppliedTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
 		if lastAppliedTransactionStartApplyTime.Nanosecond() != 0 {
-			lastAppliedTransactionStartApplySecond = float64(lastAppliedTransactionStartApplyTime.Unix())
+			lastAppliedTransactionStartApplySeconds = float64(lastAppliedTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {
-			lastAppliedTransactionStartApplySecond = 0
+			lastAppliedTransactionStartApplySeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionStartApplySecondDesc,
-			prometheus.GaugeValue, lastAppliedTransactionStartApplySecond, channelName, workerId,
+			prometheus.GaugeValue, lastAppliedTransactionStartApplySeconds, channelName, workerId,
 		)
 
 		if lastAppliedTransactionEndApplyTime.Nanosecond() != 0 {
-			lastAppliedTransactionEndApplySecond = float64(lastAppliedTransactionEndApplyTime.Unix())
+			lastAppliedTransactionEndApplySeconds = float64(lastAppliedTransactionEndApplyTime.UnixNano()) / 1e9
 		} else {
-			lastAppliedTransactionEndApplySecond = 0
+			lastAppliedTransactionEndApplySeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerLastAppliedTransactionEndApplySecondDesc,
-			prometheus.GaugeValue, lastAppliedTransactionEndApplySecond, channelName, workerId,
+			prometheus.GaugeValue, lastAppliedTransactionEndApplySeconds, channelName, workerId,
 		)
 
 		if applyingTransactionOriginalCommitTime.Nanosecond() != 0 {
-			applyingTransactionOriginalCommitSecond = float64(applyingTransactionOriginalCommitTime.Unix())
+			applyingTransactionOriginalCommitSeconds = float64(applyingTransactionOriginalCommitTime.UnixNano()) / 1e9
 		} else {
-			applyingTransactionOriginalCommitSecond = 0
+			applyingTransactionOriginalCommitSeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionOriginalCommitSecondDesc,
-			prometheus.GaugeValue, applyingTransactionOriginalCommitSecond, channelName, workerId,
+			prometheus.GaugeValue, applyingTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
 		if applyingTransactionImmediateCommitTime.Nanosecond() != 0 {
-			applyingTransactionImmediateCommitSecond = float64(applyingTransactionImmediateCommitTime.Unix())
+			applyingTransactionImmediateCommitSeconds = float64(applyingTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
-			applyingTransactionImmediateCommitSecond = 0
+			applyingTransactionImmediateCommitSeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionImmediateCommitSecondDesc,
-			prometheus.GaugeValue, applyingTransactionImmediateCommitSecond, channelName, workerId,
+			prometheus.GaugeValue, applyingTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
 		if applyingTransactionStartApplyTime.Nanosecond() != 0 {
-			applyingTransactionStartApplySecond = float64(applyingTransactionStartApplyTime.Unix())
+			applyingTransactionStartApplySeconds = float64(applyingTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {
-			applyingTransactionStartApplySecond = 0
+			applyingTransactionStartApplySeconds = 0
 		}
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaReplicationApplierStatsByWorkerApplyingTransactionStartApplySecondDesc,
-			prometheus.GaugeValue, applyingTransactionStartApplySecond, channelName, workerId,
+			prometheus.GaugeValue, applyingTransactionStartApplySeconds, channelName, workerId,
 		)
 	}
 	return nil

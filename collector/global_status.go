@@ -139,7 +139,7 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 				)
 			case "innodb_buffer_pool_pages":
 				switch match[2] {
-				case "data", "dirty", "free", "misc":
+				case "data", "dirty", "free", "misc", "old", "total":
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, match[2],
 					)

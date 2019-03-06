@@ -57,6 +57,11 @@ var (
 		"Innodb buffer pool pages by state.",
 		[]string{"state"}, nil,
 	)
+	globalBufferPoolDirtyPagesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "buffer_pool_dirty_pages"),
+		"Innodb buffer pool dirty pages.",
+		[]string{}, nil,
+	)
 	globalBufferPoolPageChangesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, globalStatus, "buffer_pool_page_changes_total"),
 		"Innodb buffer pool page state changes.",
@@ -139,10 +144,16 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 				)
 			case "innodb_buffer_pool_pages":
 				switch match[2] {
-				case "data", "dirty", "free", "misc", "old", "total":
+				case "data", "free", "misc", "old":
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, match[2],
 					)
+				case "dirty":
+					ch <- prometheus.MustNewConstMetric(
+						globalBufferPoolDirtyPagesDesc, prometheus.GaugeValue, floatVal,
+					)
+				case "total":
+					continue
 				default:
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPageChangesDesc, prometheus.CounterValue, floatVal, match[2],

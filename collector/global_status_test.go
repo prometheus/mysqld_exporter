@@ -39,6 +39,14 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		AddRow("Handler_commit", "5").
 		AddRow("Innodb_buffer_pool_pages_data", "6").
 		AddRow("Innodb_buffer_pool_pages_flushed", "7").
+		AddRow("Innodb_buffer_pool_pages_dirty", "7").
+		AddRow("Innodb_buffer_pool_pages_free", "8").
+		AddRow("Innodb_buffer_pool_pages_misc", "9").
+		AddRow("Innodb_buffer_pool_pages_old", "10").
+		AddRow("Innodb_buffer_pool_pages_total", "11").
+		AddRow("Innodb_buffer_pool_pages_lru_flushed", "13").
+		AddRow("Innodb_buffer_pool_pages_made_not_young", "14").
+		AddRow("Innodb_buffer_pool_pages_made_young", "15").
 		AddRow("Innodb_rows_read", "8").
 		AddRow("Performance_schema_users_lost", "9").
 		AddRow("Slave_running", "OFF").
@@ -68,6 +76,14 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{"handler": "commit"}, value: 5, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"state": "data"}, value: 6, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"operation": "flushed"}, value: 7, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 7, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "free"}, value: 8, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "misc"}, value: 9, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "old"}, value: 10, metricType: dto.MetricType_GAUGE},
+		//{labels: labelMap{"state": "total_pages"}, value: 11, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"operation": "lru_flushed"}, value: 13, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"operation": "made_not_young"}, value: 14, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"operation": "made_young"}, value: 15, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"operation": "read"}, value: 8, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"instrumentation": "users_lost"}, value: 9, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},

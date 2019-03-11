@@ -11,6 +11,7 @@ The minimum supported MySQL version is now 5.5.
 * [ENHANCEMENT]
 * [FEATURE]
 
+* [CHANGE] Update innodb buffer pool mappings #369 
 * [CHANGE] Update defaults for MySQL 5.5 #318
 * [BUGFIX] Sanitize metric names in global variables #307
 * [BUGFIX] Clear last_scrape_error on every scrape (PR #368) #367

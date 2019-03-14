@@ -17,6 +17,7 @@ The minimum supported MySQL version is now 5.5.
 * [FEATURE] Add wsrep_evs_repl_latency metric collecting. (PR #338)
 * [FEATURE] Add collector for mysql.user (PR #341)
 * [FEATURE] Add collector to get table stats grouped by schema (PR #354)
+* [FEATURE] Add replication_applier_status_by_worker metric collecting. (PR #366)
 
 ## 0.11.0 / 2018-06-29
 

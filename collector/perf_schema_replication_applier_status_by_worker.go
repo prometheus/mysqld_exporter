@@ -130,7 +130,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 		}
 
 		// Check if the value is 0, use a real 0
-		if lastAppliedTransactionOriginalCommitTime.Nanosecond() != 0 {
+		if !lastAppliedTransactionOriginalCommitTime.IsZero() {
 			lastAppliedTransactionOriginalCommitSeconds = float64(lastAppliedTransactionOriginalCommitTime.UnixNano()) / 1e9
 		} else {
 			lastAppliedTransactionOriginalCommitSeconds = 0
@@ -140,7 +140,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
-		if lastAppliedTransactionImmediateCommitTime.Nanosecond() != 0 {
+		if !lastAppliedTransactionImmediateCommitTime.IsZero() {
 			lastAppliedTransactionImmediateCommitSeconds = float64(lastAppliedTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
 			lastAppliedTransactionImmediateCommitSeconds = 0
@@ -150,7 +150,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
-		if lastAppliedTransactionStartApplyTime.Nanosecond() != 0 {
+		if !lastAppliedTransactionStartApplyTime.IsZero() {
 			lastAppliedTransactionStartApplySeconds = float64(lastAppliedTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {
 			lastAppliedTransactionStartApplySeconds = 0
@@ -160,7 +160,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionStartApplySeconds, channelName, workerId,
 		)
 
-		if lastAppliedTransactionEndApplyTime.Nanosecond() != 0 {
+		if !lastAppliedTransactionEndApplyTime.IsZero() {
 			lastAppliedTransactionEndApplySeconds = float64(lastAppliedTransactionEndApplyTime.UnixNano()) / 1e9
 		} else {
 			lastAppliedTransactionEndApplySeconds = 0
@@ -170,7 +170,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionEndApplySeconds, channelName, workerId,
 		)
 
-		if applyingTransactionOriginalCommitTime.Nanosecond() != 0 {
+		if !applyingTransactionOriginalCommitTime.IsZero() {
 			applyingTransactionOriginalCommitSeconds = float64(applyingTransactionOriginalCommitTime.UnixNano()) / 1e9
 		} else {
 			applyingTransactionOriginalCommitSeconds = 0
@@ -180,7 +180,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, applyingTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
-		if applyingTransactionImmediateCommitTime.Nanosecond() != 0 {
+		if !applyingTransactionImmediateCommitTime.IsZero() {
 			applyingTransactionImmediateCommitSeconds = float64(applyingTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
 			applyingTransactionImmediateCommitSeconds = 0
@@ -190,7 +190,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, applyingTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
-		if applyingTransactionStartApplyTime.Nanosecond() != 0 {
+		if !applyingTransactionStartApplyTime.IsZero() {
 			applyingTransactionStartApplySeconds = float64(applyingTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {
 			applyingTransactionStartApplySeconds = 0

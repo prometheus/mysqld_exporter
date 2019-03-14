@@ -15,7 +15,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +44,6 @@ func TestScrapePerfReplicationApplierStatsByWorker(t *testing.T) {
 	}
 
 	stubTime := time.Date(2019, 3, 14, 0, 0, 0, int(time.Millisecond), time.UTC)
-	fmt.Printf("--> %d <--", stubTime.UnixNano())
 	rows := sqlmock.NewRows(columns).
 		AddRow("dummy_0", "0", time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}).
 		AddRow("dummy_1", "1", stubTime, stubTime.Add(1*time.Minute), stubTime.Add(2*time.Minute), stubTime.Add(3*time.Minute), stubTime.Add(4*time.Minute), stubTime.Add(5*time.Minute), stubTime.Add(6*time.Minute))

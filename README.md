@@ -81,7 +81,7 @@ collect.perf_schema.indexiowaits                             | 5.6           | C
 collect.perf_schema.tableiowaits                             | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks                               | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
 collect.perf_schema.replication_group_member_stats           | 5.7           | Collect metrics from performance_schema.replication_group_member_stats.
-collect.perf_schema.replication_applier_status_by_worker     | 5.7           | Collect metrics from performance_schema.replication_applier_status_by_worker. (Need enable [parse time](parsetime))
+collect.perf_schema.replication_applier_status_by_worker     | 5.7           | Collect metrics from performance_schema.replication_applier_status_by_worker.
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.heartbeat                                            | 5.1           | Collect from [heartbeat](#heartbeat).

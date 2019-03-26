@@ -34,6 +34,7 @@ const perfReplicationApplierStatsByWorkerQuery = `
 	  	APPLYING_TRANSACTION_START_APPLY_TIMESTAMP
     FROM performance_schema.replication_applier_status_by_worker
 	`
+const timeLayout = "2006-01-02 15:04:05.000000"
 
 // Metric descriptors.
 var (
@@ -108,10 +109,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 
 	var (
 		channelName, workerId                                                                     string
-		lastAppliedTransactionOriginalCommitTime, lastAppliedTransactionImmediateCommitTime       time.Time
-		lastAppliedTransactionStartApplyTime, lastAppliedTransactionEndApplyTime                  time.Time
-		applyingTransactionOriginalCommitTime, applyingTransactionImmediateCommitTime             time.Time
-		applyingTransactionStartApplyTime                                                         time.Time
+		lastAppliedTransactionOriginalCommit, lastAppliedTransactionImmediateCommit               string
+		lastAppliedTransactionStartApply, lastAppliedTransactionEndApply                          string
+		applyingTransactionOriginalCommit, applyingTransactionImmediateCommit                     string
+		applyingTransactionStartApply                                                             string
 		lastAppliedTransactionOriginalCommitSeconds, lastAppliedTransactionImmediateCommitSeconds float64
 		lastAppliedTransactionStartApplySeconds, lastAppliedTransactionEndApplySeconds            float64
 		applyingTransactionOriginalCommitSeconds, applyingTransactionImmediateCommitSeconds       float64
@@ -121,14 +122,18 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 	for perfReplicationApplierStatsByWorkerRows.Next() {
 		if err := perfReplicationApplierStatsByWorkerRows.Scan(
 			&channelName, &workerId,
-			&lastAppliedTransactionOriginalCommitTime, &lastAppliedTransactionImmediateCommitTime,
-			&lastAppliedTransactionStartApplyTime, &lastAppliedTransactionEndApplyTime,
-			&applyingTransactionOriginalCommitTime, &applyingTransactionImmediateCommitTime,
-			&applyingTransactionStartApplyTime,
+			&lastAppliedTransactionOriginalCommit, &lastAppliedTransactionImmediateCommit,
+			&lastAppliedTransactionStartApply, &lastAppliedTransactionEndApply,
+			&applyingTransactionOriginalCommit, &applyingTransactionImmediateCommit,
+			&applyingTransactionStartApply,
 		); err != nil {
 			return err
 		}
 
+		lastAppliedTransactionOriginalCommitTime, err := time.Parse(timeLayout, lastAppliedTransactionOriginalCommit)
+		if err != nil {
+			lastAppliedTransactionOriginalCommitTime = time.Time{}
+		}
 		// Check if the value is 0, use a real 0
 		if !lastAppliedTransactionOriginalCommitTime.IsZero() {
 			lastAppliedTransactionOriginalCommitSeconds = float64(lastAppliedTransactionOriginalCommitTime.UnixNano()) / 1e9
@@ -140,6 +145,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
+		lastAppliedTransactionImmediateCommitTime, err := time.Parse(timeLayout, lastAppliedTransactionImmediateCommit)
+		if err != nil {
+			lastAppliedTransactionImmediateCommitTime = time.Time{}
+		}
 		if !lastAppliedTransactionImmediateCommitTime.IsZero() {
 			lastAppliedTransactionImmediateCommitSeconds = float64(lastAppliedTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
@@ -150,6 +159,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
+		lastAppliedTransactionStartApplyTime, err := time.Parse(timeLayout, lastAppliedTransactionStartApply)
+		if err != nil {
+			lastAppliedTransactionStartApplyTime = time.Time{}
+		}
 		if !lastAppliedTransactionStartApplyTime.IsZero() {
 			lastAppliedTransactionStartApplySeconds = float64(lastAppliedTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {
@@ -160,6 +173,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionStartApplySeconds, channelName, workerId,
 		)
 
+		lastAppliedTransactionEndApplyTime, err := time.Parse(timeLayout, lastAppliedTransactionEndApply)
+		if err != nil {
+			lastAppliedTransactionEndApplyTime = time.Time{}
+		}
 		if !lastAppliedTransactionEndApplyTime.IsZero() {
 			lastAppliedTransactionEndApplySeconds = float64(lastAppliedTransactionEndApplyTime.UnixNano()) / 1e9
 		} else {
@@ -170,6 +187,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, lastAppliedTransactionEndApplySeconds, channelName, workerId,
 		)
 
+		applyingTransactionOriginalCommitTime, err := time.Parse(timeLayout, applyingTransactionOriginalCommit)
+		if err != nil {
+			applyingTransactionOriginalCommitTime = time.Time{}
+		}
 		if !applyingTransactionOriginalCommitTime.IsZero() {
 			applyingTransactionOriginalCommitSeconds = float64(applyingTransactionOriginalCommitTime.UnixNano()) / 1e9
 		} else {
@@ -180,6 +201,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, applyingTransactionOriginalCommitSeconds, channelName, workerId,
 		)
 
+		applyingTransactionImmediateCommitTime, err := time.Parse(timeLayout, applyingTransactionImmediateCommit)
+		if err != nil {
+			applyingTransactionImmediateCommitTime = time.Time{}
+		}
 		if !applyingTransactionImmediateCommitTime.IsZero() {
 			applyingTransactionImmediateCommitSeconds = float64(applyingTransactionImmediateCommitTime.UnixNano()) / 1e9
 		} else {
@@ -190,6 +215,10 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 			prometheus.GaugeValue, applyingTransactionImmediateCommitSeconds, channelName, workerId,
 		)
 
+		applyingTransactionStartApplyTime, err := time.Parse(timeLayout, applyingTransactionStartApply)
+		if err != nil {
+			applyingTransactionStartApplyTime = time.Time{}
+		}
 		if !applyingTransactionStartApplyTime.IsZero() {
 			applyingTransactionStartApplySeconds = float64(applyingTransactionStartApplyTime.UnixNano()) / 1e9
 		} else {

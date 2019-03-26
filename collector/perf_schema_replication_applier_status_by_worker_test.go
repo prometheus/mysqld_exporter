@@ -43,10 +43,12 @@ func TestScrapePerfReplicationApplierStatsByWorker(t *testing.T) {
 		"APPLYING_TRANSACTION_START_APPLY_TIMESTAMP",
 	}
 
+	timeZero := "0000-00-00 00:00:00.000000"
+
 	stubTime := time.Date(2019, 3, 14, 0, 0, 0, int(time.Millisecond), time.UTC)
 	rows := sqlmock.NewRows(columns).
-		AddRow("dummy_0", "0", time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}, time.Time{}).
-		AddRow("dummy_1", "1", stubTime, stubTime.Add(1*time.Minute), stubTime.Add(2*time.Minute), stubTime.Add(3*time.Minute), stubTime.Add(4*time.Minute), stubTime.Add(5*time.Minute), stubTime.Add(6*time.Minute))
+		AddRow("dummy_0", "0", timeZero, timeZero, timeZero, timeZero, timeZero, timeZero, timeZero).
+		AddRow("dummy_1", "1", stubTime.Format(timeLayout), stubTime.Add(1*time.Minute).Format(timeLayout), stubTime.Add(2*time.Minute).Format(timeLayout), stubTime.Add(3*time.Minute).Format(timeLayout), stubTime.Add(4*time.Minute).Format(timeLayout), stubTime.Add(5*time.Minute).Format(timeLayout), stubTime.Add(6*time.Minute).Format(timeLayout))
 	mock.ExpectQuery(sanitizeQuery(perfReplicationApplierStatsByWorkerQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)

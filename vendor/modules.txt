@@ -11,7 +11,7 @@ github.com/go-sql-driver/mysql
 github.com/golang/protobuf/proto
 # github.com/gopherjs/gopherjs v0.0.0-20170609002610-dc374d327045
 github.com/gopherjs/gopherjs/js
-# github.com/jtolds/gls v4.2.1+incompatible
+# github.com/jtolds/gls v4.20.0+incompatible
 github.com/jtolds/gls
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil

@@ -8,7 +8,7 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/gogo/protobuf v1.1.1 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20170609002610-dc374d327045 // indirect
-	github.com/jtolds/gls v4.2.1+incompatible // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect

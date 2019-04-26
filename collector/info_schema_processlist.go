@@ -135,8 +135,8 @@ var (
 		"other":                     uint32(0),
 	}
 	threadStateMapping = map[string]string{
-		"user sleep":                               "idle",
-		"creating index":                           "altering table",
+		"user sleep":     "idle",
+		"creating index": "altering table",
 		"committing alter table to storage engine": "altering table",
 		"discard or import tablespace":             "altering table",
 		"rename":                                   "altering table",

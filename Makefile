@@ -37,11 +37,9 @@ test:
 	@$(GO) test -race $(pkgs)
 
 verify-vendor:
-	@echo ">> verify that vendor/ is in sync with code and Gopkg.*"
-	curl https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -L -o ~/dep && chmod +x ~/dep
-	rm -fr vendor/
-	~/dep ensure -v -vendor-only
-	git diff --exit-code
+	@echo ">> ensure that vendor/ is in sync with code and Gopkg.toml/lock"
+	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+	dep check
 
 format:
 	@echo ">> formatting code"

@@ -214,6 +214,8 @@ func parseWsrepProviderOptions(opts string) float64 {
 }
 
 func validPrometheusName(s string) string {
+	nameRe := regexp.MustCompile("([^a-zA-Z0-9_])")
+	s = nameRe.ReplaceAllString(s, "_")
 	s = strings.ToLower(s)
 	s = strings.Replace(s, ".", "_", -1)
 	return s

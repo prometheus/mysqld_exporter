@@ -29,7 +29,7 @@ jobs:
     steps:
     - checkout
     - run: sudo pip install codespell
-    - run: codespell --skip=".git,./vendor,ttar" -L uint
+    - run: codespell --skip=".git,./vendor,ttar,Makefile.common" -L uint,ist
 
   build:
     machine: true

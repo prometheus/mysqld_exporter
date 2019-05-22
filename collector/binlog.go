@@ -88,17 +88,20 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 	defer masterLogRows.Close()
 
 	var (
-		size     uint64
-		count    uint64
-		filename string
-		filesize uint64
+		size      uint64
+		count     uint64
+		filename  string
+		filesize  uint64
+		encrypted string
 	)
 	size = 0
 	count = 0
 
 	for masterLogRows.Next() {
 		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-			return nil
+			if err := masterLogRows.Scan(&filename, &filesize, &encrypted); err != nil {
+				return nil
+			}
 		}
 		size += filesize
 		count++

@@ -9,6 +9,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
 	github.com/prometheus/common v0.4.1
 	github.com/satori/go.uuid v1.2.0
+	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180301161246-7678a5452ebe // indirect
 	github.com/smartystreets/goconvey v0.0.0-20170602164621-9e8dc3f972df
 	github.com/smartystreets/gunit v0.0.0-20180314194857-6f0d6275bdcd // indirect

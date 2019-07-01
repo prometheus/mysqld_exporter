@@ -38,12 +38,12 @@ Running using ~/.my.cnf:
     ./mysqld_exporter <flags>
 
 Example format for flags for version > 0.10.0:
-  
+
     --collect.auto_increment.columns
     --no-collect.auto_increment.columns
-  
+
 Example format for flags for version <= 0.10.0:
-  
+
     -collect.auto_increment.columns
     -collect.auto_increment.columns=[true|false]
 
@@ -74,6 +74,7 @@ collect.perf_schema.eventsstatements                         | 5.6           | C
 collect.perf_schema.eventsstatements.digest_text_limit       | 5.6           | Maximum length of the normalized statement text. (default: 120)
 collect.perf_schema.eventsstatements.limit                   | 5.6           | Limit the number of events statements digests by response time. (default: 250)
 collect.perf_schema.eventsstatements.timelimit               | 5.6           | Limit how old the 'last_seen' events statements can be, in seconds. (default: 86400)
+collect.perf_schema.eventsstatementssum                      | 5.7           | Collect metrics from performance_schema.events_statements_summary_by_digest summed.
 collect.perf_schema.eventswaits                              | 5.5           | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.perf_schema.file_events                              | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
 collect.perf_schema.file_instances                           | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
@@ -114,7 +115,7 @@ if The MySQL server supports SSL, you may need to specify a CA truststore to ver
 ssl-ca=/path/to/ca/file
 ```
 
-To specify the client SSL keypair, add the following to the cnf. 
+To specify the client SSL keypair, add the following to the cnf.
 
 ```
 ssl-key=/path/to/ssl/client/key

@@ -2,10 +2,6 @@
 
 ### BREAKING CHANGES:
 
-The minimum supported MySQL version is now 5.5.
-
-Collector `info_schema.tables` is now disabled by default due to high cardinality danger.
-
 ### Changes:
 
 * [CHANGE]
@@ -13,14 +9,29 @@ Collector `info_schema.tables` is now disabled by default due to high cardinalit
 * [ENHANCEMENT]
 * [FEATURE]
 
-* [CHANGE] Update innodb buffer pool mappings #369 
+## 0.12.0 / 2019-07-10
+
+### BREAKING CHANGES:
+
+The minimum supported MySQL version is now 5.5.
+
+Collector `info_schema.tables` is now disabled by default due to high cardinality danger.
+
+### Changes:
+
 * [CHANGE] Update defaults for MySQL 5.5 #318
+* [CHANGE] Update innodb buffer pool mappings #369
 * [CHANGE] Disable info_schema.tables collector by default #406
 * [BUGFIX] Sanitize metric names in global variables #307
+* [BUGFIX] Use GLOBAL to prevent mysql deadlock #336
 * [BUGFIX] Clear last_scrape_error on every scrape (PR #368) #367
+* [ENHANCEMENT] Add help for some GLOBAL VARIABLES metrics. #326
+* [FEATURE] Abort on timeout. #323
+* [FEATURE] Add minimal MySQL version to Scraper interface #328
 * [FEATURE] Add by_user and by_host metrics to info_schema.processlist collector (PR #333) #334
 * [FEATURE] Add wsrep_evs_repl_latency metric collecting. (PR #338)
 * [FEATURE] Add collector for mysql.user (PR #341)
+* [FEATURE] Add perf_schema.eventsstatementssum collector #347
 * [FEATURE] Add collector to get table stats grouped by schema (PR #354)
 * [FEATURE] Add replication_applier_status_by_worker metric collecting. (PR #366)
 

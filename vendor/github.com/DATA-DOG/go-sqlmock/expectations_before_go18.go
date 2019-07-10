@@ -1,9 +1,8 @@
-// +build go1.8
+// +build !go1.8
 
 package sqlmock
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"reflect"
@@ -11,12 +10,8 @@ import (
 
 // WillReturnRows specifies the set of resulting rows that will be returned
 // by the triggered query
-func (e *ExpectedQuery) WillReturnRows(rows ...*Rows) *ExpectedQuery {
-	sets := make([]*Rows, len(rows))
-	for i, r := range rows {
-		sets[i] = r
-	}
-	e.rows = &rowSets{sets: sets}
+func (e *ExpectedQuery) WillReturnRows(rows *Rows) *ExpectedQuery {
+	e.rows = &rowSets{sets: []*Rows{rows}, ex: e}
 	return e
 }
 
@@ -27,11 +22,11 @@ func (e *queryBasedExpectation) argsMatches(args []namedValue) error {
 	if len(args) != len(e.args) {
 		return fmt.Errorf("expected %d, but got %d arguments", len(e.args), len(args))
 	}
-	// @TODO should we assert either all args are named or ordinal?
 	for k, v := range args {
 		// custom argument matcher
 		matcher, ok := e.args[k].(Argument)
 		if ok {
+			// @TODO: does it make sense to pass value instead of named value?
 			if !matcher.Match(v.Value) {
 				return fmt.Errorf("matcher %T could not match %d argument %T - %+v", matcher, k, args[k], args[k])
 			}
@@ -39,17 +34,8 @@ func (e *queryBasedExpectation) argsMatches(args []namedValue) error {
 		}
 
 		dval := e.args[k]
-		if named, isNamed := dval.(sql.NamedArg); isNamed {
-			dval = named.Value
-			if v.Name != named.Name {
-				return fmt.Errorf("named argument %d: name: \"%s\" does not match expected: \"%s\"", k, v.Name, named.Name)
-			}
-		} else if k+1 != v.Ordinal {
-			return fmt.Errorf("argument %d: ordinal position: %d does not match expected: %d", k, k+1, v.Ordinal)
-		}
-
 		// convert to driver converter
-		darg, err := driver.DefaultParameterConverter.ConvertValue(dval)
+		darg, err := e.converter.ConvertValue(dval)
 		if err != nil {
 			return fmt.Errorf("could not convert %d argument %T - %+v to driver value: %s", k, e.args[k], e.args[k], err)
 		}

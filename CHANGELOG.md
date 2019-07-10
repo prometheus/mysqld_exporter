@@ -4,6 +4,8 @@
 
 The minimum supported MySQL version is now 5.5.
 
+Collector `info_schema.tables` is now disabled by default due to high cardinality danger.
+
 ### Changes:
 
 * [CHANGE]
@@ -13,6 +15,7 @@ The minimum supported MySQL version is now 5.5.
 
 * [CHANGE] Update innodb buffer pool mappings #369 
 * [CHANGE] Update defaults for MySQL 5.5 #318
+* [CHANGE] Disable info_schema.tables collector by default #406
 * [BUGFIX] Sanitize metric names in global variables #307
 * [BUGFIX] Clear last_scrape_error on every scrape (PR #368) #367
 * [FEATURE] Add by_user and by_host metrics to info_schema.processlist collector (PR #333) #334

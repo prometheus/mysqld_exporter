@@ -11,12 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Needs to be defined before including Makefile.common to auto-generate targets
+DOCKER_ARCHS ?= amd64 armv7 arm64
+
 all: vet
 
 include Makefile.common
 
-STATICCHECK_IGNORE = \
-  github.com/prometheus/mysqld_exporter/mysqld_exporter.go:SA1019
+STATICCHECK_IGNORE =
 
 DOCKER_IMAGE_NAME ?= mysqld-exporter
 

@@ -84,70 +84,6 @@ var (
 	).Default("120").Int()
 )
 
-// Metric descriptors.
-var (
-	performanceSchemaEventsStatementsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_total"),
-		"The total count of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_seconds_total"),
-		"The total time of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsErrorsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_errors_total"),
-		"The errors of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsWarningsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_warnings_total"),
-		"The warnings of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsRowsAffectedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_affected_total"),
-		"The total rows affected of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsRowsSentDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_sent_total"),
-		"The total rows sent of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsRowsExaminedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_rows_examined_total"),
-		"The total rows examined of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsTmpTablesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_tables_total"),
-		"The total tmp tables of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsTmpDiskTablesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_tmp_disk_tables_total"),
-		"The total tmp disk tables of events statements by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsSortMergePassesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_sort_merge_passes_total"),
-		"The total number of merge passes by the sort algorithm performed by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsSortRowsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_sort_rows_total"),
-		"The total number of sorted rows by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsNoIndexUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_no_index_used_total"),
-		"The total number of statements that used full table scans by digest.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-)
-
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
 type ScrapePerfEventsStatements struct{}
 
@@ -167,7 +103,7 @@ func (ScrapePerfEventsStatements) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,
@@ -196,51 +132,62 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsDesc, prometheus.CounterValue, float64(count),
+			newDescLabels(performanceSchema, "events_statements_total", "The total count of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(count),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/picoSeconds,
+			newDescLabels(performanceSchema, "events_statements_seconds_total", "The total time of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(queryTime)/picoSeconds,
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsErrorsDesc, prometheus.CounterValue, float64(errors),
+			newDescLabels(performanceSchema, "events_statements_errors_total", "The errors of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(errors),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsWarningsDesc, prometheus.CounterValue, float64(warnings),
+			newDescLabels(performanceSchema, "events_statements_warnings_total", "The warnings of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(warnings),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
+			newDescLabels(performanceSchema, "events_statements_rows_affected_total", "The total rows affected of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(rowsAffected),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
+			newDescLabels(performanceSchema, "events_statements_rows_sent_total", "The total rows sent of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(rowsSent),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
+			newDescLabels(performanceSchema, "events_statements_rows_examined_total", "The total rows examined of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(rowsExamined),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsTmpTablesDesc, prometheus.CounterValue, float64(tmpTables),
+			newDescLabels(performanceSchema, "events_statements_tmp_tables_total", "The total tmp tables of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(tmpTables),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsTmpDiskTablesDesc, prometheus.CounterValue, float64(tmpDiskTables),
+			newDescLabels(performanceSchema, "events_statements_tmp_disk_tables_total", "The total tmp disk tables of events statements by digest.", constLabels, []string{"schema", "digest", "digest_text"}), prometheus.CounterValue, float64(tmpDiskTables),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSortMergePassesDesc, prometheus.CounterValue, float64(sortMergePasses),
+			newDescLabels(performanceSchema, "events_statements_sort_merge_passes_total", "The total number of merge passes by the sort algorithm performed by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(sortMergePasses),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSortRowsDesc, prometheus.CounterValue, float64(sortRows),
+			newDescLabels(performanceSchema, "events_statements_sort_rows_total", "The total number of sorted rows by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(sortRows),
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
+			newDescLabels(performanceSchema, "events_statements_no_index_used_total", "The total number of statements that used full table scans by digest.", constLabels, []string{"schema", "digest", "digest_text"}),
+			prometheus.CounterValue, float64(noIndexUsed),
 			schemaName, digest, digestText,
 		)
 	}

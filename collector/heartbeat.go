@@ -46,20 +46,6 @@ var (
 	).Default("heartbeat").String()
 )
 
-// Metric descriptors.
-var (
-	HeartbeatStoredDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, heartbeat, "stored_timestamp_seconds"),
-		"Timestamp stored in the heartbeat table.",
-		[]string{"server_id"}, nil,
-	)
-	HeartbeatNowDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, heartbeat, "now_timestamp_seconds"),
-		"Timestamp of the current server.",
-		[]string{"server_id"}, nil,
-	)
-)
-
 // ScrapeHeartbeat scrapes from the heartbeat table.
 // This is mainly targeting pt-heartbeat, but will work with any heartbeat
 // implementation that writes to a table with two columns:
@@ -85,7 +71,7 @@ func (ScrapeHeartbeat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	query := fmt.Sprintf(heartbeatQuery, *collectHeartbeatDatabase, *collectHeartbeatTable)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
@@ -116,13 +102,13 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 		serverId := strconv.Itoa(serverId)
 
 		ch <- prometheus.MustNewConstMetric(
-			HeartbeatNowDesc,
+			newDescLabels(heartbeat, "now_timestamp_seconds", "Timestamp of the current server.", constLabels, []string{"server_id"}),
 			prometheus.GaugeValue,
 			nowFloatVal,
 			serverId,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			HeartbeatStoredDesc,
+			newDescLabels(heartbeat, "stored_timestamp_seconds", "Timestamp stored in the heartbeat table.", constLabels, []string{"server_id"}),
 			prometheus.GaugeValue,
 			tsFloatVal,
 			serverId,

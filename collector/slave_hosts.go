@@ -20,7 +20,7 @@ import (
 	"database/sql"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -31,15 +31,6 @@ const (
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
 	slaveHostsQuery = "SHOW SLAVE HOSTS"
-)
-
-// Metric descriptors.
-var (
-	SlaveHostsInfo = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, heartbeat, "mysql_slave_hosts_info"),
-		"Information about running slaves",
-		[]string{"server_id", "slave_host", "port", "master_id", "slave_uuid"}, nil,
-	)
 )
 
 // ScrapeSlaveHosts scrapes metrics about the replicating slaves.
@@ -61,7 +52,7 @@ func (ScrapeSlaveHosts) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	slaveHostsRows, err := db.QueryContext(ctx, slaveHostsQuery)
 	if err != nil {
 		return err
@@ -102,7 +93,7 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 		}
 
 		ch <- prometheus.MustNewConstMetric(
-			SlaveHostsInfo,
+			newDescLabels(heartbeat, "mysql_slave_hosts_info", "Information about running slaves.", constLabels, []string{"server_id", "slave_host", "port", "master_id", "slave_uuid"}),
 			prometheus.GaugeValue,
 			1,
 			serverId,

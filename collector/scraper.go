@@ -34,5 +34,5 @@ type Scraper interface {
 	Version() float64
 
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
-	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error
+	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error
 }

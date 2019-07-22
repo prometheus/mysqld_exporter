@@ -27,20 +27,6 @@ const perfEventsWaitsQuery = `
 	  FROM performance_schema.events_waits_summary_global_by_event_name
 	`
 
-// Metric descriptors.
-var (
-	performanceSchemaEventsWaitsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_waits_total"),
-		"The total events waits by event name.",
-		[]string{"event_name"}, nil,
-	)
-	performanceSchemaEventsWaitsTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_waits_seconds_total"),
-		"The total seconds of events waits by event name.",
-		[]string{"event_name"}, nil,
-	)
-)
-
 // ScrapePerfEventsWaits collects from `performance_schema.events_waits_summary_global_by_event_name`.
 type ScrapePerfEventsWaits struct{}
 
@@ -60,7 +46,7 @@ func (ScrapePerfEventsWaits) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfEventsWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsWaitsRows, err := db.QueryContext(ctx, perfEventsWaitsQuery)
 	if err != nil {
@@ -80,11 +66,13 @@ func (ScrapePerfEventsWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsWaitsDesc, prometheus.CounterValue, float64(count),
+			newDescLabels(performanceSchema, "events_waits_total", "The total events waits by event name.", constLabels, []string{"event_name"}),
+			prometheus.CounterValue, float64(count),
 			eventName,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsWaitsTimeDesc, prometheus.CounterValue, float64(time)/picoSeconds,
+			newDescLabels(performanceSchema, "events_waits_seconds_total", "The total seconds of events waits by event name.", constLabels, []string{"event_name"}),
+			prometheus.CounterValue, float64(time)/picoSeconds,
 			eventName,
 		)
 	}

@@ -33,25 +33,6 @@ const tableStatQuery = `
 		  FROM information_schema.table_statistics
 		`
 
-// Metric descriptors.
-var (
-	infoSchemaTableStatsRowsReadDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_read_total"),
-		"The number of rows read from the table.",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTableStatsRowsChangedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_changed_total"),
-		"The number of rows changed in the table.",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTableStatsRowsChangedXIndexesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_statistics_rows_changed_x_indexes_total"),
-		"The number of rows changed in the table, multiplied by the number of indexes changed.",
-		[]string{"schema", "table"}, nil,
-	)
-)
-
 // ScrapeTableStat collects from `information_schema.table_statistics`.
 type ScrapeTableStat struct{}
 
@@ -71,7 +52,7 @@ func (ScrapeTableStat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	var varName, varVal string
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
@@ -109,15 +90,18 @@ func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsReadDesc, prometheus.CounterValue, float64(rowsRead),
+			newDescLabels(informationSchema, "table_statistics_rows_read_total", "The number of rows read from the table.", constLabels, []string{"schema", "table"}),
+			prometheus.CounterValue, float64(rowsRead),
 			tableSchema, tableName,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsChangedDesc, prometheus.CounterValue, float64(rowsChanged),
+			newDescLabels(informationSchema, "table_statistics_rows_changed_total", "The number of rows changed in the table.", constLabels, []string{"schema", "table"}),
+			prometheus.CounterValue, float64(rowsChanged),
 			tableSchema, tableName,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaTableStatsRowsChangedXIndexesDesc, prometheus.CounterValue, float64(rowsChangedXIndexes),
+			newDescLabels(informationSchema, "table_statistics_rows_changed_x_indexes_total", "The number of rows changed in the table, multiplied by the number of indexes changed.", constLabels, []string{"schema", "table"}),
+			prometheus.CounterValue, float64(rowsChangedXIndexes),
 			tableSchema, tableName,
 		)
 	}

@@ -30,20 +30,6 @@ const perfIndexIOWaitsQuery = `
 	  WHERE OBJECT_SCHEMA NOT IN ('mysql', 'performance_schema')
 	`
 
-// Metric descriptors.
-var (
-	performanceSchemaIndexWaitsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "index_io_waits_total"),
-		"The total number of index I/O wait events for each index and operation.",
-		[]string{"schema", "name", "index", "operation"}, nil,
-	)
-	performanceSchemaIndexWaitsTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "index_io_waits_seconds_total"),
-		"The total time of index I/O wait events for each index and operation.",
-		[]string{"schema", "name", "index", "operation"}, nil,
-	)
-)
-
 // ScrapePerfIndexIOWaits collects for `performance_schema.table_io_waits_summary_by_index_usage`.
 type ScrapePerfIndexIOWaits struct{}
 
@@ -63,7 +49,7 @@ func (ScrapePerfIndexIOWaits) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	perfSchemaIndexWaitsRows, err := db.QueryContext(ctx, perfIndexIOWaitsQuery)
 	if err != nil {
 		return err
@@ -85,41 +71,49 @@ func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countFetch),
+			newDescLabels(performanceSchema, "index_io_waits_total", "The total number of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(countFetch),
 			objectSchema, objectName, indexName, "fetch",
 		)
 		// We only include the insert column when indexName is NONE.
 		if indexName == "NONE" {
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countInsert),
+				newDescLabels(performanceSchema, "index_io_waits_total", "The total number of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+				prometheus.CounterValue, float64(countInsert),
 				objectSchema, objectName, indexName, "insert",
 			)
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countUpdate),
+			newDescLabels(performanceSchema, "index_io_waits_total", "The total number of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(countUpdate),
 			objectSchema, objectName, indexName, "update",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsDesc, prometheus.CounterValue, float64(countDelete),
+			newDescLabels(performanceSchema, "index_io_waits_total", "The total number of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(countDelete),
 			objectSchema, objectName, indexName, "delete",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeFetch)/picoSeconds,
+			newDescLabels(performanceSchema, "index_io_waits_seconds_total", "The total time of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(timeFetch)/picoSeconds,
 			objectSchema, objectName, indexName, "fetch",
 		)
 		// We only update write columns when indexName is NONE.
 		if indexName == "NONE" {
 			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeInsert)/picoSeconds,
+				newDescLabels(performanceSchema, "index_io_waits_seconds_total", "The total time of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+				prometheus.CounterValue, float64(timeInsert)/picoSeconds,
 				objectSchema, objectName, indexName, "insert",
 			)
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
+			newDescLabels(performanceSchema, "index_io_waits_seconds_total", "The total time of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(timeUpdate)/picoSeconds,
 			objectSchema, objectName, indexName, "update",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaIndexWaitsTimeDesc, prometheus.CounterValue, float64(timeDelete)/picoSeconds,
+			newDescLabels(performanceSchema, "index_io_waits_seconds_total", "The total time of index I/O wait events for each index and operation.", constLabels, []string{"schema", "name", "index", "operation"}),
+			prometheus.CounterValue, float64(timeDelete)/picoSeconds,
 			objectSchema, objectName, indexName, "delete",
 		)
 	}

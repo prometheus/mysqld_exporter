@@ -35,27 +35,9 @@ var (
 		"SELECT TIME, COUNT, TOTAL FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ",
 		"SELECT TIME, COUNT, TOTAL FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE",
 	}
-
-	infoSchemaQueryResponseTimeCountDescs = [3]*prometheus.Desc{
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "query_response_time_seconds"),
-			"The number of all queries by duration they took to execute.",
-			[]string{}, nil,
-		),
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "read_query_response_time_seconds"),
-			"The number of read queries by duration they took to execute.",
-			[]string{}, nil,
-		),
-		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, informationSchema, "write_query_response_time_seconds"),
-			"The number of write queries by duration they took to execute.",
-			[]string{}, nil,
-		),
-	}
 )
 
-func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, query string, i int) error {
+func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, query string, desc *prometheus.Desc) error {
 	queryDistributionRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
@@ -93,9 +75,7 @@ func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- pr
 		countBuckets[length] = histogramCnt
 	}
 	// Create histogram with query counts
-	ch <- prometheus.MustNewConstHistogram(
-		infoSchemaQueryResponseTimeCountDescs[i], histogramCnt, histogramSum, countBuckets,
-	)
+	ch <- prometheus.MustNewConstHistogram(desc, histogramCnt, histogramSum, countBuckets)
 	return nil
 }
 
@@ -118,7 +98,7 @@ func (ScrapeQueryResponseTime) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	var queryStats uint8
 	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
@@ -130,8 +110,13 @@ func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 		return nil
 	}
 
+	descs := [3]*prometheus.Desc{
+		newDesc(informationSchema, "query_response_time_seconds", "The number of all queries by duration they took to execute.", constLabels),
+		newDesc(informationSchema, "read_query_response_time_seconds", "The number of read queries by duration they took to execute.", constLabels),
+		newDesc(informationSchema, "write_query_response_time_seconds", "The number of write queries by duration they took to execute.", constLabels),
+	}
 	for i, query := range queryResponseTimeQueries {
-		err := processQueryResponseTimeTable(ctx, db, ch, query, i)
+		err := processQueryResponseTimeTable(ctx, db, ch, query, descs[i])
 		// The first query should not fail if query_response_time_stats is ON,
 		// unlike the other two when the read/write tables exist only with Percona Server 5.6/5.7.
 		if i == 0 && err != nil {

@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -155,11 +156,7 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 	return nil
 }
 
-func init() {
-	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
-}
-
-func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(scrapers []collector.Scraper) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
@@ -208,7 +205,22 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers))
+		dsns := strings.Split(dsn, ",")
+		if len(dsns) == 1 {
+			constLabels := prometheus.Labels{}
+			metrics := collector.NewMetrics(constLabels)
+			registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, constLabels))
+			registry.MustRegister(version.NewCollector("mysqld_exporter"))
+		} else {
+			for i, d := range dsns {
+				dsnData, _ := mysql.ParseDSN(d)
+				log.Debugf("Scraping %s", dsnData.Addr)
+				constLabels := prometheus.Labels{"endpoint": dsnData.Addr}
+				metrics := collector.NewMetrics(constLabels)
+				registry.MustRegister(collector.New(ctx, d, metrics, filteredScrapers, constLabels))
+				registry.MustRegister(version.NewCollector(fmt.Sprintf("mysqld_exporter_%d", i)))
+			}
+		}
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -274,12 +286,13 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers)
+	handlerFunc := newHandler(enabledScrapers)
 	http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
 
+	log.Infof("Configured with %d DSN endpoint(s).", len(strings.Split(dsn, ",")))
 	log.Infoln("Listening on", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }

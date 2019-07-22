@@ -38,7 +38,7 @@ func TestScrapeSlaveHostsOldFormat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -76,7 +76,7 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

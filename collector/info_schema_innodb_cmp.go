@@ -28,35 +28,6 @@ const innodbCmpQuery = `
 		  FROM information_schema.innodb_cmp
 		`
 
-// Metric descriptors.
-var (
-	infoSchemaInnodbCmpCompressOps = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_total"),
-		"Number of times a B-tree page of the size PAGE_SIZE has been compressed.",
-		[]string{"page_size"}, nil,
-	)
-	infoSchemaInnodbCmpCompressOpsOk = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_ops_ok_total"),
-		"Number of times a B-tree page of the size PAGE_SIZE has been successfully compressed.",
-		[]string{"page_size"}, nil,
-	)
-	infoSchemaInnodbCmpCompressTime = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_compress_time_seconds_total"),
-		"Total time in seconds spent in attempts to compress B-tree pages.",
-		[]string{"page_size"}, nil,
-	)
-	infoSchemaInnodbCmpUncompressOps = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_ops_total"),
-		"Number of times a B-tree page of the size PAGE_SIZE has been uncompressed.",
-		[]string{"page_size"}, nil,
-	)
-	infoSchemaInnodbCmpUncompressTime = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmp_uncompress_time_seconds_total"),
-		"Total time in seconds spent in uncompressing B-tree pages.",
-		[]string{"page_size"}, nil,
-	)
-)
-
 // ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
 type ScrapeInnodbCmp struct{}
 
@@ -76,7 +47,7 @@ func (ScrapeInnodbCmp) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	informationSchemaInnodbCmpRows, err := db.QueryContext(ctx, innodbCmpQuery)
 	if err != nil {
 		return err
@@ -95,11 +66,26 @@ func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 			return err
 		}
 
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOps, prometheus.CounterValue, compress_ops, page_size)
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressOpsOk, prometheus.CounterValue, compress_ops_ok, page_size)
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpCompressTime, prometheus.CounterValue, compress_time, page_size)
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressOps, prometheus.CounterValue, uncompress_ops, page_size)
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpUncompressTime, prometheus.CounterValue, uncompress_time, page_size)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "innodb_cmp_compress_ops_total", "Number of times a B-tree page of the size PAGE_SIZE has been compressed.", constLabels, []string{"page_size"}),
+			prometheus.CounterValue, compress_ops, page_size,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "innodb_cmp_compress_ops_ok_total", "Number of times a B-tree page of the size PAGE_SIZE has been successfully compressed.", constLabels, []string{"page_size"}),
+			prometheus.CounterValue, compress_ops_ok, page_size,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "innodb_cmp_compress_time_seconds_total", "Total time in seconds spent in attempts to compress B-tree pages.", constLabels, []string{"page_size"}),
+			prometheus.CounterValue, compress_time, page_size,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "innodb_cmp_uncompress_ops_total", "Number of times a B-tree page of the size PAGE_SIZE has been uncompressed.", constLabels, []string{"page_size"}),
+			prometheus.CounterValue, uncompress_ops, page_size,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "innodb_cmp_uncompress_time_seconds_total", "Total time in seconds spent in uncompressing B-tree pages.", constLabels, []string{"page_size"}),
+			prometheus.CounterValue, uncompress_time, page_size,
+		)
 	}
 
 	return nil

@@ -34,10 +34,17 @@ const (
 
 var logRE = regexp.MustCompile(`.+\.(\d+)$`)
 
-func newDesc(subsystem, name, help string) *prometheus.Desc {
+func newDesc(subsystem, name, help string, constLabels prometheus.Labels) *prometheus.Desc {
 	return prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, name),
-		help, nil, nil,
+		help, nil, constLabels,
+	)
+}
+
+func newDescLabels(subsystem, name, help string, constLabels prometheus.Labels, variableLabels []string) *prometheus.Desc {
+	return prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, subsystem, name),
+		help, variableLabels, constLabels,
 	)
 }
 

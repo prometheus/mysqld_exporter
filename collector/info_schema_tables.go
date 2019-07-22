@@ -58,25 +58,6 @@ var (
 	).Default("*").String()
 )
 
-// Metric descriptors.
-var (
-	infoSchemaTablesVersionDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_version"),
-		"The version number of the table's .frm file",
-		[]string{"schema", "table", "type", "engine", "row_format", "create_options"}, nil,
-	)
-	infoSchemaTablesRowsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_rows"),
-		"The estimated number of rows in the table from information_schema.tables",
-		[]string{"schema", "table"}, nil,
-	)
-	infoSchemaTablesSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "table_size"),
-		"The size of the table components from information_schema.tables",
-		[]string{"schema", "table", "component"}, nil,
-	)
-)
-
 // ScrapeTableSchema collects from `information_schema.tables`.
 type ScrapeTableSchema struct{}
 
@@ -96,7 +77,7 @@ func (ScrapeTableSchema) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)
@@ -158,23 +139,28 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 				return err
 			}
 			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesVersionDesc, prometheus.GaugeValue, float64(version),
+				newDescLabels(informationSchema, "table_version", "The version number of the table's .frm file.", constLabels, []string{"schema", "table", "type", "engine", "row_format", "create_options"}),
+				prometheus.GaugeValue, float64(version),
 				tableSchema, tableName, tableType, engine, rowFormat, createOptions,
 			)
 			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesRowsDesc, prometheus.GaugeValue, float64(tableRows),
+				newDescLabels(informationSchema, "table_rows", "The estimated number of rows in the table from information_schema.tables.", constLabels, []string{"schema", "table"}),
+				prometheus.GaugeValue, float64(tableRows),
 				tableSchema, tableName,
 			)
 			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataLength),
+				newDescLabels(informationSchema, "table_size", "The size of the table components from information_schema.tables.", constLabels, []string{"schema", "table"}),
+				prometheus.GaugeValue, float64(dataLength),
 				tableSchema, tableName, "data_length",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(indexLength),
+				newDescLabels(informationSchema, "table_size", "The size of the table components from information_schema.tables.", constLabels, []string{"schema", "table"}),
+				prometheus.GaugeValue, float64(indexLength),
 				tableSchema, tableName, "index_length",
 			)
 			ch <- prometheus.MustNewConstMetric(
-				infoSchemaTablesSizeDesc, prometheus.GaugeValue, float64(dataFree),
+				newDescLabels(informationSchema, "table_size", "The size of the table components from information_schema.tables.", constLabels, []string{"schema", "table"}),
+				prometheus.GaugeValue, float64(dataFree),
 				tableSchema, tableName, "data_free",
 			)
 		}

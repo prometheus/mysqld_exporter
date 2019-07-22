@@ -77,26 +77,6 @@ var (
 	labelNames = []string{"mysql_user", "hostmask"}
 )
 
-// Metric descriptors.
-var (
-	userMaxQuestionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_questions"),
-		"The number of max_questions by user.",
-		labelNames, nil)
-	userMaxUpdatesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_updates"),
-		"The number of max_updates by user.",
-		labelNames, nil)
-	userMaxConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_connections"),
-		"The number of max_connections by user.",
-		labelNames, nil)
-	userMaxUserConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_user_connections"),
-		"The number of max_user_connections by user.",
-		labelNames, nil)
-)
-
 // ScrapeUser collects from `information_schema.processlist`.
 type ScrapeUser struct{}
 
@@ -116,7 +96,7 @@ func (ScrapeUser) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	var (
 		userRows *sql.Rows
 		err      error
@@ -227,12 +207,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 			for i, col := range userCols {
 				if value, ok := parsePrivilege(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
 					ch <- prometheus.MustNewConstMetric(
-						prometheus.NewDesc(
-							prometheus.BuildFQName(namespace, mysql, strings.ToLower(col)),
-							col+" by user.",
-							labelNames,
-							nil,
-						),
+						newDescLabels(mysql, strings.ToLower(col), col+" by user.", constLabels, labelNames),
 						prometheus.GaugeValue,
 						value,
 						user, host,
@@ -241,10 +216,22 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 			}
 		}
 
-		ch <- prometheus.MustNewConstMetric(userMaxQuestionsDesc, prometheus.GaugeValue, float64(max_questions), user, host)
-		ch <- prometheus.MustNewConstMetric(userMaxUpdatesDesc, prometheus.GaugeValue, float64(max_updates), user, host)
-		ch <- prometheus.MustNewConstMetric(userMaxConnectionsDesc, prometheus.GaugeValue, float64(max_connections), user, host)
-		ch <- prometheus.MustNewConstMetric(userMaxUserConnectionsDesc, prometheus.GaugeValue, float64(max_user_connections), user, host)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(mysql, "max_questions", "The number of max_questions by user.", constLabels, labelNames),
+			prometheus.GaugeValue, float64(max_questions), user, host,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(mysql, "max_updates", "The number of max_updates by user.", constLabels, labelNames),
+			prometheus.GaugeValue, float64(max_updates), user, host,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(mysql, "max_connections", "The number of max_connections by user.", constLabels, labelNames),
+			prometheus.GaugeValue, float64(max_connections), user, host,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(mysql, "max_user_connections", "The number of max_user_connections by user.", constLabels, labelNames),
+			prometheus.GaugeValue, float64(max_user_connections), user, host,
+		)
 	}
 
 	return nil

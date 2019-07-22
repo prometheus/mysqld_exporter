@@ -56,26 +56,6 @@ var (
 	).Default("true").Bool()
 )
 
-// Metric descriptors.
-var (
-	processlistCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "threads"),
-		"The number of threads (connections) split by current state.",
-		[]string{"state"}, nil)
-	processlistTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
-		"The number of seconds threads (connections) have used split by current state.",
-		[]string{"state"}, nil)
-	processesByUserDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
-		"The number of processes by user.",
-		[]string{"mysql_user"}, nil)
-	processesByHostDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
-		"The number of processes by host.",
-		[]string{"client_host"}, nil)
-)
-
 // whitelist for connection/process states in SHOW PROCESSLIST
 // tokudb uses the state column for "Queried about _______ rows"
 var (
@@ -176,7 +156,7 @@ func (ScrapeProcesslist) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
@@ -218,21 +198,33 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 
 	if *processesByHostFlag {
 		for host, processes := range hostCount {
-			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+			ch <- prometheus.MustNewConstMetric(
+				newDescLabels(informationSchema, "processes_by_host", "The number of processes by host.", constLabels, []string{"client_host"}),
+				prometheus.GaugeValue, float64(processes), host,
+			)
 		}
 	}
 
 	if *processesByUserFlag {
 		for user, processes := range userCount {
-			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+			ch <- prometheus.MustNewConstMetric(
+				newDescLabels(informationSchema, "processes_by_user", "The number of processes by user.", constLabels, []string{"mysql_user"}),
+				prometheus.GaugeValue, float64(processes), user,
+			)
 		}
 	}
 
 	for state, processes := range stateCounts {
-		ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(processes), state)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "threads", "The number of threads (connections) split by current state.", constLabels, []string{"state"}),
+			prometheus.GaugeValue, float64(processes), state,
+		)
 	}
 	for state, time := range stateTime {
-		ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(time), state)
+		ch <- prometheus.MustNewConstMetric(
+			newDescLabels(informationSchema, "threads_seconds", "The number of seconds threads (connections) have used split by current state.", constLabels, []string{"state"}),
+			prometheus.GaugeValue, float64(time), state,
+		)
 	}
 
 	return nil

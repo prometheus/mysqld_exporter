@@ -137,7 +137,7 @@ func (ScrapeGlobalVariables) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	globalVariablesRows, err := db.QueryContext(ctx, globalVariablesQuery)
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 				help = "Generic gauge metric from SHOW GLOBAL VARIABLES."
 			}
 			ch <- prometheus.MustNewConstMetric(
-				newDesc(globalVariables, key, help),
+				newDesc(globalVariables, key, help, constLabels),
 				prometheus.GaugeValue,
 				floatVal,
 			)
@@ -180,16 +180,14 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 
 	// mysql_version_info metric.
 	ch <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc(prometheus.BuildFQName(namespace, "version", "info"), "MySQL version and distribution.",
-			[]string{"innodb_version", "version", "version_comment"}, nil),
+		newDescLabels("version", "info", "MySQL version and distribution.", constLabels, []string{"innodb_version", "version", "version_comment"}),
 		prometheus.GaugeValue, 1, textItems["innodb_version"], textItems["version"], textItems["version_comment"],
 	)
 
 	// mysql_galera_variables_info metric.
 	if textItems["wsrep_cluster_name"] != "" {
 		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(prometheus.BuildFQName(namespace, "galera", "variables_info"), "PXC/Galera variables information.",
-				[]string{"wsrep_cluster_name"}, nil),
+			newDescLabels("galera", "variables_info", "PXC/Galera variables information.", constLabels, []string{"wsrep_cluster_name"}),
 			prometheus.GaugeValue, 1, textItems["wsrep_cluster_name"],
 		)
 	}
@@ -197,7 +195,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 	// mysql_galera_gcache_size_bytes metric.
 	if textItems["wsrep_provider_options"] != "" {
 		ch <- prometheus.MustNewConstMetric(
-			newDesc("galera", "gcache_size_bytes", "PXC/Galera gcache size."),
+			newDesc("galera", "gcache_size_bytes", "PXC/Galera gcache size.", constLabels),
 			prometheus.GaugeValue,
 			parseWsrepProviderOptions(textItems["wsrep_provider_options"]),
 		)

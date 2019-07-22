@@ -36,20 +36,6 @@ const infoSchemaAutoIncrementQuery = `
 		  WHERE c.extra = 'auto_increment' AND t.auto_increment IS NOT NULL
 		`
 
-// Metric descriptors.
-var (
-	globalInfoSchemaAutoIncrementDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column"),
-		"The current value of an auto_increment column from information_schema.",
-		[]string{"schema", "table", "column"}, nil,
-	)
-	globalInfoSchemaAutoIncrementMaxDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "auto_increment_column_max"),
-		"The max value of an auto_increment column from information_schema.",
-		[]string{"schema", "table", "column"}, nil,
-	)
-)
-
 // ScrapeAutoIncrementColumns collects auto_increment column information.
 type ScrapeAutoIncrementColumns struct{}
 
@@ -69,7 +55,7 @@ func (ScrapeAutoIncrementColumns) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	autoIncrementRows, err := db.QueryContext(ctx, infoSchemaAutoIncrementQuery)
 	if err != nil {
 		return err
@@ -88,11 +74,13 @@ func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch cha
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementDesc, prometheus.GaugeValue, value,
+			newDescLabels(informationSchema, "auto_increment_column", "The current value of an auto_increment column from information_schema.", constLabels, []string{"schema", "table", "column"}),
+			prometheus.GaugeValue, value,
 			schema, table, column,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			globalInfoSchemaAutoIncrementMaxDesc, prometheus.GaugeValue, max,
+			newDescLabels(informationSchema, "auto_increment_column_max", "The max value of an auto_increment column from information_schema.", constLabels, []string{"schema", "table", "column"}),
+			prometheus.GaugeValue, max,
 			schema, table, column,
 		)
 	}

@@ -33,10 +33,12 @@ func TestExporter(t *testing.T) {
 	exporter := New(
 		context.Background(),
 		dsn,
-		NewMetrics(),
+		NewMetrics(prometheus.Labels{}),
 		[]Scraper{
 			ScrapeGlobalStatus{},
-		})
+		},
+		prometheus.Labels{},
+	)
 
 	convey.Convey("Metrics describing", t, func() {
 		ch := make(chan *prometheus.Desc)

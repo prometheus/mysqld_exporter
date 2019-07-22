@@ -42,23 +42,10 @@ var (
 )
 
 // Metric descriptors.
-var (
-	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.file_instances.remove_prefix",
-		"Remove path prefix in performance_schema.file_summary_by_instance",
-	).Default("/var/lib/mysql/").String()
-
-	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),
-		"The number of bytes processed by file read/write operations.",
-		[]string{"file_name", "event_name", "mode"}, nil,
-	)
-	performanceSchemaFileInstancesCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_total"),
-		"The total number of file read/write operations.",
-		[]string{"file_name", "event_name", "mode"}, nil,
-	)
-)
+var performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
+	"collect.perf_schema.file_instances.remove_prefix",
+	"Remove path prefix in performance_schema.file_summary_by_instance",
+).Default("/var/lib/mysql/").String()
 
 // ScrapePerfFileInstances collects from `performance_schema.file_summary_by_instance`.
 type ScrapePerfFileInstances struct{}
@@ -79,7 +66,7 @@ func (ScrapePerfFileInstances) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
 	if err != nil {
@@ -104,19 +91,23 @@ func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 
 		fileName = strings.TrimPrefix(fileName, *performanceSchemaFileInstancesRemovePrefix)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countRead),
+			newDescLabels(performanceSchema, "file_instances_total", "The total number of file read/write operations.", constLabels, []string{"file_name", "event_name", "mode"}),
+			prometheus.CounterValue, float64(countRead),
 			fileName, eventName, "read",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countWrite),
+			newDescLabels(performanceSchema, "file_instances_total", "The total number of file read/write operations.", constLabels, []string{"file_name", "event_name", "mode"}),
+			prometheus.CounterValue, float64(countWrite),
 			fileName, eventName, "write",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaFileInstancesBytesDesc, prometheus.CounterValue, float64(sumBytesRead),
+			newDescLabels(performanceSchema, "file_instances_bytes", "The number of bytes processed by file read/write operations.", constLabels, []string{"file_name", "event_name", "mode"}),
+			prometheus.CounterValue, float64(sumBytesRead),
 			fileName, eventName, "read",
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaFileInstancesBytesDesc, prometheus.CounterValue, float64(sumBytesWritten),
+			newDescLabels(performanceSchema, "file_instances_bytes", "The number of bytes processed by file read/write operations.", constLabels, []string{"file_name", "event_name", "mode"}),
+			prometheus.CounterValue, float64(sumBytesWritten),
 			fileName, eventName, "write",
 		)
 

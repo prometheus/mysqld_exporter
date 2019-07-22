@@ -40,7 +40,7 @@ func TestScrapeSchemaStat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSchemaStat{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapeSchemaStat{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

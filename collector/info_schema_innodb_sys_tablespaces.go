@@ -34,25 +34,6 @@ const innodbTablespacesQuery = `
 	  FROM information_schema.innodb_sys_tablespaces
 	`
 
-// Metric descriptors.
-var (
-	infoSchemaInnodbTablesspaceInfoDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_space_info"),
-		"The Tablespace information and Space ID.",
-		[]string{"tablespace_name", "file_format", "row_format", "space_type"}, nil,
-	)
-	infoSchemaInnodbTablesspaceFileSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_file_size_bytes"),
-		"The apparent size of the file, which represents the maximum size of the file, uncompressed.",
-		[]string{"tablespace_name"}, nil,
-	)
-	infoSchemaInnodbTablesspaceAllocatedSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_allocated_size_bytes"),
-		"The actual size of the file, which is the amount of space allocated on disk.",
-		[]string{"tablespace_name"}, nil,
-	)
-)
-
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
 type ScrapeInfoSchemaInnodbTablespaces struct{}
 
@@ -72,7 +53,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	tablespacesRows, err := db.QueryContext(ctx, innodbTablespacesQuery)
 	if err != nil {
 		return err
@@ -103,15 +84,18 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaInnodbTablesspaceInfoDesc, prometheus.GaugeValue, float64(tableSpace),
+			newDescLabels(informationSchema, "innodb_tablespace_space_info", "The Tablespace information and Space ID.", constLabels, []string{"tablespace_name", "file_format", "row_format", "space_type"}),
+			prometheus.GaugeValue, float64(tableSpace),
 			tableName, fileFormat, rowFormat, spaceType,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaInnodbTablesspaceFileSizeDesc, prometheus.GaugeValue, float64(fileSize),
+			newDescLabels(informationSchema, "innodb_tablespace_file_size_bytes", "The apparent size of the file, which represents the maximum size of the file, uncompressed.", constLabels, []string{"tablespace_name"}),
+			prometheus.GaugeValue, float64(fileSize),
 			tableName,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaInnodbTablesspaceAllocatedSizeDesc, prometheus.GaugeValue, float64(allocatedSize),
+			newDescLabels(informationSchema, "innodb_tablespace_allocated_size_bytes", "The actual size of the file, which is the amount of space allocated on disk.", constLabels, []string{"tablespace_name"}),
+			prometheus.GaugeValue, float64(allocatedSize),
 			tableName,
 		)
 	}

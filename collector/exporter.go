@@ -61,28 +61,20 @@ var (
 	).Default("false").Bool()
 )
 
-// Metric descriptors.
-var (
-	scrapeDurationDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
-		"Collector time duration.",
-		[]string{"collector"}, nil,
-	)
-)
-
 // Verify if Exporter implements prometheus.Collector
 var _ prometheus.Collector = (*Exporter)(nil)
 
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
-	ctx      context.Context
-	dsn      string
-	scrapers []Scraper
-	metrics  Metrics
+	ctx         context.Context
+	dsn         string
+	scrapers    []Scraper
+	metrics     Metrics
+	constLabels prometheus.Labels
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper) *Exporter {
+func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper, constLabels prometheus.Labels) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -98,10 +90,11 @@ func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper) *
 	dsn += strings.Join(dsnParams, "&")
 
 	return &Exporter{
-		ctx:      ctx,
-		dsn:      dsn,
-		scrapers: scrapers,
-		metrics:  metrics,
+		ctx:         ctx,
+		dsn:         dsn,
+		scrapers:    scrapers,
+		metrics:     metrics,
+		constLabels: constLabels,
 	}
 }
 
@@ -152,6 +145,9 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	e.metrics.MySQLUp.Set(1)
 	e.metrics.Error.Set(0)
 
+	scrapeDurationDesc := newDescLabels(
+		exporter, "collector_duration_seconds", "Collector time duration.", e.constLabels, []string{"collector"},
+	)
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
 	version := getMySQLVersion(db)
@@ -167,7 +163,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(ctx, db, ch); err != nil {
+			if err := scraper.Scrape(ctx, db, ch, e.constLabels); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)
@@ -199,31 +195,35 @@ type Metrics struct {
 }
 
 // NewMetrics creates new Metrics instance.
-func NewMetrics() Metrics {
+func NewMetrics(constLabels prometheus.Labels) Metrics {
 	subsystem := exporter
 	return Metrics{
 		TotalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "scrapes_total",
-			Help:      "Total number of times MySQL was scraped for metrics.",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			Name:        "scrapes_total",
+			Help:        "Total number of times MySQL was scraped for metrics.",
+			ConstLabels: constLabels,
 		}),
 		ScrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "scrape_errors_total",
-			Help:      "Total number of times an error occurred scraping a MySQL.",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			Name:        "scrape_errors_total",
+			Help:        "Total number of times an error occurred scraping a MySQL.",
+			ConstLabels: constLabels,
 		}, []string{"collector"}),
 		Error: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: subsystem,
-			Name:      "last_scrape_error",
-			Help:      "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+			Namespace:   namespace,
+			Subsystem:   subsystem,
+			Name:        "last_scrape_error",
+			Help:        "Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
+			ConstLabels: constLabels,
 		}),
 		MySQLUp: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "up",
-			Help:      "Whether the MySQL server is up.",
+			Namespace:   namespace,
+			Name:        "up",
+			Help:        "Whether the MySQL server is up.",
+			ConstLabels: constLabels,
 		}),
 	}
 }

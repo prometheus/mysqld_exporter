@@ -68,7 +68,7 @@ func (ScrapeSlaveStatus) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
 	var (
 		slaveStatusRows *sql.Rows
 		err             error
@@ -119,12 +119,7 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		for i, col := range slaveCols {
 			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
 				ch <- prometheus.MustNewConstMetric(
-					prometheus.NewDesc(
-						prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(col)),
-						"Generic metric from SHOW SLAVE STATUS.",
-						[]string{"master_host", "master_uuid", "channel_name", "connection_name"},
-						nil,
-					),
+					newDescLabels(slaveStatus, strings.ToLower(col), "Generic metric from SHOW SLAVE STATUS.", constLabels, []string{"master_host", "master_uuid", "channel_name", "connection_name"}),
 					prometheus.UntypedValue,
 					value,
 					masterHost, masterUUID, channelName, connectionName,

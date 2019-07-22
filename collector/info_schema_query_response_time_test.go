@@ -51,7 +51,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeQueryResponseTime{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapeQueryResponseTime{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -73,7 +73,8 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 		100000: 4528,
 		1e+06:  4528,
 	}
-	expectHistogram := prometheus.MustNewConstHistogram(infoSchemaQueryResponseTimeCountDescs[0],
+	expectHistogram := prometheus.MustNewConstHistogram(
+		newDesc(informationSchema, "query_response_time_seconds", "The number of all queries by duration they took to execute.", prometheus.Labels{}),
 		4528, 1.5773549999999998, expectCounts)
 	expectPb := &dto.Metric{}
 	expectHistogram.Write(expectPb)

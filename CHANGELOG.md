@@ -9,6 +9,12 @@
 * [ENHANCEMENT]
 * [FEATURE]
 
+## 0.12.1 / 2019-07-10
+
+### Changes:
+
+* Rebuild to update Docker packages.
+
 ## 0.12.0 / 2019-07-10
 
 ### BREAKING CHANGES:

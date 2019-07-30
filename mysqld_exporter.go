@@ -53,9 +53,9 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
-	tlsSkipVerify = kingpin.Flag(
-		"tls.skip-verify",
-		"Ignore hostname verification when using a tls connection.",
+	tlsInsecureSkipVerify = kingpin.Flag(
+		"tls.insecure-skip-verify",
+		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
 	dsn string
 )
@@ -155,7 +155,7 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 		certPairs = append(certPairs, keypair)
 		tlsCfg.Certificates = certPairs
 
-		if *tlsSkipVerify {
+		if *tlsInsecureSkipVerify {
 			tlsCfg.InsecureSkipVerify = true
 		}
 	}

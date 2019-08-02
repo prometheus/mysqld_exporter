@@ -65,7 +65,7 @@ collect.info_schema.innodb_cmpmem                            | 5.5           | C
 collect.info_schema.processlist                              | 5.1           | Collect thread state counts from information_schema.processlist.
 collect.info_schema.processlist.min_time                     | 5.1           | Minimum time a thread must be in each state to be counted. (default: 0)
 collect.info_schema.query_response_time                      | 5.5           | Collect query response time distribution if query_response_time_stats is ON.
-collect.info_schema.tables                                   | 5.1           | Collect metrics from information_schema.tables (Enabled by default)
+collect.info_schema.tables                                   | 5.1           | Collect metrics from information_schema.tables.
 collect.info_schema.tables.databases                         | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
 collect.info_schema.tablestats                               | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.schemastats                              | 5.1           | If running with userstat=1, set to true to collect schema statistics

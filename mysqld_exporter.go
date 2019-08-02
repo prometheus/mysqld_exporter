@@ -53,6 +53,10 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	tlsInsecureSkipVerify = kingpin.Flag(
+		"tls.insecure-skip-verify",
+		"Ignore certificate and server verification when using a tls connection.",
+	).Bool()
 	dsn string
 )
 
@@ -150,6 +154,7 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 		}
 		certPairs = append(certPairs, keypair)
 		tlsCfg.Certificates = certPairs
+		tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
 	}
 	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil

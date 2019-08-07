@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// https://jira.percona.com/browse/PMM-4001 explains STRAIGHT_JOIN usage.
 const infoSchemaAutoIncrementQuery = `
 		SELECT t.table_schema, t.table_name, column_name, ` + "`auto_increment`" + `,
 		  pow(2, case data_type

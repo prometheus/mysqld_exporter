@@ -2,12 +2,31 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:f3793f8a708522400cef1dba23385e901aede5519f68971fd69938ef330b07a1"
+  name = "github.com/alecthomas/template"
+  packages = [
+    ".",
+    "parse",
+  ]
+  pruneopts = "NUT"
+  revision = "fb15b899a75114aa79cc930e33c46b577cc664b1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:fdd419e104ec26bb5bd63cc62637c640453ed2929a7453f3afadbd9a0223da66"
+  name = "github.com/alecthomas/units"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "c3de453c63f4bdb4dadffab9805ec00426c505f7"
+
+[[projects]]
   digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   pruneopts = "NUT"
-  revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
-  version = "v1.0.0"
+  revision = "37c8de3658fcb183f997c4e13e8337516ab753e6"
+  version = "v1.0.1"
 
 [[projects]]
   digest = "1:13e9a236e56e18fecb73f5b2f2eb7f60060a1a9bc27e5a7328ab22e275ecb63e"
@@ -18,12 +37,12 @@
   version = "v1.4.1"
 
 [[projects]]
-  digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
+  digest = "1:573ca21d3669500ff845bdebee890eb7fc7f0f50c59f2132f2a0c6b03d85086a"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   pruneopts = "NUT"
-  revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
-  version = "v1.3.1"
+  revision = "6c65a5562fc06764971b7c5d05c76c75e84bdbf7"
+  version = "v1.3.2"
 
 [[projects]]
   branch = "master"
@@ -58,7 +77,15 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:09fd8d3e830bac0a0e2d1f7009fe33a0c435ee14ae818be9cc9ceb5f77da18ae"
+  digest = "1:af6e8256d0883d4e0f184cac946a13f901c219569246555eadf824655a709284"
+  name = "github.com/percona/exporter_shared"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "f41f4d077d01885b45c4baa984b834e450725707"
+  version = "v0.5.0"
+
+[[projects]]
+  digest = "1:097cc61836050f45cbb712ae3bb45d66fba464c16b8fac09907fa3c1f753eff6"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -66,8 +93,8 @@
     "prometheus/promhttp",
   ]
   pruneopts = "NUT"
-  revision = "50c4339db732beb2165735d2cde0bff78eb3c5a5"
-  version = "v0.9.3"
+  revision = "170205fb58decfd011f1550d4cfb737230d7ae4f"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -91,23 +118,23 @@
   revision = "185c63bfc5a8c7a703687edb52940c895c818cb5"
 
 [[projects]]
-  branch = "master"
-  digest = "1:a03dbb895fbe7b020c678994c81942bf2e1fea8f00593f82be6918b574c4a34e"
+  digest = "1:19305fc369377c111c865a7a01e11c675c57c52a932353bbd4ea360bd5b72d99"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
     "internal/fs",
   ]
   pruneopts = "NUT"
-  revision = "51af30a78b0ecb1d67793630dbf35d664092e6ad"
+  revision = "3f98efb27840a48a7a2898ec80be07674d19f9c8"
+  version = "v0.0.3"
 
 [[projects]]
-  digest = "1:998e4640c25e00ccb7b2569bf94562283937b8afb3485c0e1a0a05a15330240d"
+  digest = "1:f4aaa07a6c33f2b354726d0571acbc8ca118837c75709f6353203ae1a3f8eeab"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f"
-  version = "v1.4.1"
+  revision = "839c75faf7f98a33d445d181f3018b5c3409a45e"
+  version = "v1.4.2"
 
 [[projects]]
   digest = "1:a0509115762ee481fd95b60521b4dcc5ad226c54b741a4924f4f28c0cc6aabc8"
@@ -136,7 +163,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5945f7da0e8e373e3b402c1adaa4ffffebbedf71c92f7abe77d4e5e3ecc89b22"
+  digest = "1:353ae03fe7c0c8774c8a7cb9a0d0fa4ac8e8242b2e045de901126b2766fae609"
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -145,15 +172,15 @@
     "windows/svc/eventlog",
   ]
   pruneopts = "NUT"
-  revision = "61b9204099cb1bebc803c9ffb9b2d3acd9d457d9"
+  revision = "51ab0e2deafac1f46c46ad59cf0921be2f180c3d"
 
 [[projects]]
   digest = "1:c25289f43ac4a68d88b02245742347c94f1e108c534dda442188015ff80669b3"
   name = "google.golang.org/appengine"
   packages = ["cloudsql"]
   pruneopts = "NUT"
-  revision = "4c25cacc810c02874000e4f7071286a8e96b2515"
-  version = "v1.6.0"
+  revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
+  version = "v1.6.1"
 
 [[projects]]
   digest = "1:26e56bf1243a3675608f918a1574bf0005d5263b67b84a24a5fb0946ad7a75e3"
@@ -164,12 +191,20 @@
   version = "v1.3.3"
 
 [[projects]]
-  digest = "1:d74ba1aea6244ead12e4f16d5f61a15ced9a2f2d1cae2021fbb76088b27e7afa"
+  digest = "1:22b2dee6f30bc8601f087449a2a819df8388e54e9547349c658f14d8f8c590f2"
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
+
+[[projects]]
+  digest = "1:643f6cb49dfafd006d393831dbc82df9b5ae09feb1ca2209c4905d200414c29d"
   name = "gopkg.in/ini.v1"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "c85607071cf08ca1adaf48319cd1aa322e81d8c1"
-  version = "v1.42.0"
+  revision = "d4cae42d398bc0095297fc3315669590d29166ea"
+  version = "v1.46.0"
 
 [[projects]]
   digest = "1:18108594151654e9e696b27b181b953f9a90b16bf14d253dd1b397b025a1487f"
@@ -184,6 +219,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/go-sql-driver/mysql",
+    "github.com/percona/exporter_shared",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/prometheus/client_model/go",

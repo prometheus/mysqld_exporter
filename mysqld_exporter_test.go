@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -167,6 +168,7 @@ func TestBin(t *testing.T) {
 		testLandingPage,
 		testVersion,
 		testDefaultGatherer,
+		testDebugEndpoints,
 	}
 
 	portStart := 56000
@@ -320,6 +322,44 @@ func testDefaultGatherer(t *testing.T, data bin) {
 		if !strings.Contains(got, prefix) {
 			t.Fatalf("no metric starting with %s in resolution %s", prefix, resolution)
 		}
+	}
+}
+
+func testDebugEndpoints(t *testing.T, data bin) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+	)
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	body, err := waitForBody(fmt.Sprintf("http://127.0.0.1:%d/debug/vars", data.port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]interface{}
+	if err = json.Unmarshal(body, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["cmdline"].([]interface{})[2] != fmt.Sprintf(":%d", data.port) {
+		t.Fatalf("%#v", m["cmdline"])
+	}
+
+	body, err = waitForBody(fmt.Sprintf("http://127.0.0.1:%d/debug/pprof/", data.port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte("Types of profiles available")) {
+		t.Fatalf("No pprof page at:\n%s", body)
 	}
 }
 

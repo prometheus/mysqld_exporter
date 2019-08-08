@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"regexp"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"time"
@@ -104,9 +105,14 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 		wg.Add(1)
 		go func(scraper Scraper) {
 			defer wg.Done()
+
+			defer pprof.SetGoroutineLabels(ctx)
+			scrapeCtx := pprof.WithLabels(ctx, pprof.Labels("scraper", scraper.Name()))
+			pprof.SetGoroutineLabels(scrapeCtx)
+
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(ctx, e.db, ch); err != nil {
+			if err := scraper.Scrape(scrapeCtx, e.db, ch); err != nil {
 				log.Errorln("Error scraping for "+label+":", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)

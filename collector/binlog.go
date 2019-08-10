@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -88,18 +89,35 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 	defer masterLogRows.Close()
 
 	var (
-		size     uint64
-		count    uint64
-		filename string
-		filesize uint64
+		size      uint64
+		count     uint64
+		filename  string
+		filesize  uint64
+		encrypted string
 	)
 	size = 0
 	count = 0
 
+	columns, err := masterLogRows.Columns()
+	if err != nil {
+		return err
+	}
+	columnCount := len(columns)
+
 	for masterLogRows.Next() {
-		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-			return nil
+		switch columnCount {
+		case 2:
+			if err := masterLogRows.Scan(&filename, &filesize); err != nil {
+				return nil
+			}
+		case 3:
+			if err := masterLogRows.Scan(&filename, &filesize, &encrypted); err != nil {
+				return nil
+			}
+		default:
+			return fmt.Errorf("invalid number of columns: %q", columnCount)
 		}
+
 		size += filesize
 		count++
 	}

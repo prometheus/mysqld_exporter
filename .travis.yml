@@ -30,5 +30,5 @@ before_script:
 - docker-compose up -d
 
 script:
-- make
+- make build
 - make test

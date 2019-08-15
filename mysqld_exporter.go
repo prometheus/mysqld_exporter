@@ -160,6 +160,16 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 	return nil
 }
 
+func getdsnByRequest(r *http.Request)string{
+	user := r.URL.Query().Get("user")
+	password := r.URL.Query().Get("pass")
+	host := r.URL.Query().Get("host")
+	port := r.URL.Query().Get("port")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, host, port)
+	return dsn
+}
+
+
 func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
@@ -211,7 +221,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 				}
 			}
 		}
-
+		
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers))
 
@@ -224,6 +234,72 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 		h.ServeHTTP(w, r)
 	}
 }
+
+func newScrapHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		filteredScrapers := scrapers
+		params := r.URL.Query()["collect[]"]
+		// Use request context for cancellation when connection gets closed.
+		ctx := r.Context()
+		// If a timeout is configured via the Prometheus header, add it to the context.
+		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+			timeoutSeconds, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
+			} else {
+				if *timeoutOffset >= timeoutSeconds {
+					// Ignore timeout offset if it doesn't leave time to scrape.
+					log.Errorf(
+						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
+						*timeoutOffset,
+						timeoutSeconds,
+					)
+				} else {
+					// Subtract timeout offset from timeout.
+					timeoutSeconds -= *timeoutOffset
+				}
+				// Create new timeout context with request context as parent.
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
+				defer cancel()
+				// Overwrite request with timeout context.
+				r = r.WithContext(ctx)
+			}
+		}
+		log.Debugln("collect query:", params)
+
+		// Check if we have some "collect[]" query parameters.
+		if len(params) > 0 {
+			filters := make(map[string]bool)
+			for _, param := range params {
+				filters[param] = true
+			}
+
+			filteredScrapers = nil
+			for _, scraper := range scrapers {
+				if filters[scraper.Name()] {
+					filteredScrapers = append(filteredScrapers, scraper)
+				}
+			}
+		}
+		
+		uDsn := dsn
+		if str := getdsnByRequest(r); str != ""{
+			uDsn = str
+		}
+		registry := prometheus.NewRegistry()
+		registry.MustRegister(collector.New(ctx, uDsn, metrics, filteredScrapers))
+
+		gatherers := prometheus.Gatherers{
+			prometheus.DefaultGatherer,
+			registry,
+		}
+		// Delegate http serving to Prometheus client library, which will call collector.Collect.
+		h := promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
+	}
+}
+
 
 func main() {
 	// Generate ON/OFF flags for all scrapers.
@@ -270,6 +346,7 @@ func main() {
 		}
 	}
 
+
 	// Register only scrapers enabled by flag.
 	log.Infof("Enabled scrapers:")
 	enabledScrapers := []collector.Scraper{}
@@ -284,6 +361,11 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
+
+
+	handlerScrapeFunc := newScrapHandler(collector.NewMetrics(), enabledScrapers)
+	http.HandleFunc("/scrape", handlerScrapeFunc)
+
 
 	log.Infoln("Listening on", *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))

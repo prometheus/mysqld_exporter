@@ -247,6 +247,8 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 			}
 		}
 		log.Debugln("collect query:", params)
+
+		// Check if we have some "collect[]" query parameters.
 		if len(params) > 0 {
 			filters := make(map[string]bool)
 			for _, param := range params {
@@ -319,12 +321,18 @@ func main() {
 	// landingPage contains the HTML served at '/'.
 	// TODO: Make this nicer and more informative.
 	var landingPage = []byte(`<html>
-<head><title>MySQLd 3-in-1 exporter</title></head>
+<head><title>MySQLd exporter</title></head>
 <body>
 <h1>MySQL 3-in-1 exporter</h1>
-<li><a href="` + *metricPath + `-hr">high-res metrics</a></li>
-<li><a href="` + *metricPath + `-mr">medium-res metrics</a></li>
-<li><a href="` + *metricPath + `-lr">low-res metrics</a></li>
+<ul>
+	<li><a href="` + *metricPath + `-hr">high-res metrics</a></li>
+	<li><a href="` + *metricPath + `-mr">medium-res metrics</a></li>
+	<li><a href="` + *metricPath + `-lr">low-res metrics</a></li>
+</ul>
+<h1>MySQL exporter</h1>
+<ul>
+	<li><a href="` + *metricPath + `">all metrics</a></li>
+</ul>
 </body>
 </html>
 `)
@@ -406,10 +414,15 @@ func main() {
 	mux := http.DefaultServeMux
 
 	// Defines what to scrape in each resolution.
-	hr, mr, lr := enabledScrapers(scraperFlags)
+	all, hr, mr, lr := enabledScrapers(scraperFlags)
+
+	// TODO: Remove later. It's here for backward compatibility. See: https://jira.percona.com/browse/PMM-2180.
 	mux.Handle(*metricPath+"-hr", newHandler(cfg, db, collector.NewMetrics("hr"), hr, true))
 	mux.Handle(*metricPath+"-mr", newHandler(cfg, db, collector.NewMetrics("mr"), mr, false))
 	mux.Handle(*metricPath+"-lr", newHandler(cfg, db, collector.NewMetrics("lr"), lr, false))
+
+	// Handle all metrics on one endpoint.
+	mux.Handle(*metricPath, newHandler(cfg, db, collector.NewMetrics(""), all, true))
 
 	// Log which scrapers are enabled.
 	if len(hr) > 0 {
@@ -427,6 +440,12 @@ func main() {
 	if len(lr) > 0 {
 		log.Infof("Enabled Low Resolution scrapers:")
 		for _, scraper := range lr {
+			log.Infof(" --collect.%s", scraper.Name())
+		}
+	}
+	if len(all) > 0 {
+		log.Infof("Enabled Resolution Independent scrapers:")
+		for _, scraper := range all {
 			log.Infof(" --collect.%s", scraper.Name())
 		}
 	}
@@ -457,9 +476,12 @@ func main() {
 	}
 }
 
-func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []collector.Scraper) {
+func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (all, hr, mr, lr []collector.Scraper) {
 	for scraper, enabled := range scraperFlags {
 		if *collectAll || *enabled {
+			if _, ok := scrapers[scraper]; ok {
+				all = append(all, scraper)
+			}
 			if _, ok := scrapersHr[scraper]; ok {
 				hr = append(hr, scraper)
 			}
@@ -472,7 +494,7 @@ func enabledScrapers(scraperFlags map[collector.Scraper]*bool) (hr, mr, lr []col
 		}
 	}
 
-	return hr, mr, lr
+	return all, hr, mr, lr
 }
 
 func newDB(dsn string) (*sql.DB, error) {

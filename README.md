@@ -7,9 +7,9 @@
 
 Prometheus exporter for MySQL server metrics.
 
-Supported MySQL versions: 5.5 and up.
+Supported MySQL & MariaDB versions: 5.5 and up.
 
-NOTE: Not all collection methods are supported on MySQL < 5.6
+NOTE: Not all collection methods are supported on MySQL/MariaDB < 5.6
 
 ## Building and running
 

@@ -5,11 +5,11 @@ package collector
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -23,14 +23,14 @@ const (
 )
 
 var (
-	collectHeartbeatDatabase = flag.String(
-		"collect.heartbeat.database", "heartbeat",
+	collectHeartbeatDatabase = kingpin.Flag(
+		"collect.heartbeat.database",
 		"Database from where to collect heartbeat data",
-	)
-	collectHeartbeatTable = flag.String(
-		"collect.heartbeat.table", "heartbeat",
+	).Default("heartbeat").String()
+	collectHeartbeatTable = kingpin.Flag(
+		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
-	)
+	).Default("heartbeat").String()
 )
 
 // Metric descriptors.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 
@@ -34,66 +34,54 @@ const (
 )
 
 var (
-	showVersion = flag.Bool(
-		"version", false,
+	showVersion = kingpin.Flag(
+		"version",
 		"Print version information.",
-	)
-	listenAddress = flag.String(
-		"web.listen-address", ":9104",
+	).Default("false").Bool()
+	listenAddress = kingpin.Flag(
+		"web.listen-address",
 		"Address to listen on for web interface and telemetry.",
-	)
-	metricPath = flag.String(
-		"web.telemetry-path", "/metrics",
+	).Default(":9104").String()
+	metricPath = kingpin.Flag(
+		"web.telemetry-path",
 		"Path under which to expose metrics.",
-	)
-	timeoutOffset = flag.Float64(
-		"timeout-offset", 0.25,
+	).Default("/metrics").String()
+	timeoutOffset = kingpin.Flag(
+		"timeout-offset",
 		"Offset to subtract from timeout in seconds.",
-	)
-	configMycnf = flag.String(
-		"config.my-cnf", path.Join(os.Getenv("HOME"), ".my.cnf"),
+	).Default("0.25").Float64()
+	configMycnf = kingpin.Flag(
+		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
-	)
-	webAuthFile = flag.String(
-		"web.auth-file", "",
-		"Path to YAML file with server_user, server_password options for http basic auth (overrides HTTP_AUTH env var).",
-	)
-	sslCertFile = flag.String(
-		"web.ssl-cert-file", "",
-		"Path to SSL certificate file.",
-	)
-	sslKeyFile = flag.String(
-		"web.ssl-key-file", "",
-		"Path to SSL key file.",
-	)
-	exporterLockTimeout = flag.Int(
-		"exporter.lock_wait_timeout", 2,
+	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	exporterLockTimeout = kingpin.Flag(
+		"exporter.lock_wait_timeout",
 		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
-	)
-	exporterLogSlowFilter = flag.Bool(
-		"exporter.log_slow_filter", false,
+	).Default("2").Int()
+	exporterLogSlowFilter = kingpin.Flag(
+		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
-	)
-	exporterGlobalConnPool = flag.Bool(
-		"exporter.global-conn-pool", true,
+	).Default("false").Bool()
+	exporterGlobalConnPool = kingpin.Flag(
+		"exporter.global-conn-pool",
 		"Use global connection pool instead of creating new pool for each http request.",
-	)
-	exporterMaxOpenConns = flag.Int(
-		"exporter.max-open-conns", 3,
+	).Default("true").Bool()
+	exporterMaxOpenConns = kingpin.Flag(
+		"exporter.max-open-conns",
 		"Maximum number of open connections to the database. https://golang.org/pkg/database/sql/#DB.SetMaxOpenConns",
-	)
-	exporterMaxIdleConns = flag.Int(
-		"exporter.max-idle-conns", 3,
+	).Default("3").Int()
+	exporterMaxIdleConns = kingpin.Flag(
+		"exporter.max-idle-conns",
 		"Maximum number of connections in the idle connection pool. https://golang.org/pkg/database/sql/#DB.SetMaxIdleConns",
-	)
-	exporterConnMaxLifetime = flag.Duration(
-		"exporter.conn-max-lifetime", 60*time.Second,
+	).Default("3").Int()
+	exporterConnMaxLifetime = kingpin.Flag(
+		"exporter.conn-max-lifetime",
 		"Maximum amount of time a connection may be reused. https://golang.org/pkg/database/sql/#DB.SetConnMaxLifetime",
-	)
-	collectAll = flag.Bool(
-		"collect.all", false,
+	).Default("1m").Duration()
+	collectAll = kingpin.Flag(
+		"collect.all",
 		"Collect all metrics.",
-	)
+	).Default("false").Bool()
 
 	dsn string
 )
@@ -121,67 +109,76 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
 var scrapers = map[collector.Scraper]bool{
-	collector.ScrapeGlobalStatus{}:                false,
-	collector.ScrapeGlobalVariables{}:             false,
-	collector.ScrapeSlaveStatus{}:                 false,
-	collector.ScrapeProcesslist{}:                 false,
-	collector.ScrapeTableSchema{}:                 false,
-	collector.ScrapeInfoSchemaInnodbTablespaces{}: false,
-	collector.ScrapeInnodbMetrics{}:               false,
-	collector.ScrapeAutoIncrementColumns{}:        false,
-	collector.ScrapeBinlogSize{}:                  false,
-	collector.ScrapePerfTableIOWaits{}:            false,
-	collector.ScrapePerfIndexIOWaits{}:            false,
-	collector.ScrapePerfTableLockWaits{}:          false,
-	collector.ScrapePerfEventsStatements{}:        false,
-	collector.ScrapePerfEventsWaits{}:             false,
-	collector.ScrapePerfFileEvents{}:              false,
-	collector.ScrapePerfFileInstances{}:           false,
-	collector.ScrapeUserStat{}:                    false,
-	collector.ScrapeClientStat{}:                  false,
-	collector.ScrapeTableStat{}:                   false,
-	collector.ScrapeQueryResponseTime{}:           false,
-	collector.ScrapeEngineTokudbStatus{}:          false,
-	collector.ScrapeEngineInnodbStatus{}:          false,
-	collector.ScrapeHeartbeat{}:                   false,
-	collector.ScrapeInnodbCmp{}:                   false,
-	collector.ScrapeInnodbCmpMem{}:                false,
-	collector.ScrapeCustomQuery{}:                 true,
+	collector.ScrapeGlobalStatus{}:                        false,
+	collector.ScrapeGlobalVariables{}:                     false,
+	collector.ScrapeSlaveStatus{}:                         false,
+	collector.ScrapeProcesslist{}:                         false,
+	collector.ScrapeTableSchema{}:                         false,
+	collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
+	collector.ScrapeInnodbMetrics{}:                       false,
+	collector.ScrapeAutoIncrementColumns{}:                false,
+	collector.ScrapeBinlogSize{}:                          false,
+	collector.ScrapePerfTableIOWaits{}:                    false,
+	collector.ScrapePerfIndexIOWaits{}:                    false,
+	collector.ScrapePerfTableLockWaits{}:                  false,
+	collector.ScrapePerfEventsStatements{}:                false,
+	collector.ScrapePerfEventsWaits{}:                     false,
+	collector.ScrapePerfFileEvents{}:                      false,
+	collector.ScrapePerfFileInstances{}:                   false,
+	collector.ScrapeUserStat{}:                            false,
+	collector.ScrapeClientStat{}:                          false,
+	collector.ScrapeTableStat{}:                           false,
+	collector.ScrapeQueryResponseTime{}:                   false,
+	collector.ScrapeEngineTokudbStatus{}:                  false,
+	collector.ScrapeEngineInnodbStatus{}:                  false,
+	collector.ScrapeHeartbeat{}:                           false,
+	collector.ScrapeInnodbCmp{}:                           false,
+	collector.ScrapeInnodbCmpMem{}:                        false,
+	collector.ScrapeCustomQuery{Resolution: collector.HR}: false,
+	collector.ScrapeCustomQuery{Resolution: collector.MR}: false,
+	collector.ScrapeCustomQuery{Resolution: collector.LR}: false,
+	collector.NewStandardGo():                             false,
+	collector.NewStandardProcess():                        false,
 }
 
+// TODO Remove
 var scrapersHr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalStatus{}:  {},
-	collector.ScrapeInnodbMetrics{}: {},
+	collector.ScrapeGlobalStatus{}:                        {},
+	collector.ScrapeInnodbMetrics{}:                       {},
+	collector.ScrapeCustomQuery{Resolution: collector.HR}: {},
 }
 
+// TODO Remove
 var scrapersMr = map[collector.Scraper]struct{}{
-	collector.ScrapeSlaveStatus{}:        {},
-	collector.ScrapeProcesslist{}:        {},
-	collector.ScrapePerfEventsWaits{}:    {},
-	collector.ScrapePerfFileEvents{}:     {},
-	collector.ScrapePerfTableLockWaits{}: {},
-	collector.ScrapeQueryResponseTime{}:  {},
-	collector.ScrapeEngineInnodbStatus{}: {},
-	collector.ScrapeInnodbCmp{}:          {},
-	collector.ScrapeInnodbCmpMem{}:       {},
+	collector.ScrapeSlaveStatus{}:                         {},
+	collector.ScrapeProcesslist{}:                         {},
+	collector.ScrapePerfEventsWaits{}:                     {},
+	collector.ScrapePerfFileEvents{}:                      {},
+	collector.ScrapePerfTableLockWaits{}:                  {},
+	collector.ScrapeQueryResponseTime{}:                   {},
+	collector.ScrapeEngineInnodbStatus{}:                  {},
+	collector.ScrapeInnodbCmp{}:                           {},
+	collector.ScrapeInnodbCmpMem{}:                        {},
+	collector.ScrapeCustomQuery{Resolution: collector.MR}: {},
 }
 
+// TODO Remove
 var scrapersLr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalVariables{}:             {},
-	collector.ScrapeTableSchema{}:                 {},
-	collector.ScrapeAutoIncrementColumns{}:        {},
-	collector.ScrapeBinlogSize{}:                  {},
-	collector.ScrapePerfTableIOWaits{}:            {},
-	collector.ScrapePerfIndexIOWaits{}:            {},
-	collector.ScrapePerfFileInstances{}:           {},
-	collector.ScrapeUserStat{}:                    {},
-	collector.ScrapeTableStat{}:                   {},
-	collector.ScrapePerfEventsStatements{}:        {},
-	collector.ScrapeClientStat{}:                  {},
-	collector.ScrapeInfoSchemaInnodbTablespaces{}: {},
-	collector.ScrapeEngineTokudbStatus{}:          {},
-	collector.ScrapeHeartbeat{}:                   {},
-	collector.ScrapeCustomQuery{}:                 {},
+	collector.ScrapeGlobalVariables{}:                     {},
+	collector.ScrapeTableSchema{}:                         {},
+	collector.ScrapeAutoIncrementColumns{}:                {},
+	collector.ScrapeBinlogSize{}:                          {},
+	collector.ScrapePerfTableIOWaits{}:                    {},
+	collector.ScrapePerfIndexIOWaits{}:                    {},
+	collector.ScrapePerfFileInstances{}:                   {},
+	collector.ScrapeUserStat{}:                            {},
+	collector.ScrapeTableStat{}:                           {},
+	collector.ScrapePerfEventsStatements{}:                {},
+	collector.ScrapeClientStat{}:                          {},
+	collector.ScrapeInfoSchemaInnodbTablespaces{}:         {},
+	collector.ScrapeEngineTokudbStatus{}:                  {},
+	collector.ScrapeHeartbeat{}:                           {},
+	collector.ScrapeCustomQuery{Resolution: collector.LR}: {},
 }
 
 func parseMycnf(config interface{}) (string, error) {
@@ -271,6 +268,7 @@ func newHandler(cfg *webAuth, db *sql.DB, metrics collector.Metrics, scrapers []
 			db, err = newDB(dsn)
 			if err != nil {
 				log.Fatalln("Error opening connection to database:", err)
+				return
 			}
 			defer db.Close()
 		}
@@ -302,16 +300,16 @@ func main() {
 	// Generate ON/OFF flags for all scrapers.
 	scraperFlags := map[collector.Scraper]*bool{}
 	for scraper, enabledByDefault := range scrapers {
-		f := flag.Bool(
-			"collect."+scraper.Name(), enabledByDefault,
+		f := kingpin.Flag(
+			"collect."+scraper.Name(),
 			scraper.Help(),
-		)
+		).Default(strconv.FormatBool(enabledByDefault)).Bool()
 
 		scraperFlags[scraper] = f
 	}
 
 	// Parse flags.
-	flag.Parse()
+	kingpin.Parse()
 
 	if *showVersion {
 		fmt.Fprintln(os.Stdout, version.Print("mysqld_exporter"))
@@ -346,6 +344,7 @@ func main() {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
 			log.Fatal(err)
+			return
 		}
 	}
 
@@ -369,24 +368,34 @@ func main() {
 		db, err = newDB(dsn)
 		if err != nil {
 			log.Fatalln("Error opening connection to database:", err)
+			return
 		}
 		defer db.Close()
 	}
 
 	cfg := &webAuth{}
 	httpAuth := os.Getenv("HTTP_AUTH")
+
+	// Those flags defined in "github.com/percona/exporter_shared"
+	webAuthFile := kingpin.CommandLine.GetFlag("web.auth-file").Default("").String()
+	sslCertFile := kingpin.CommandLine.GetFlag("web.ssl-cert-file").Default("").String()
+	sslKeyFile := kingpin.CommandLine.GetFlag("web.ssl-key-file").Default("").String()
+
 	if *webAuthFile != "" {
 		bytes, err := ioutil.ReadFile(*webAuthFile)
 		if err != nil {
 			log.Fatal("Cannot read auth file: ", err)
+			return
 		}
 		if err := yaml.Unmarshal(bytes, cfg); err != nil {
 			log.Fatal("Cannot parse auth file: ", err)
+			return
 		}
 	} else if httpAuth != "" {
 		data := strings.SplitN(httpAuth, ":", 2)
 		if len(data) != 2 || data[0] == "" || data[1] == "" {
 			log.Fatal("HTTP_AUTH should be formatted as user:password")
+			return
 		}
 		cfg.User = data[0]
 		cfg.Password = data[1]
@@ -397,14 +406,17 @@ func main() {
 
 	if *sslCertFile != "" && *sslKeyFile == "" || *sslCertFile == "" && *sslKeyFile != "" {
 		log.Fatal("One of the flags -web.ssl-cert or -web.ssl-key is missed to enable HTTPS/TLS")
+		return
 	}
 	ssl := false
 	if *sslCertFile != "" && *sslKeyFile != "" {
 		if _, err := os.Stat(*sslCertFile); os.IsNotExist(err) {
 			log.Fatal("SSL certificate file does not exist: ", *sslCertFile)
+			return
 		}
 		if _, err := os.Stat(*sslKeyFile); os.IsNotExist(err) {
 			log.Fatal("SSL key file does not exist: ", *sslKeyFile)
+			return
 		}
 		ssl = true
 		log.Infoln("HTTPS/TLS is enabled")
@@ -422,7 +434,7 @@ func main() {
 	mux.Handle(*metricPath+"-lr", newHandler(cfg, db, collector.NewMetrics("lr"), lr, false))
 
 	// Handle all metrics on one endpoint.
-	mux.Handle(*metricPath, newHandler(cfg, db, collector.NewMetrics(""), all, true))
+	mux.Handle(*metricPath, newHandler(cfg, db, collector.NewMetrics(""), all, false))
 
 	// Log which scrapers are enabled.
 	if len(hr) > 0 {

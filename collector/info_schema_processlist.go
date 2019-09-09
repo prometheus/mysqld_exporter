@@ -5,11 +5,11 @@ package collector
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const infoSchemaProcesslistQuery = `
@@ -23,10 +23,10 @@ const infoSchemaProcesslistQuery = `
 
 var (
 	// Tunable flags.
-	processlistMinTime = flag.Int(
-		"collect.info_schema.processlist.min_time", 0,
+	processlistMinTime = kingpin.Flag(
+		"collect.info_schema.processlist.min_time",
 		"Minimum time a thread must be in each state to be counted",
-	)
+	).Default("0").Int()
 	// Prometheus descriptors.
 	processlistCountDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "threads"),
@@ -59,10 +59,10 @@ var (
 		"deleting":                  uint32(0),
 		"executing":                 uint32(0),
 		"execution of init_command": uint32(0),
-		"end":                     uint32(0),
-		"freeing items":           uint32(0),
-		"flushing tables":         uint32(0),
-		"fulltext initialization": uint32(0),
+		"end":                       uint32(0),
+		"freeing items":             uint32(0),
+		"flushing tables":           uint32(0),
+		"fulltext initialization":   uint32(0),
 		"idle":                      uint32(0),
 		"init":                      uint32(0),
 		"killed":                    uint32(0),
@@ -97,8 +97,8 @@ var (
 		"other":                     uint32(0),
 	}
 	threadStateMapping = map[string]string{
-		"user sleep":                               "idle",
-		"creating index":                           "altering table",
+		"user sleep":     "idle",
+		"creating index": "altering table",
 		"committing alter table to storage engine": "altering table",
 		"discard or import tablespace":             "altering table",
 		"rename":                                   "altering table",

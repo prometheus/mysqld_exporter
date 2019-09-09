@@ -6,10 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"math"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,14 +17,23 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
 
 var (
-	userQueriesPath = flag.String(
-		"queries-file-name", "/usr/local/percona/pmm-client/queries-mysqld.yml", // Default path.
-		"Path to custom queries file.",
-	)
+	collectCustomQueryLrDirectory = kingpin.Flag(
+		"collect.custom_query.lr.directory",
+		"Path to custom queries with low resolution directory.",
+	).String()
+	collectCustomQueryMrDirectory = kingpin.Flag(
+		"collect.custom_query.mr.directory",
+		"Path to custom queries with medium resolution directory.",
+	).String()
+	collectCustomQueryHrDirectory = kingpin.Flag(
+		"collect.custom_query.hr.directory",
+		"Path to custom queries with high resolution directory.",
+	).String()
 )
 
 // ColumnUsage should be one of several enum values which describe how a
@@ -38,6 +47,14 @@ const (
 	gauge                           // Use this column as a gauge.
 	mappedMetric                    // Use this column with the supplied mapping of text values.
 	duration                        // This column should be interpreted as a text duration.
+)
+
+type MetricResolution string
+
+const (
+	LR MetricResolution = "lr"
+	MR MetricResolution = "mr"
+	HR MetricResolution = "hr"
 )
 
 // ColumnMapping is the user-friendly representation of a prometheus descriptor map.
@@ -70,16 +87,18 @@ type CustomQuery struct {
 }
 
 // ScrapeCustomQuery colects the metrics from custom queries.
-type ScrapeCustomQuery struct{}
+type ScrapeCustomQuery struct {
+	Resolution MetricResolution
+}
 
 // Name of the Scraper.
 func (scq ScrapeCustomQuery) Name() string {
-	return "custom_query"
+	return fmt.Sprintf("%s.%s", "custom_query", scq.Resolution)
 }
 
 // Help returns additional information about Scraper.
 func (scq ScrapeCustomQuery) Help() string {
-	return "Collect the metrics from custom queries."
+	return fmt.Sprintf("Collect the metrics from custom queries for %s resolution.", scq.Resolution)
 }
 
 // Version of MySQL from which scraper is available.
@@ -93,16 +112,37 @@ func (scq ScrapeCustomQuery) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 		customMetricMap: make(map[string]MetricMapNamespace),
 		customQueryMap:  make(map[string]string),
 	}
-	userQueriesData, err := ioutil.ReadFile(*userQueriesPath)
-	if err != nil {
-		return fmt.Errorf("failed to open custom queries:%s", err.Error())
+
+	dirs := map[MetricResolution]*string{
+		LR: collectCustomQueryLrDirectory,
+		MR: collectCustomQueryMrDirectory,
+		HR: collectCustomQueryHrDirectory,
 	}
 
-	cq.mappingMtx.Lock()
-	err = addQueries(userQueriesData, cq.customMetricMap, cq.customQueryMap)
-	cq.mappingMtx.Unlock()
+	fi, err := ioutil.ReadDir(*dirs[scq.Resolution])
 	if err != nil {
-		return fmt.Errorf("failed to add custom queries:%s", err)
+		return fmt.Errorf("failed read dir %q for custom query. reason: %s", *dirs[scq.Resolution], err)
+	}
+
+	for _, v := range fi {
+		if v.IsDir() {
+			continue
+		}
+
+		if filepath.Ext(v.Name()) == ".yml" || filepath.Ext(v.Name()) == ".yaml" {
+			path := filepath.Join(*dirs[scq.Resolution], v.Name())
+			userQueriesData, err := ioutil.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("failed to open custom queries:%s", err.Error())
+			}
+
+			cq.mappingMtx.Lock()
+			err = addQueries(userQueriesData, cq.customMetricMap, cq.customQueryMap)
+			cq.mappingMtx.Unlock()
+			if err != nil {
+				return fmt.Errorf("failed to add custom queries:%s", err)
+			}
+		}
 	}
 
 	cq.mappingMtx.RLock()

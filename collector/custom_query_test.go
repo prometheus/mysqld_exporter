@@ -2,16 +2,17 @@ package collector
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const customQueryCounter = `
@@ -30,14 +31,19 @@ experiment_garden:
 func TestScrapeCustomQueriesCounter(t *testing.T) {
 	convey.Convey("Custom queries counter", t, func() {
 
-		tmpFileName := createTmpFile(t, customQueryCounter)
+		tmpFileName := createTmpFile(t, string(HR), customQueryCounter)
 		defer os.Remove(tmpFileName)
 
-		err := flag.Set("queries-file-name", tmpFileName)
+		_, err := kingpin.CommandLine.Parse([]string{
+			"--collect.custom_query.hr.directory", filepath.Dir(tmpFileName),
+		})
 		if err != nil {
-			t.Fatalf("cannot set flag: %s", err)
+			t.Fatal(err)
 		}
-		flag.Parse()
+
+		defer os.Remove(*collectCustomQueryHrDirectory)
+
+
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)
@@ -54,7 +60,7 @@ func TestScrapeCustomQueriesCounter(t *testing.T) {
 
 		ch := make(chan prometheus.Metric)
 		go func() {
-			if err = (ScrapeCustomQuery{}).Scrape(context.Background(), db, ch); err != nil {
+			if err = (ScrapeCustomQuery{Resolution: HR}).Scrape(context.Background(), db, ch); err != nil {
 				t.Errorf("error calling function on test: %s", err)
 			}
 			close(ch)
@@ -96,14 +102,12 @@ experiment_garden:
 func TestScrapeCustomQueriesDuration(t *testing.T) {
 	convey.Convey("Custom queries duration", t, func() {
 
-		tmpFileName := createTmpFile(t, customQueryDuration)
+		tmpFileName := createTmpFile(t, string(HR), customQueryDuration)
 		defer os.Remove(tmpFileName)
 
-		err := flag.Set("queries-file-name", tmpFileName)
-		if err != nil {
-			t.Fatalf("cannot set flag: %s", err)
-		}
-		flag.Parse()
+		*collectCustomQueryHrDirectory = filepath.Dir(tmpFileName)
+		defer os.Remove(*collectCustomQueryHrDirectory)
+
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)
@@ -120,7 +124,7 @@ func TestScrapeCustomQueriesDuration(t *testing.T) {
 
 		ch := make(chan prometheus.Metric)
 		go func() {
-			if err = (ScrapeCustomQuery{}).Scrape(context.Background(), db, ch); err != nil {
+			if err = (ScrapeCustomQuery{Resolution: HR}).Scrape(context.Background(), db, ch); err != nil {
 				t.Errorf("error calling function on test: %s", err)
 			}
 			close(ch)
@@ -162,14 +166,12 @@ experiment_garden:
 func TestScrapeCustomQueriesDbError(t *testing.T) {
 	convey.Convey("Custom queries db error", t, func() {
 
-		tmpFileName := createTmpFile(t, customQueryNoDb)
+		tmpFileName := createTmpFile(t, string(HR), customQueryNoDb)
 		defer os.Remove(tmpFileName)
 
-		err := flag.Set("queries-file-name", tmpFileName)
-		if err != nil {
-			t.Fatalf("cannot set flag: %s", err)
-		}
-		flag.Parse()
+		*collectCustomQueryHrDirectory = filepath.Dir(tmpFileName)
+		defer os.Remove(*collectCustomQueryHrDirectory)
+
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)
@@ -183,7 +185,7 @@ func TestScrapeCustomQueriesDbError(t *testing.T) {
 
 		expectedErr := "experiment_garden:error running query on database: experiment_garden, ERROR 1049 (42000): Unknown database 'non_existed_experiment'"
 		convey.Convey("Should raise error ", func() {
-			err = (ScrapeCustomQuery{}).Scrape(context.Background(), db, ch)
+			err = (ScrapeCustomQuery{Resolution: HR}).Scrape(context.Background(), db, ch)
 			convey.So(err, convey.ShouldBeError, expectedErr)
 		})
 		close(ch)
@@ -197,14 +199,12 @@ const customQueryIncorrectYaml = `
 func TestScrapeCustomQueriesIncorrectYaml(t *testing.T) {
 	convey.Convey("Custom queries incorrect yaml", t, func() {
 
-		tmpFileName := createTmpFile(t, customQueryIncorrectYaml)
+		tmpFileName := createTmpFile(t, string(HR), customQueryIncorrectYaml)
 		defer os.Remove(tmpFileName)
 
-		err := flag.Set("queries-file-name", tmpFileName)
-		if err != nil {
-			t.Fatalf("cannot set flag: %s", err)
-		}
-		flag.Parse()
+		*collectCustomQueryHrDirectory = filepath.Dir(tmpFileName)
+		defer os.Remove(*collectCustomQueryHrDirectory)
+
 		db, _, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)
@@ -214,7 +214,7 @@ func TestScrapeCustomQueriesIncorrectYaml(t *testing.T) {
 		ch := make(chan prometheus.Metric)
 
 		convey.Convey("Should raise error ", func() {
-			err = (ScrapeCustomQuery{}).Scrape(context.Background(), db, ch)
+			err = (ScrapeCustomQuery{Resolution: HR}).Scrape(context.Background(), db, ch)
 			convey.So(err, convey.ShouldBeError, "failed to add custom queries:incorrect yaml format for bar")
 		})
 		close(ch)
@@ -224,25 +224,28 @@ func TestScrapeCustomQueriesIncorrectYaml(t *testing.T) {
 
 func TestScrapeCustomQueriesNoFile(t *testing.T) {
 	convey.Convey("Passed as a custom queries unexisted file or path", t, func() {
-		err := flag.Set("queries-file-name", "/wrong/path/custom_query_test.yaml")
-		if err != nil {
-			t.Fatalf("cannot set flag: %s", err)
-		}
-		flag.Parse()
+
+		*collectCustomQueryHrDirectory = "/wrong/path"
+
 		db, _, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)
 		}
 		ch := make(chan prometheus.Metric)
-		err = (ScrapeCustomQuery{}).Scrape(context.Background(), db, ch)
+		err = (ScrapeCustomQuery{Resolution: HR}).Scrape(context.Background(), db, ch)
 		close(ch)
-		convey.So(err, convey.ShouldBeError, "failed to open custom queries:open /wrong/path/custom_query_test.yaml: no such file or directory")
+		convey.So(err, convey.ShouldBeError, "failed read dir \"/wrong/path\" for custom query. reason: open /wrong/path: no such file or directory")
 	})
 }
 
-func createTmpFile(t *testing.T, content string) string {
+func createTmpFile(t *testing.T, resolution, content string) string {
 	// Create our Temp File
-	tmpFile, err := ioutil.TempFile("", "custom_queries.*.yaml")
+	tempDir := os.TempDir() + "/" + resolution
+	err := os.MkdirAll(tempDir, os.ModePerm)
+	if err != nil {
+		t.Fatalf("Cannot create temporary directory: %s", err)
+	}
+	tmpFile, err := ioutil.TempFile(tempDir, "custom_queries.*.yaml")
 	if err != nil {
 		t.Fatalf("Cannot create temporary file: %s", err)
 	}

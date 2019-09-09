@@ -50,7 +50,7 @@
   name = "github.com/gopherjs/gopherjs"
   packages = ["js"]
   pruneopts = "NUT"
-  revision = "3e4dfb77656c424b6d1196a4d5fed0fcf63677cc"
+  revision = "5d271430af9f3def750dcd7d6fc19eecfead4d2c"
 
 [[projects]]
   digest = "1:395b1480ae42c3fec6fff19823e66e173819f85826811387f9045c88515a7f0f"
@@ -102,10 +102,10 @@
   name = "github.com/prometheus/client_model"
   packages = ["go"]
   pruneopts = "NUT"
-  revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
+  revision = "14fe0d1b01d4d5fc031dd4bec1823bd3ebbe8016"
 
 [[projects]]
-  digest = "1:8fd8833b63ca6950df73a2cbefcdbd78bf00886db68e0371eff5176a83e7b49a"
+  digest = "1:e8a0bc9da663fc125f774c5ec3f127cc5e18c90983a521d7c375a0e5e44fbbc8"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -115,7 +115,8 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "185c63bfc5a8c7a703687edb52940c895c818cb5"
+  revision = "31bed53e4047fd6c510e43a941f90cb31be0972a"
+  version = "v0.6.0"
 
 [[projects]]
   digest = "1:19305fc369377c111c865a7a01e11c675c57c52a932353bbd4ea360bd5b72d99"
@@ -163,7 +164,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:353ae03fe7c0c8774c8a7cb9a0d0fa4ac8e8242b2e045de901126b2766fae609"
+  digest = "1:180fc82c4b5ed9fda777d606ca3fa10dc422eef8d54d9995c5b27614a9fe74b3"
   name = "golang.org/x/sys"
   packages = [
     "unix",
@@ -172,7 +173,7 @@
     "windows/svc/eventlog",
   ]
   pruneopts = "NUT"
-  revision = "51ab0e2deafac1f46c46ad59cf0921be2f180c3d"
+  revision = "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
 
 [[projects]]
   digest = "1:c25289f43ac4a68d88b02245742347c94f1e108c534dda442188015ff80669b3"
@@ -228,6 +229,7 @@
     "github.com/prometheus/common/version",
     "github.com/smartystreets/goconvey/convey",
     "gopkg.in/DATA-DOG/go-sqlmock.v1",
+    "gopkg.in/alecthomas/kingpin.v2",
     "gopkg.in/ini.v1",
     "gopkg.in/yaml.v2",
   ]

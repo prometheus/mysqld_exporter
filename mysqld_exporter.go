@@ -25,10 +25,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
@@ -129,7 +132,6 @@ func parseMycnf(config interface{}) (string, error) {
 		dsn = fmt.Sprintf("%s?tls=custom", dsn)
 	}
 
-	log.Debugln(dsn)
 	return dsn, nil
 }
 
@@ -164,7 +166,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.HandlerFunc {
+func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
 		params := r.URL.Query()["collect[]"]
@@ -174,15 +176,11 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
 			timeoutSeconds, err := strconv.ParseFloat(v, 64)
 			if err != nil {
-				log.Errorf("Failed to parse timeout from Prometheus header: %s", err)
+				level.Error(logger).Log("msg", "Failed to parse timeout from Prometheus header", "err", err)
 			} else {
 				if *timeoutOffset >= timeoutSeconds {
 					// Ignore timeout offset if it doesn't leave time to scrape.
-					log.Errorf(
-						"Timeout offset (--timeout-offset=%.2f) should be lower than prometheus scrape time (X-Prometheus-Scrape-Timeout-Seconds=%.2f).",
-						*timeoutOffset,
-						timeoutSeconds,
-					)
+					level.Error(logger).Log("msg", "Timeout offset should be lower than prometheus scrape timeout", "offset", *timeoutOffset, "prometheus_scrape_timeout", timeoutSeconds)
 				} else {
 					// Subtract timeout offset from timeout.
 					timeoutSeconds -= *timeoutOffset
@@ -195,7 +193,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 				r = r.WithContext(ctx)
 			}
 		}
-		log.Debugln("collect query:", params)
+		level.Debug(logger).Log("msg", "collect[] params", "params", params)
 
 		// Check if we have some "collect[]" query parameters.
 		if len(params) > 0 {
@@ -213,7 +211,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper) http.Ha
 		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers))
+		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -243,10 +241,12 @@ func main() {
 	}
 
 	// Parse flags.
-	log.AddFlags(kingpin.CommandLine)
+	promlogConfig := &promlog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("mysqld_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+	logger := promlog.New(promlogConfig)
 
 	// landingPage contains the HTML served at '/'.
 	// TODO: Make this nicer and more informative.
@@ -259,32 +259,35 @@ func main() {
 </html>
 `)
 
-	log.Infoln("Starting mysqld_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
+	level.Info(logger).Log("msg", "Starting msqyld_exporter", "version", version.Info())
+	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
 	dsn = os.Getenv("DATA_SOURCE_NAME")
 	if len(dsn) == 0 {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			log.Fatal(err)
+			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+			os.Exit(1)
 		}
 	}
 
 	// Register only scrapers enabled by flag.
-	log.Infof("Enabled scrapers:")
 	enabledScrapers := []collector.Scraper{}
 	for scraper, enabled := range scraperFlags {
 		if *enabled {
-			log.Infof(" --collect.%s", scraper.Name())
+			level.Info(logger).Log("msg", "Scraper enabled", "scraper", scraper.Name())
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers)
+	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
 	http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
 
-	log.Infoln("Listening on", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
+	if err := http.ListenAndServe(*listenAddress, nil); err != nil {
+		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
+		os.Exit(1)
+	}
 }

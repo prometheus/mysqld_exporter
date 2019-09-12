@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -176,7 +177,7 @@ func (ScrapeProcesslist) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,

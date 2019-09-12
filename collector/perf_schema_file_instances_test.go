@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -47,7 +48,7 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

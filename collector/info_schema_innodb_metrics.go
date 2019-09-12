@@ -20,8 +20,9 @@ import (
 	"database/sql"
 	"regexp"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 const infoSchemaInnodbMetricsQuery = `
@@ -81,7 +82,7 @@ func (ScrapeInnodbMetrics) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	innodbMetricsRows, err := db.QueryContext(ctx, infoSchemaInnodbMetricsQuery)
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 		if subsystem == "buffer_page_io" {
 			match := bufferPageRE.FindStringSubmatch(name)
 			if len(match) != 3 {
-				log.Warnln("innodb_metrics subsystem buffer_page_io returned an invalid name:", name)
+				level.Warn(logger).Log("msg", "innodb_metrics subsystem buffer_page_io returned an invalid name", "name", name)
 				continue
 			}
 			switch match[1] {

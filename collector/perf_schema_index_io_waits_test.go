@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -39,7 +40,7 @@ func TestScrapePerfIndexIOWaits(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfIndexIOWaits{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapePerfIndexIOWaits{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

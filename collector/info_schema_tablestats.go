@@ -19,8 +19,9 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 const tableStatQuery = `
@@ -71,15 +72,15 @@ func (ScrapeTableStat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var varName, varVal string
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
-		log.Debugln("Detailed table stats are not available.")
+		level.Debug(logger).Log("msg", "Detailed table stats are not available.")
 		return nil
 	}
 	if varVal == "OFF" {
-		log.Debugf("MySQL @@%s is OFF.", varName)
+		level.Debug(logger).Log("msg", "MySQL variable is OFF.", "var", varName)
 		return nil
 	}
 

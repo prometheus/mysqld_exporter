@@ -70,11 +70,11 @@ var (
 	processesByUserDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
 		"The number of processes by user.",
-		[]string{"mysql_user"}, nil)
+		[]string{"mysql_user", "command"}, nil)
 	processesByHostDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_host"),
 		"The number of processes by host.",
-		[]string{"client_host"}, nil)
+		[]string{"client_host", "command"}, nil)
 )
 
 // whitelist for connection/process states in SHOW PROCESSLIST
@@ -198,8 +198,8 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 	)
 	stateCounts := make(map[string]uint32, len(threadStateCounterMap))
 	stateTime := make(map[string]uint32, len(threadStateCounterMap))
-	hostCount := make(map[string]uint32)
-	userCount := make(map[string]uint32)
+	hostCount := make(map[string]map[string]uint32)
+	userCount := make(map[string]map[string]uint32)
 	for k, v := range threadStateCounterMap {
 		stateCounts[k] = v
 		stateTime[k] = v
@@ -213,19 +213,35 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		realState := deriveThreadState(command, state)
 		stateCounts[realState] += processes
 		stateTime[realState] += time
-		hostCount[host] = hostCount[host] + processes
-		userCount[user] = userCount[user] + processes
+		if _, exits := userCount[user][command]; exits {
+			userCount[user][command] = userCount[user][command] + processes
+		} else {
+			userCommandCount := make(map[string]uint32)
+			userCommandCount[command] = processes
+			userCount[user] = userCommandCount
+		}
+		if _, exits := hostCount[host][command]; exits {
+			hostCount[host][command] = hostCount[host][command] + processes
+		} else {
+			hostCommandCount := make(map[string]uint32)
+			hostCommandCount[command] = processes
+			hostCount[host] = hostCommandCount
+		}
 	}
 
 	if *processesByHostFlag {
-		for host, processes := range hostCount {
-			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host)
+		for host, _ := range hostCount {
+			for command, processes := range hostCount[host] {
+				ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(processes), host, command)
+			}
 		}
 	}
 
 	if *processesByUserFlag {
-		for user, processes := range userCount {
-			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user)
+		for user, _ := range userCount {
+			for command, processes := range userCount[user] {
+				ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(processes), user, command)
+			}
 		}
 	}
 

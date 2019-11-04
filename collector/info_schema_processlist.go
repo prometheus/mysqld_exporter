@@ -213,14 +213,14 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		realState := deriveThreadState(command, state)
 		stateCounts[realState] += processes
 		stateTime[realState] += time
-		if _, exits := userCount[user][command]; exits {
+		if _, exits := userCount[user]; exits {
 			userCount[user][command] = userCount[user][command] + processes
 		} else {
 			userCommandCount := make(map[string]uint32)
 			userCommandCount[command] = processes
 			userCount[user] = userCommandCount
 		}
-		if _, exits := hostCount[host][command]; exits {
+		if _, exits := hostCount[host]; exits {
 			hostCount[host][command] = hostCount[host][command] + processes
 		} else {
 			hostCommandCount := make(map[string]uint32)

@@ -9,6 +9,14 @@
 * [ENHANCEMENT]
 * [FEATURE]
 
+* [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors (PR #417) #348
+
+## 0.12.1 / 2019-07-10
+
+### Changes:
+
+* Rebuild to update Docker packages.
+
 ## 0.12.0 / 2019-07-10
 
 ### BREAKING CHANGES:

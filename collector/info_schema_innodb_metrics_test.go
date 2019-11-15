@@ -18,21 +18,13 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/log"
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapeInnodbMetrics(t *testing.T) {
-	// Suppress a log messages
-	log.AddFlags(kingpin.CommandLine)
-	_, err := kingpin.CommandLine.Parse([]string{"--log.level", "fatal"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -54,7 +46,7 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInnodbMetrics{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
+		if err = (ScrapeInnodbMetrics{}).Scrape(context.Background(), db, ch, prometheus.Labels{}, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

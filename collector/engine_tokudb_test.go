@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -58,7 +59,7 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeEngineTokudbStatus{}).Scrape(context.Background(), db, ch, prometheus.Labels{}); err != nil {
+		if err = (ScrapeEngineTokudbStatus{}).Scrape(context.Background(), db, ch, prometheus.Labels{}, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

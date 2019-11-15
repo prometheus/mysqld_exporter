@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -50,7 +51,7 @@ func (ScrapePerfFileEvents) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
+func (ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels, logger log.Logger) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileEventsRows, err := db.QueryContext(ctx, perfFileEventsQuery)
 	if err != nil {

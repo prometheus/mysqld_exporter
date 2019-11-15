@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/smartystreets/goconvey/convey"
@@ -38,6 +39,7 @@ func TestExporter(t *testing.T) {
 			ScrapeGlobalStatus{},
 		},
 		prometheus.Labels{},
+		log.NewNopLogger(),
 	)
 
 	convey.Convey("Metrics describing", t, func() {

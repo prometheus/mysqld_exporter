@@ -23,9 +23,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -67,6 +68,7 @@ var _ prometheus.Collector = (*Exporter)(nil)
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
 	ctx         context.Context
+	logger      log.Logger
 	dsn         string
 	scrapers    []Scraper
 	metrics     Metrics
@@ -74,7 +76,7 @@ type Exporter struct {
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper, constLabels prometheus.Labels) *Exporter {
+func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper, constLabels prometheus.Labels, logger log.Logger) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -91,6 +93,7 @@ func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper, c
 
 	return &Exporter{
 		ctx:         ctx,
+		logger:      logger,
 		dsn:         dsn,
 		scrapers:    scrapers,
 		metrics:     metrics,
@@ -123,7 +126,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
-		log.Errorln("Error opening connection to database:", err)
+		level.Error(e.logger).Log("msg", "Error opening connection to database", "err", err)
 		e.metrics.Error.Set(1)
 		return
 	}
@@ -136,7 +139,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	db.SetConnMaxLifetime(1 * time.Minute)
 
 	if err := db.PingContext(ctx); err != nil {
-		log.Errorln("Error pinging mysqld:", err)
+		level.Error(e.logger).Log("msg", "Error pinging mysqld", "err", err)
 		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
 		return
@@ -163,8 +166,8 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			defer wg.Done()
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
-			if err := scraper.Scrape(ctx, db, ch, e.constLabels); err != nil {
-				log.Errorln("Error scraping for "+label+":", err)
+			if err := scraper.Scrape(ctx, db, ch, e.constLabels, log.With(e.logger, "scraper", scraper.Name())); err != nil {
+				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)
 			}

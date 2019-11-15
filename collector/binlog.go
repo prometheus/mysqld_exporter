@@ -18,9 +18,11 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -51,7 +53,7 @@ func (ScrapeBinlogSize) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
+func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels, logger log.Logger) error {
 	var logBin uint8
 	err := db.QueryRowContext(ctx, logbinQuery).Scan(&logBin)
 	if err != nil {
@@ -69,18 +71,35 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 	defer masterLogRows.Close()
 
 	var (
-		size     uint64
-		count    uint64
-		filename string
-		filesize uint64
+		size      uint64
+		count     uint64
+		filename  string
+		filesize  uint64
+		encrypted string
 	)
 	size = 0
 	count = 0
 
+	columns, err := masterLogRows.Columns()
+	if err != nil {
+		return err
+	}
+	columnCount := len(columns)
+
 	for masterLogRows.Next() {
-		if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-			return nil
+		switch columnCount {
+		case 2:
+			if err := masterLogRows.Scan(&filename, &filesize); err != nil {
+				return nil
+			}
+		case 3:
+			if err := masterLogRows.Scan(&filename, &filesize, &encrypted); err != nil {
+				return nil
+			}
+		default:
+			return fmt.Errorf("invalid number of columns: %q", columnCount)
 		}
+
 		size += filesize
 		count++
 	}

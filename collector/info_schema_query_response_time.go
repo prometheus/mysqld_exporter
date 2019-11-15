@@ -21,8 +21,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 const queryResponseCheckQuery = `SELECT @@query_response_time_stats`
@@ -98,15 +99,15 @@ func (ScrapeQueryResponseTime) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels) error {
+func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, constLabels prometheus.Labels, logger log.Logger) error {
 	var queryStats uint8
 	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
-		log.Debugln("Query response time distribution is not present.")
+		level.Debug(logger).Log("msg", "Query response time distribution is not available.")
 		return nil
 	}
 	if queryStats == 0 {
-		log.Debugln("query_response_time_stats is OFF.")
+		level.Debug(logger).Log("msg", "MySQL variable is OFF.", "var", "query_response_time_stats")
 		return nil
 	}
 

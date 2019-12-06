@@ -43,7 +43,6 @@ func TestScrapeCustomQueriesCounter(t *testing.T) {
 
 		defer os.Remove(*collectCustomQueryHrDirectory)
 
-
 		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("error opening a stub database connection: %s", err)

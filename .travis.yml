@@ -3,8 +3,13 @@ sudo: required
 language: go
 
 go:
-- 1.13.x
 - 1.12.x
+- 1.13.x
+
+# skip non-trunk PMM-XXXX branch builds, but still build pull requests
+branches:
+  except:
+    - /^PMM\-\d{4}/
 
 env:
 - MYSQL_IMAGE=mysql/mysql-server:5.5

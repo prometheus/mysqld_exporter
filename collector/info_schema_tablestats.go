@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -73,19 +74,14 @@ func (ScrapeTableStat) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	var varName, varVal string
-	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
-	if err != nil {
-		level.Debug(logger).Log("msg", "Detailed table stats are not available.")
-		return nil
-	}
-	if varVal == "OFF" {
-		level.Debug(logger).Log("msg", "MySQL variable is OFF.", "var", varName)
-		return nil
-	}
-
 	informationSchemaTableStatisticsRows, err := db.QueryContext(ctx, tableStatQuery)
 	if err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			if mysqlErr.Number == 1109 {
+				level.Debug(logger).Log("msg", "'userstat' is off or unavailable, detailed table stats are not available.")
+				return nil
+			}
+		}
 		return err
 	}
 	defer informationSchemaTableStatisticsRows.Close()

@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2020 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -30,9 +31,6 @@ func TestScrapeReplicaHost(t *testing.T) {
 	}
 	defer db.Close()
 
-	mock.ExpectQuery(sanitizeQuery(replicaHostCheckQuery)).WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).
-		AddRow(1))
-
 	columns := []string{"SERVER_ID", "ROLE", "CPU", "MASTER_SLAVE_LATENCY_IN_MICROSECONDS", "REPLICA_LAG_IN_MILLISECONDS", "LOG_STREAM_SPEED_IN_KiB_PER_SECOND", "CURRENT_REPLAY_LATENCY_IN_MICROSECONDS"}
 	rows := sqlmock.NewRows(columns).
 		AddRow("dbtools-cluster-us-west-2c", "reader", 1.2531328201293945, 250000, 20.069000244140625, 2.0368164549078225, 500000).
@@ -41,7 +39,7 @@ func TestScrapeReplicaHost(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeReplicaHost{}).Scrape(context.Background(), db, ch); err != nil {
+		if err = (ScrapeReplicaHost{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

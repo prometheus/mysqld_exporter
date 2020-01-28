@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2020 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -19,18 +19,13 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	MySQL "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
-const (
-	replicaHostCheckQuery = `
-	  SELECT count(*)
-		FROM information_schema.tables
-	   WHERE table_schema='information_schema'
-		 AND table_name='replica_host_status'
-	`
-	replicaHostQuery = `
+const replicaHostQuery = `
 	  SELECT SERVER_ID
 		   , if(SESSION_ID='MASTER_SESSION_ID','writer','reader') AS ROLE
 		   , CPU
@@ -40,7 +35,6 @@ const (
 		   , CURRENT_REPLAY_LATENCY_IN_MICROSECONDS
 		FROM information_schema.replica_host_status
 	`
-)
 
 // Metric descriptors.
 var (
@@ -90,19 +84,16 @@ func (ScrapeReplicaHost) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
-	var count int64
-	err := db.QueryRowContext(ctx, replicaHostCheckQuery).Scan(&count)
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		log.Debug("information_schema.replica_host_status is not available")
-		return nil
-	}
-
+func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	replicaHostRows, err := db.QueryContext(ctx, replicaHostQuery)
 	if err != nil {
+		if mysqlErr, ok := err.(*MySQL.MySQLError); ok { // Now the error number is accessible directly
+			// Check for error 1109: Unknown table
+			if mysqlErr.Number == 1109 {
+				level.Debug(logger).Log("msg", "information_schema.replica_host_status is not available.")
+				return nil
+			}
+		}
 		return err
 	}
 	defer replicaHostRows.Close()

@@ -211,6 +211,11 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 			}
 		}
 
+		target := r.URL.Query().Get("target")
+		if target != "" {
+			dsn = target
+		}
+
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 

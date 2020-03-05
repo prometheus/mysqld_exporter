@@ -108,6 +108,8 @@ The MySQL server's [data source name](http://en.wikipedia.org/wiki/Data_source_n
 must be set via the `DATA_SOURCE_NAME` environment variable.
 The format of this variable is described at https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 
+`DATA_SOURCE_NAME` can overwrite via `target` query parameter.
+`http://localhost:9104/metrics?target=user:password@tcp(my-mysql-network:3306)/` will return metrics for a MySQL against `my-mysql-network:3306`.
 
 ## Customizing Configuration for a SSL Connection
 if The MySQL server supports SSL, you may need to specify a CA truststore to verify the server's chain-of-trust. You may also need to specify a SSL keypair for the client side of the SSL connection. To configure the mysqld exporter to use a custom CA certificate, add the following to the mysql cnf file:

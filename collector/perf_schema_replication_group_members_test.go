@@ -17,6 +17,7 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/kit/log"
+	MySQL "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -24,6 +25,7 @@ import (
 )
 
 func TestScrapePerfReplicationGroupMembers(t *testing.T) {
+	activeQuery = ""
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -44,7 +46,9 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 		AddRow("group_replication_applier", "uuid1", "hostname1", "3306", "ONLINE", "PRIMARY", "8.0.19").
 		AddRow("group_replication_applier", "uuid2", "hostname2", "3306", "ONLINE", "SECONDARY", "8.0.19").
 		AddRow("group_replication_applier", "uuid3", "hostname3", "3306", "ONLINE", "SECONDARY", "8.0.19")
-	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMemebersQuery)).WillReturnRows(rows)
+	// First query used to verify the columns match the db schema
+	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnRows(rows)
+	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
@@ -61,6 +65,62 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 			"member_state": "ONLINE", "member_role": "SECONDARY", "member_version": "8.0.19"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
 			"member_state": "ONLINE", "member_role": "SECONDARY", "member_version": "8.0.19"}, value: 1, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range metricExpected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
+	activeQuery = ""
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{
+		"CHANNEL_NAME",
+		"MEMBER_ID",
+		"MEMBER_HOST",
+		"MEMBER_PORT",
+		"MEMBER_STATE",
+	}
+
+	rows := sqlmock.NewRows(columns).
+		AddRow("group_replication_applier", "uuid1", "hostname1", "3306", "ONLINE").
+		AddRow("group_replication_applier", "uuid2", "hostname2", "3306", "ONLINE").
+		AddRow("group_replication_applier", "uuid3", "hostname3", "3306", "ONLINE")
+
+	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnError(&MySQL.MySQLError{
+		Number:  1054,
+		Message: "Unknown column",
+	})
+	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapePerfReplicationGroupMembers{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	metricExpected := []MetricResult{
+		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid1", "member_host": "hostname1", "member_port": "3306",
+			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid2", "member_host": "hostname2", "member_port": "3306",
+			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
+			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

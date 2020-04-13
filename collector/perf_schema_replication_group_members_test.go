@@ -17,7 +17,6 @@ import (
 	"context"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/kit/log"
-	MySQL "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -25,7 +24,6 @@ import (
 )
 
 func TestScrapePerfReplicationGroupMembers(t *testing.T) {
-	activeQuery = ""
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -46,9 +44,8 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 		AddRow("group_replication_applier", "uuid1", "hostname1", "3306", "ONLINE", "PRIMARY", "8.0.19").
 		AddRow("group_replication_applier", "uuid2", "hostname2", "3306", "ONLINE", "SECONDARY", "8.0.19").
 		AddRow("group_replication_applier", "uuid3", "hostname3", "3306", "ONLINE", "SECONDARY", "8.0.19")
-	// First query used to verify the columns match the db schema
-	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnRows(rows)
-	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnRows(rows)
+
+	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
@@ -81,7 +78,6 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 }
 
 func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
-	activeQuery = ""
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -101,10 +97,6 @@ func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
 		AddRow("group_replication_applier", "uuid2", "hostname2", "3306", "ONLINE").
 		AddRow("group_replication_applier", "uuid3", "hostname3", "3306", "ONLINE")
 
-	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQueryWithAdditionalCols)).WillReturnError(&MySQL.MySQLError{
-		Number:  1054,
-		Message: "Unknown column",
-	})
 	mock.ExpectQuery(sanitizeQuery(perfReplicationGroupMembersQuery)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)

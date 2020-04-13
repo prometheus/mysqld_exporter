@@ -16,65 +16,14 @@ package collector
 import (
 	"context"
 	"database/sql"
-	"github.com/go-kit/kit/log/level"
-	MySQL "github.com/go-sql-driver/mysql"
-
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"strings"
 )
 
-const perfReplicationGroupMembersQueryWithAdditionalCols = `
-  SELECT
-    CHANNEL_NAME,
-    MEMBER_ID,
-    MEMBER_HOST,
-    MEMBER_PORT,
-    MEMBER_STATE,
-    MEMBER_ROLE,
-    MEMBER_VERSION
-  FROM performance_schema.replication_group_members
-	`
 const perfReplicationGroupMembersQuery = `
-  SELECT 
-    CHANNEL_NAME,
-    MEMBER_ID,
-    MEMBER_HOST,
-    MEMBER_PORT,
-    MEMBER_STATE
-  FROM performance_schema.replication_group_members
+  SELECT * FROM performance_schema.replication_group_members
 	`
-
-// Metric descriptors.
-var (
-	/*	channel_name: Name of the Group Replication channel.
-		member_id:  The member server UUID. This has a different value for each member in the group. This also serves as a key because it is unique to each member.
-		member_host:  Network address of this member (host name or IP address). Retrieved from the member's hostname variable.
-			This is the address which clients connect to, unlike the group_replication_local_address which is used for internal group communication.
-		member_port: Port on which the server is listening. Retrieved from the member's port variable.
-		member_state: Current state of this member; can be any one of the following:
-			ONLINE: The member is in a fully functioning state.
-			RECOVERING: The server has joined a group from which it is retrieving data.
-			OFFLINE: The group replication plugin is installed but has not been started.
-			ERROR: The member has encountered an error, either during applying transactions or during the recovery phase, and is not participating in the group's transactions.
-			UNREACHABLE: The failure detection process suspects that this member cannot be contacted, because the group messages have timed out.
-		member_role: Role of the member in the group, either PRIMARY or SECONDARY.
-		member_version: MySQL version of the member.
-	*/
-	performanceSchemaReplicationGroupMembersMemberWithAdditionalColsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "replication_group_member"),
-		"Information about the replication group member: "+
-			"channel_name, member_id, member_host, member_port, member_state, member_role, member_version. ",
-		[]string{"channel_name", "member_id", "member_host", "member_port", "member_state", "member_role", "member_version"}, nil,
-	)
-	performanceSchemaReplicationGroupMembersMemberDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "replication_group_member"),
-		"Information about the replication group member: "+
-			"channel_name, member_id, member_host, member_port, member_state. ",
-		[]string{"channel_name", "member_id", "member_host", "member_port", "member_state"}, nil,
-	)
-)
-
-var activeQuery string
 
 // ScrapeReplicationGroupMembers collects from `performance_schema.replication_group_members`.
 type ScrapePerfReplicationGroupMembers struct{}
@@ -96,64 +45,53 @@ func (ScrapePerfReplicationGroupMembers) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	perfReplicationGroupMembersRows, err := db.QueryContext(ctx, getPerfReplicationGroupMembersQuery(ctx, db, logger))
+	perfReplicationGroupMembersRows, err := db.QueryContext(ctx, perfReplicationGroupMembersQuery)
 	if err != nil {
 		return err
 	}
 	defer perfReplicationGroupMembersRows.Close()
 
-	var (
-		channelName   string
-		memberId      string
-		memberHost    string
-		memberPort    string
-		memberState   string
-		memberRole    string
-		memberVersion string
-	)
+	var columnNames []string
+	if columnNames, err = perfReplicationGroupMembersRows.Columns(); err != nil {
+		return err
+	}
+
+	var scanArgs = make([]interface{}, len(columnNames))
+	for i := range scanArgs {
+		scanArgs[i] = &sql.RawBytes{}
+	}
 
 	for perfReplicationGroupMembersRows.Next() {
-		if getPerfReplicationGroupMembersQuery(ctx, db, logger) == perfReplicationGroupMembersQueryWithAdditionalCols {
-			if err := perfReplicationGroupMembersRows.Scan(
-				&channelName, &memberId, &memberHost, &memberPort, &memberState, &memberRole, &memberVersion,
-			); err != nil {
-				return err
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaReplicationGroupMembersMemberWithAdditionalColsDesc, prometheus.GaugeValue, 1,
-				channelName, memberId, memberHost, memberPort, memberState, memberRole, memberVersion,
-			)
-		} else {
-			if err := perfReplicationGroupMembersRows.Scan(
-				&channelName, &memberId, &memberHost, &memberPort, &memberState,
-			); err != nil {
-				return err
-			}
-			ch <- prometheus.MustNewConstMetric(
-				performanceSchemaReplicationGroupMembersMemberDesc, prometheus.GaugeValue, 1,
-				channelName, memberId, memberHost, memberPort, memberState,
-			)
+		if err := perfReplicationGroupMembersRows.Scan(scanArgs...); err != nil {
+			return err
 		}
 
+		var values = make([]string, len(columnNames))
+		for i := range columnNames {
+			values[i] = string(*scanArgs[i].(*sql.RawBytes))
+		}
+
+		var performanceSchemaReplicationGroupMembersMemberDesc = prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, performanceSchema, "replication_group_member"),
+			"Information about the replication group member: "+
+				"channel_name, member_id, member_host, member_port, member_state. "+
+				"(member_role and member_version where available)",
+			toLowerCase(columnNames), nil,
+		)
+
+		ch <- prometheus.MustNewConstMetric(performanceSchemaReplicationGroupMembersMemberDesc,
+			prometheus.GaugeValue, 1, values...)
 	}
 	return nil
+
 }
 
-func getPerfReplicationGroupMembersQuery(ctx context.Context, db *sql.DB, logger log.Logger) string {
-	if activeQuery == "" {
-		activeQuery = perfReplicationGroupMembersQueryWithAdditionalCols
-		_, err := db.QueryContext(ctx, activeQuery)
-		if err != nil {
-			if mysqlErr, ok := err.(*MySQL.MySQLError); ok { // Now the error number is accessible directly
-				// Check for error 1054: Unknown column.
-				if mysqlErr.Number == 1054 {
-					level.Debug(logger).Log("msg", "Additional columns for performance_schema.replication_group_members are not available.")
-					activeQuery = perfReplicationGroupMembersQuery
-				}
-			}
-		}
+func toLowerCase(original []string) []string {
+	lowerCase := make([]string, len(original))
+	for i, v := range original {
+		lowerCase[i] = strings.ToLower(v)
 	}
-	return activeQuery
+	return lowerCase
 }
 
 // check interface

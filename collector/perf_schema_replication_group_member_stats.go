@@ -16,42 +16,51 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const perfReplicationGroupMemeberStatsQuery = `
-	SELECT MEMBER_ID,COUNT_TRANSACTIONS_IN_QUEUE,COUNT_TRANSACTIONS_CHECKED,COUNT_CONFLICTS_DETECTED,COUNT_TRANSACTIONS_ROWS_VALIDATING
-	  FROM performance_schema.replication_group_member_stats
-	`
+const perfReplicationGroupMemberStatsQuery = `
+	SELECT * FROM performance_schema.replication_group_member_stats WHERE MEMBER_ID=@@server_uuid
+`
 
-// Metric descriptors.
 var (
-	performanceSchemaReplicationGroupMemberStatsTransInQueueDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "transaction_in_queue"),
-		"The number of transactions in the queue pending conflict detection checks. Once the "+
-			"transactions have been checked for conflicts, if they pass the check, they are queued to be applied as well.",
-		[]string{"member_id"}, nil,
-	)
-	performanceSchemaReplicationGroupMemberStatsTransCheckedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "transaction_checked"),
-		"The number of transactions that have been checked for conflicts.",
-		[]string{"member_id"}, nil,
-	)
-	performanceSchemaReplicationGroupMemberStatsConflictsDetectedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "conflicts_detected"),
-		"The number of transactions that did not pass the conflict detection check.",
-		[]string{"member_id"}, nil,
-	)
-	performanceSchemaReplicationGroupMemberStatsTransRowValidatingDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "transaction_rows_validating"),
-		"The current size of the conflict detection database (against which each transaction is certified).",
-		[]string{"member_id"}, nil,
-	)
+	// The list of columns we are interesting in.
+	// In MySQL 5.7 these are the 4 first columns available. In MySQL 8.x all 8.
+	perfReplicationGroupMemberStats = map[string]struct {
+		vtype prometheus.ValueType
+		desc  *prometheus.Desc
+	}{
+		"COUNT_TRANSACTIONS_IN_QUEUE": {prometheus.GaugeValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_in_queue"),
+				"The number of transactions in the queue pending conflict detection checks.", nil, nil)},
+		"COUNT_TRANSACTIONS_CHECKED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_checked_total"),
+				"The number of transactions that have been checked for conflicts.", nil, nil)},
+		"COUNT_CONFLICTS_DETECTED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "conflicts_detected_total"),
+				"The number of transactions that have not passed the conflict detection check.", nil, nil)},
+		"COUNT_TRANSACTIONS_ROWS_VALIDATING": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_rows_validating_total"),
+				"Number of transaction rows which can be used for certification, but have not been garbage collected.", nil, nil)},
+		"COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE": {prometheus.GaugeValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_remote_in_applier_queue"),
+				"The number of transactions that this member has received from the replication group which are waiting to be applied.", nil, nil)},
+		"COUNT_TRANSACTIONS_REMOTE_APPLIED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_remote_applied_total"),
+				"Number of transactions this member has received from the group and applied.", nil, nil)},
+		"COUNT_TRANSACTIONS_LOCAL_PROPOSED": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_local_proposed_total"),
+				"Number of transactions which originated on this member and were sent to the group.", nil, nil)},
+		"COUNT_TRANSACTIONS_LOCAL_ROLLBACK": {prometheus.CounterValue,
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, performanceSchema, "transactions_local_rollback_total"),
+				"Number of transactions which originated on this member and were rolled back by the group.", nil, nil)},
+	}
 )
 
-// ScrapeReplicationGroupMemberStats collects from `performance_schema.replication_group_member_stats`.
+// ScrapePerfReplicationGroupMemberStats collects from `performance_schema.replication_group_member_stats`.
 type ScrapePerfReplicationGroupMemberStats struct{}
 
 // Name of the Scraper. Should be unique.
@@ -71,41 +80,36 @@ func (ScrapePerfReplicationGroupMemberStats) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapePerfReplicationGroupMemberStats) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	perfReplicationGroupMemeberStatsRows, err := db.QueryContext(ctx, perfReplicationGroupMemeberStatsQuery)
+	rows, err := db.QueryContext(ctx, perfReplicationGroupMemberStatsQuery)
 	if err != nil {
 		return err
 	}
-	defer perfReplicationGroupMemeberStatsRows.Close()
+	defer rows.Close()
 
-	var (
-		memberId                                                string
-		countTransactionsInQueue, countTransactionsChecked      uint64
-		countConflictsDetected, countTransactionsRowsValidating uint64
-	)
+	var columnNames []string
+	if columnNames, err = rows.Columns(); err != nil {
+		return err
+	}
 
-	for perfReplicationGroupMemeberStatsRows.Next() {
-		if err := perfReplicationGroupMemeberStatsRows.Scan(
-			&memberId, &countTransactionsInQueue, &countTransactionsChecked,
-			&countConflictsDetected, &countTransactionsRowsValidating,
-		); err != nil {
+	var scanArgs = make([]interface{}, len(columnNames))
+	for i := range scanArgs {
+		scanArgs[i] = &sql.RawBytes{}
+	}
+
+	for rows.Next() {
+		if err := rows.Scan(scanArgs...); err != nil {
 			return err
 		}
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaReplicationGroupMemberStatsTransInQueueDesc, prometheus.CounterValue, float64(countTransactionsInQueue),
-			memberId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaReplicationGroupMemberStatsTransCheckedDesc, prometheus.CounterValue, float64(countTransactionsChecked),
-			memberId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaReplicationGroupMemberStatsConflictsDetectedDesc, prometheus.CounterValue, float64(countConflictsDetected),
-			memberId,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaReplicationGroupMemberStatsTransRowValidatingDesc, prometheus.CounterValue, float64(countTransactionsRowsValidating),
-			memberId,
-		)
+
+		for i, columnName := range columnNames {
+			if metric, ok := perfReplicationGroupMemberStats[columnName]; ok {
+				value, err := strconv.ParseFloat(string(*scanArgs[i].(*sql.RawBytes)), 64)
+				if err != nil {
+					return err
+				}
+				ch <- prometheus.MustNewConstMetric(metric.desc, metric.vtype, value)
+			}
+		}
 	}
 	return nil
 }

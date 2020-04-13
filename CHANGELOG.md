@@ -10,7 +10,15 @@
 * [FEATURE]
 
 * [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors (PR #417) #348
-* [FEATURE] Add collector for replication_group_members (PR #459) #362
+* [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x.
+* [FEATURE] Add collector for `replication_group_members` (PR #459) #362
+
+### BREAKING CHANGES:
+
+Changes related to `replication_group_member_stats` collector:
+* metric "transaction_in_queue" was Counter instead of Gauge
+* renamed 3 metrics starting with `mysql_perf_schema_transaction_` to start with `mysql_perf_schema_transactions_` to be consistent with column names
+* exposing only server's own stats by matching MEMBER_ID with @@server_uuid resulting "member_id" label to be dropped.
 
 ## 0.12.1 / 2019-07-10
 

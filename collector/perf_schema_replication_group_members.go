@@ -66,17 +66,19 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB,
 			return err
 		}
 
+		var labelNames = make([]string, len(columnNames))
 		var values = make([]string, len(columnNames))
-		for i := range columnNames {
+		for i, columnName := range columnNames {
+			labelNames[i] = strings.ToLower(columnName)
 			values[i] = string(*scanArgs[i].(*sql.RawBytes))
 		}
 
 		var performanceSchemaReplicationGroupMembersMemberDesc = prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, performanceSchema, "replication_group_member"),
+			prometheus.BuildFQName(namespace, performanceSchema, "replication_group_member_info"),
 			"Information about the replication group member: "+
 				"channel_name, member_id, member_host, member_port, member_state. "+
 				"(member_role and member_version where available)",
-			toLowerCase(columnNames), nil,
+			labelNames, nil,
 		)
 
 		ch <- prometheus.MustNewConstMetric(performanceSchemaReplicationGroupMembersMemberDesc,
@@ -84,14 +86,6 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB,
 	}
 	return nil
 
-}
-
-func toLowerCase(original []string) []string {
-	lowerCase := make([]string, len(original))
-	for i, v := range original {
-		lowerCase[i] = strings.ToLower(v)
-	}
-	return lowerCase
 }
 
 // check interface

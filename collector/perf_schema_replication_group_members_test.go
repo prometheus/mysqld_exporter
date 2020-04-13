@@ -71,7 +71,6 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 	})
 
 	// Ensure all SQL queries were executed.
-	// Ensure all SQL queries were executed.
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}

@@ -10,6 +10,7 @@
 * [FEATURE]
 
 * [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors (PR #417) #348
+* [FEATURE] Add collector for replication_group_members (PR #459) #362
 
 ## 0.12.1 / 2019-07-10
 

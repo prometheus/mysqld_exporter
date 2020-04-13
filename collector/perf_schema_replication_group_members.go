@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2020 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -24,13 +24,24 @@ import (
 )
 
 const perfReplicationGroupMembersQueryWithAdditionalCols = `
-	SELECT CHANNEL_NAME,MEMBER_ID,MEMBER_HOST,MEMBER_PORT,MEMBER_STATE,MEMBER_ROLE,MEMBER_VERSION
-	  FROM performance_schema.replication_group_members
+  SELECT
+    CHANNEL_NAME,
+    MEMBER_ID,
+    MEMBER_HOST,
+    MEMBER_PORT,
+    MEMBER_STATE,
+    MEMBER_ROLE,
+    MEMBER_VERSION
+  FROM performance_schema.replication_group_members
 	`
-
 const perfReplicationGroupMembersQuery = `
-	SELECT CHANNEL_NAME,MEMBER_ID,MEMBER_HOST,MEMBER_PORT,MEMBER_STATE
-	  FROM performance_schema.replication_group_members
+  SELECT 
+    CHANNEL_NAME,
+    MEMBER_ID,
+    MEMBER_HOST,
+    MEMBER_PORT,
+    MEMBER_STATE
+  FROM performance_schema.replication_group_members
 	`
 
 // Metric descriptors.
@@ -134,7 +145,7 @@ func getPerfReplicationGroupMembersQuery(ctx context.Context, db *sql.DB, logger
 		_, err := db.QueryContext(ctx, activeQuery)
 		if err != nil {
 			if mysqlErr, ok := err.(*MySQL.MySQLError); ok { // Now the error number is accessible directly
-				// Check for error 1054: Unknown column
+				// Check for error 1054: Unknown column.
 				if mysqlErr.Number == 1054 {
 					level.Debug(logger).Log("msg", "Additional columns for performance_schema.replication_group_members are not available.")
 					activeQuery = perfReplicationGroupMembersQuery

@@ -1,4 +1,4 @@
-// Copyright 2019 The Prometheus Authors
+// Copyright 2020 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -73,7 +73,8 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 		}
 	})
 
-	// Ensure all SQL queries were executed
+	// Ensure all SQL queries were executed.
+	// Ensure all SQL queries were executed.
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
@@ -129,7 +130,7 @@ func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
 		}
 	})
 
-	// Ensure all SQL queries were executed
+	// Ensure all SQL queries were executed.
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}

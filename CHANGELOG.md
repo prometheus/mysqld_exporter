@@ -11,6 +11,7 @@
 
 * [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors (PR #417) #348
 * [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x.
+* [FEATURE] Add collector for `replication_group_members` (PR #459) #362
 
 ### BREAKING CHANGES:
 

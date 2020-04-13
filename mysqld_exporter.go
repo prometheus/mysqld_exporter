@@ -83,6 +83,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapePerfEventsWaits{}:                     false,
 	collector.ScrapePerfFileEvents{}:                      false,
 	collector.ScrapePerfFileInstances{}:                   false,
+	collector.ScrapePerfReplicationGroupMembers{}:         false,
 	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
 	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
 	collector.ScrapeUserStat{}:                            false,

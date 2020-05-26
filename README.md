@@ -90,6 +90,7 @@ collect.slave_hosts                                          | 5.1           | C
 collect.heartbeat                                            | 5.1           | Collect from [heartbeat](#heartbeat).
 collect.heartbeat.database                                   | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.table                                      | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
+collect.heartbeat.utc                                        | 5.1           | Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`). (default: false)
 
 
 ### General Flags

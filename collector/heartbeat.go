@@ -33,7 +33,7 @@ const (
 	// timestamps. %s will be replaced by the database and table name.
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
-	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `%s`.`%s`"
+	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
 )
 
 var (
@@ -45,6 +45,10 @@ var (
 		"collect.heartbeat.table",
 		"Table from where to collect heartbeat data",
 	).Default("heartbeat").String()
+	collectHeartbeatUtc = kingpin.Flag(
+		"collect.heartbeat.utc",
+		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
+	).Bool()
 )
 
 // Metric descriptors.
@@ -85,9 +89,17 @@ func (ScrapeHeartbeat) Version() float64 {
 	return 5.1
 }
 
+// nowExpr returns a current timestamp expression.
+func nowExpr() string {
+	if *collectHeartbeatUtc {
+		return "UTC_TIMESTAMP(6)"
+	}
+	return "NOW(6)"
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	query := fmt.Sprintf(heartbeatQuery, *collectHeartbeatDatabase, *collectHeartbeatTable)
+	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err

@@ -11,33 +11,45 @@ branches:
     - /^PMM\-\d{4}/
 
 env:
-- MYSQL_IMAGE=mysql/mysql-server:5.5
-- MYSQL_IMAGE=mysql/mysql-server:5.6
-- MYSQL_IMAGE=mysql/mysql-server:5.7
-- MYSQL_IMAGE=mysql/mysql-server:8.0
-- MYSQL_IMAGE=mariadb:5.5
-- MYSQL_IMAGE=mariadb:10.0
-- MYSQL_IMAGE=mariadb:10.1
-- MYSQL_IMAGE=mariadb:10.2
-- MYSQL_IMAGE=mariadb:10.3
-- MYSQL_IMAGE=percona/percona-server:5.6
-- MYSQL_IMAGE=percona/percona-server:5.7
-- MYSQL_IMAGE=percona/percona-server:8.0
-- MYSQL_IMAGE=percona:5.5
-- MYSQL_IMAGE=percona:5.6
-- MYSQL_IMAGE=percona:5.7
-- MYSQL_IMAGE=percona:8.0
+  global:
+    - secure: "mGOhmf9sNlBxnIWH0pjHCp2dTBv1HWx7+F+c6aI8VlxvpIh3Ar9it8OpF7zBDCI/GEPbmNqXY1jCVEZZAWjZ3Ql5VGe3MMLOuGjdgVpgqlNZrzmR9D4bqXO0neXLBK1PuTLASrH8rvMClqoC5IcPSyydOaSp66NyVCkb46OfIT3dZBeBOslj6GIeNrZAmohMPm2Tu/jqNItIOrKHCTWGrqbeoKEmlsReDjEAGHXJ6OgeQPhdRXecg/LRAKSBNtBS4TK8h6bkIO4nxMfAn3pFv73ixTbOnG1vqmVdE4Upjlm3MmsWuFA3wmr/31UQj7ofIkQYoxR9XHBxx0x2MW6H2Amno0G9Sb7W1Z5u696rd2dbW0oQNbji545Phf5L+cNjS1nIYUIvO2dgvzfCl0gKr7dJFW3Ce4eLkoj55Fsq9TapNHe4fWkQRAtX38fu0eEW5CgKNoxcXTg0Ss21EfQAJ8hWv9jihq4dvVlyjDGD7pdim8NO19rFpCDbDecu6Z5alx299gT4CvRsg7ijErSkNwDpRsTa3LeS7SwcdJ4QJAhRZcrs/hyjBOwvX+JFylfsKpWBBCWxu5JxA7qAnitGrKnV6oxrj4msAWOMuqn5f7HZEvL7wEH9jwgPvEgKrX4Acq3TE/Y+klvf6ZqJfWIwSfacOQ4t/GCsZGnXoWqwrVg="
+
+  matrix:
+    - MYSQL_IMAGE=mysql/mysql-server:5.5
+    - MYSQL_IMAGE=mysql/mysql-server:5.6
+    - MYSQL_IMAGE=mysql/mysql-server:5.7
+    - MYSQL_IMAGE=mysql/mysql-server:8.0
+    - MYSQL_IMAGE=mariadb:5.5
+    - MYSQL_IMAGE=mariadb:10.0
+    - MYSQL_IMAGE=mariadb:10.1
+    - MYSQL_IMAGE=mariadb:10.2
+    - MYSQL_IMAGE=mariadb:10.3
+    - MYSQL_IMAGE=percona/percona-server:5.6
+    - MYSQL_IMAGE=percona/percona-server:5.7
+    - MYSQL_IMAGE=percona/percona-server:8.0
+    - MYSQL_IMAGE=percona:5.5
+    - MYSQL_IMAGE=percona:5.6
+    - MYSQL_IMAGE=percona:5.7
+    - MYSQL_IMAGE=percona:8.0
 
 services:
 - docker
 
 go_import_path: github.com/percona/mysqld_exporter
 
+install:
+  # install reviewdog and golangci-lin
+  - curl https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh| sh -s
+  - curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest
+
 before_script:
-- sudo service mysql stop
-- docker --version
-- docker-compose --version
-- docker-compose up -d
+  # static analyze
+  - bin/golangci-lint run -c=.golangci-required.yml --out-format=line-number | bin/reviewdog -f=golangci-lint -level=error -reporter=github-pr-check
+  - bin/golangci-lint run -c=.golangci.yml --out-format=line-number | bin/reviewdog -f=golangci-lint -level=error -reporter=github-pr-review
+  - sudo service mysql stop
+  - docker --version
+  - docker-compose --version
+  - docker-compose up -d
 
 script:
 - make

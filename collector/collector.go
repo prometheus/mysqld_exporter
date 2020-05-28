@@ -52,11 +52,11 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	if bytes.Equal(data, []byte("Connecting")) {
 		return 0, true
 	}
-	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "Non-Primary"/"Disconnected"
+	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "non-Primary"/"Disconnected"
 	if bytes.Equal(data, []byte("Primary")) {
 		return 1, true
 	}
-	if bytes.Equal(data, []byte("Non-Primary")) || bytes.Equal(data, []byte("Disconnected")) {
+	if bytes.Equal(data, []byte("non-Primary")) || bytes.Equal(data, []byte("Disconnected")) {
 		return 0, true
 	}
 	if logNum := logRE.Find(data); logNum != nil {

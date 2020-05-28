@@ -20,7 +20,7 @@ func (e *ExpectedQuery) WillReturnRows(rows ...*Rows) *ExpectedQuery {
 	return e
 }
 
-func (e *queryBasedExpectation) argsMatches(args []namedValue) error {
+func (e *queryBasedExpectation) argsMatches(args []driver.NamedValue) error {
 	if nil == e.args {
 		return nil
 	}
@@ -54,13 +54,24 @@ func (e *queryBasedExpectation) argsMatches(args []namedValue) error {
 			return fmt.Errorf("could not convert %d argument %T - %+v to driver value: %s", k, e.args[k], e.args[k], err)
 		}
 
-		if !driver.IsValue(darg) {
-			return fmt.Errorf("argument %d: non-subset type %T returned from Value", k, darg)
-		}
-
 		if !reflect.DeepEqual(darg, v.Value) {
 			return fmt.Errorf("argument %d expected [%T - %+v] does not match actual [%T - %+v]", k, darg, darg, v.Value, v.Value)
 		}
 	}
 	return nil
+}
+
+func (e *queryBasedExpectation) attemptArgMatch(args []driver.NamedValue) (err error) {
+	// catch panic
+	defer func() {
+		if e := recover(); e != nil {
+			_, ok := e.(error)
+			if !ok {
+				err = fmt.Errorf(e.(string))
+			}
+		}
+	}()
+
+	err = e.argsMatches(args)
+	return
 }

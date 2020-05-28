@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -25,47 +26,73 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+type ScrapeHeartbeatTestCase struct {
+	Args    []string
+	Columns []string
+	Query   string
+}
+
+var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
+	{
+		[]string{
+			"--collect.heartbeat.database", "heartbeat-test",
+			"--collect.heartbeat.table", "heartbeat-test",
+		},
+		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
+		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+	},
+	{
+		[]string{
+			"--collect.heartbeat.database", "heartbeat-test",
+			"--collect.heartbeat.table", "heartbeat-test",
+			"--collect.heartbeat.utc",
+		},
+		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},
+		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+	},
+}
+
 func TestScrapeHeartbeat(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{
-		"--collect.heartbeat.database", "heartbeat-test",
-		"--collect.heartbeat.table", "heartbeat-test",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range ScrapeHeartbeatTestCases {
+		t.Run(fmt.Sprint(tt.Args), func(t *testing.T) {
+			_, err := kingpin.CommandLine.Parse(tt.Args)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error opening a stub database connection: %s", err)
-	}
-	defer db.Close()
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("error opening a stub database connection: %s", err)
+			}
+			defer db.Close()
 
-	columns := []string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"}
-	rows := sqlmock.NewRows(columns).
-		AddRow("1487597613.001320", "1487598113.448042", 1)
-	mock.ExpectQuery(sanitizeQuery("SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`")).WillReturnRows(rows)
+			rows := sqlmock.NewRows(tt.Columns).
+				AddRow("1487597613.001320", "1487598113.448042", 1)
+			mock.ExpectQuery(sanitizeQuery(tt.Query)).WillReturnRows(rows)
 
-	ch := make(chan prometheus.Metric)
-	go func() {
-		if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
-			t.Errorf("error calling function on test: %s", err)
-		}
-		close(ch)
-	}()
+			ch := make(chan prometheus.Metric)
+			go func() {
+				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+					t.Errorf("error calling function on test: %s", err)
+				}
+				close(ch)
+			}()
 
-	counterExpected := []MetricResult{
-		{labels: labelMap{"server_id": "1"}, value: 1487598113.448042, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
-	}
-	convey.Convey("Metrics comparison", t, func() {
-		for _, expect := range counterExpected {
-			got := readMetric(<-ch)
-			convey.So(got, convey.ShouldResemble, expect)
-		}
-	})
+			counterExpected := []MetricResult{
+				{labels: labelMap{"server_id": "1"}, value: 1487598113.448042, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
+			}
+			convey.Convey("Metrics comparison", t, func() {
+				for _, expect := range counterExpected {
+					got := readMetric(<-ch)
+					convey.So(got, convey.ShouldResemble, expect)
+				}
+			})
 
-	// Ensure all SQL queries were executed
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled exceptions: %s", err)
+			// Ensure all SQL queries were executed
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled exceptions: %s", err)
+			}
+		})
 	}
 }

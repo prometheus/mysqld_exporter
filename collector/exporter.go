@@ -157,7 +157,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	version := getMySQLVersion(db)
+	version := getMySQLVersion(db, e.logger)
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
@@ -180,14 +180,17 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	}
 }
 
-func getMySQLVersion(db *sql.DB) float64 {
+func getMySQLVersion(db *sql.DB, logger log.Logger) float64 {
 	var versionStr string
 	var versionNum float64
 	if err := db.QueryRow(versionQuery).Scan(&versionStr); err == nil {
 		versionNum, _ = strconv.ParseFloat(versionRE.FindString(versionStr), 64)
+	} else {
+		level.Debug(logger).Log("msg", "Error querying version", "err", err)
 	}
 	// If we can't match/parse the version, set it some big value that matches all versions.
 	if versionNum == 0 {
+		level.Debug(logger).Log("msg", "Error parsing version string", "version", versionStr)
 		versionNum = 999
 	}
 	return versionNum

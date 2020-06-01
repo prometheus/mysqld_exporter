@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

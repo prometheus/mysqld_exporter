@@ -56,7 +56,7 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	if bytes.Equal(data, []byte("Primary")) {
 		return 1, true
 	}
-	if bytes.Equal(data, []byte("non-Primary")) || bytes.Equal(data, []byte("Disconnected")) {
+	if strings.EqualFold(string(data), "non-Primary") || bytes.Equal(data, []byte("Disconnected")) {
 		return 0, true
 	}
 	if logNum := logRE.Find(data); logNum != nil {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -39,11 +40,11 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	if bytes.Compare(data, []byte("Connecting")) == 0 {
 		return 0, true
 	}
-	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "Non-Primary"/"Disconnected"
+	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "non-Primary"/"Disconnected"
 	if bytes.Compare(data, []byte("Primary")) == 0 {
 		return 1, true
 	}
-	if bytes.Compare(data, []byte("Non-Primary")) == 0 || bytes.Compare(data, []byte("Disconnected")) == 0 {
+	if strings.EqualFold(string(data), "non-Primary") || bytes.Compare(data, []byte("Disconnected")) == 0 {
 		return 0, true
 	}
 	if logNum := logRE.Find(data); logNum != nil {

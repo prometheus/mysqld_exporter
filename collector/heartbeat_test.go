@@ -78,9 +78,12 @@ func TestScrapeHeartbeat(t *testing.T) {
 				close(ch)
 			}()
 
+			tsVal, nowVal := 1487597613.00132, 1487598113.448042
+
 			counterExpected := []MetricResult{
-				{labels: labelMap{"server_id": "1"}, value: 1487598113.448042, metricType: dto.MetricType_GAUGE},
-				{labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: nowVal, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: tsVal, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: nowVal - tsVal, metricType: dto.MetricType_GAUGE},
 			}
 			convey.Convey("Metrics comparison", t, func() {
 				for _, expect := range counterExpected {

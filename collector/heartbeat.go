@@ -63,6 +63,11 @@ var (
 		"Timestamp of the current server.",
 		[]string{"server_id"}, nil,
 	)
+	HeartbeatLagDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, heartbeat, "lag_seconds"),
+		"Heartbeat lag of the current server.",
+		[]string{"server_id"}, nil,
+	)
 )
 
 // ScrapeHeartbeat scrapes from the heartbeat table.
@@ -138,6 +143,12 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 			HeartbeatStoredDesc,
 			prometheus.GaugeValue,
 			tsFloatVal,
+			serverId,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			HeartbeatLagDesc,
+			prometheus.GaugeValue,
+			nowFloatVal-tsFloatVal,
 			serverId,
 		)
 	}

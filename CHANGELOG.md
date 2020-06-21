@@ -21,6 +21,9 @@ Changes related to `replication_group_member_stats` collector:
 * renamed 3 metrics starting with `mysql_perf_schema_transaction_` to start with `mysql_perf_schema_transactions_` to be consistent with column names
 * exposing only server's own stats by matching MEMBER_ID with @@server_uuid resulting "member_id" label to be dropped.
 
+Changes related to `heartbeat` collector:
+* metric "mysql_heartbeat_lag_seconds" replaced "mysql_heartbeat_now_timestamp_seconds" #479
+
 ## 0.12.1 / 2019-07-10
 
 ### Changes:

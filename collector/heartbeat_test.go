@@ -39,7 +39,7 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 			"--collect.heartbeat.table", "heartbeat-test",
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
-		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)) - UNIX_TIMESTAMP(ts), server_id from `heartbeat-test`.`heartbeat-test`",
 	},
 	{
 		[]string{
@@ -48,7 +48,7 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 			"--collect.heartbeat.utc",
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},
-		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)) - UNIX_TIMESTAMP(ts), server_id from `heartbeat-test`.`heartbeat-test`",
 	},
 }
 
@@ -67,7 +67,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 			defer db.Close()
 
 			rows := sqlmock.NewRows(tt.Columns).
-				AddRow("1487597613.001320", "1487598113.448042", 1)
+				AddRow("1487597613.001320", "0.448042", 1)
 			mock.ExpectQuery(sanitizeQuery(tt.Query)).WillReturnRows(rows)
 
 			ch := make(chan prometheus.Metric)
@@ -78,12 +78,9 @@ func TestScrapeHeartbeat(t *testing.T) {
 				close(ch)
 			}()
 
-			tsVal, nowVal := 1487597613.00132, 1487598113.448042
-
 			counterExpected := []MetricResult{
-				{labels: labelMap{"server_id": "1"}, value: nowVal, metricType: dto.MetricType_GAUGE},
-				{labels: labelMap{"server_id": "1"}, value: tsVal, metricType: dto.MetricType_GAUGE},
-				{labels: labelMap{"server_id": "1"}, value: nowVal - tsVal, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
+				{labels: labelMap{"server_id": "1"}, value: 0.448042, metricType: dto.MetricType_GAUGE},
 			}
 			convey.Convey("Metrics comparison", t, func() {
 				for _, expect := range counterExpected {

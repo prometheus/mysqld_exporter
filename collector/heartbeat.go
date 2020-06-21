@@ -29,11 +29,11 @@ import (
 const (
 	// heartbeat is the Metric subsystem we use.
 	heartbeat = "heartbeat"
-	// heartbeatQuery is the query used to fetch the stored and current
-	// timestamps. %s will be replaced by the database and table name.
+	// heartbeatQuery is the query used to fetch the stored timestamp and lag
+	// seconds. %s will be replaced by the database and table name.
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
-	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
+	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s) - UNIX_TIMESTAMP(ts), server_id from `%s`.`%s`"
 )
 
 var (
@@ -56,11 +56,6 @@ var (
 	HeartbeatStoredDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, heartbeat, "stored_timestamp_seconds"),
 		"Timestamp stored in the heartbeat table.",
-		[]string{"server_id"}, nil,
-	)
-	HeartbeatNowDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, heartbeat, "now_timestamp_seconds"),
-		"Timestamp of the current server.",
 		[]string{"server_id"}, nil,
 	)
 	HeartbeatLagDesc = prometheus.NewDesc(
@@ -112,12 +107,12 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 	defer heartbeatRows.Close()
 
 	var (
-		now, ts  sql.RawBytes
+		ts, lag  sql.RawBytes
 		serverId int
 	)
 
 	for heartbeatRows.Next() {
-		if err := heartbeatRows.Scan(&ts, &now, &serverId); err != nil {
+		if err := heartbeatRows.Scan(&ts, &lag, &serverId); err != nil {
 			return err
 		}
 
@@ -126,19 +121,13 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 			return err
 		}
 
-		nowFloatVal, err := strconv.ParseFloat(string(now), 64)
+		lagFloatVal, err := strconv.ParseFloat(string(lag), 64)
 		if err != nil {
 			return err
 		}
 
 		serverId := strconv.Itoa(serverId)
 
-		ch <- prometheus.MustNewConstMetric(
-			HeartbeatNowDesc,
-			prometheus.GaugeValue,
-			nowFloatVal,
-			serverId,
-		)
 		ch <- prometheus.MustNewConstMetric(
 			HeartbeatStoredDesc,
 			prometheus.GaugeValue,
@@ -148,7 +137,7 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 		ch <- prometheus.MustNewConstMetric(
 			HeartbeatLagDesc,
 			prometheus.GaugeValue,
-			nowFloatVal-tsFloatVal,
+			lagFloatVal,
 			serverId,
 		)
 	}

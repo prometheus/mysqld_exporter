@@ -158,8 +158,8 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 		}
 		certPairs = append(certPairs, keypair)
 		tlsCfg.Certificates = certPairs
-		tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
 	}
+	tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
 	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil
 }

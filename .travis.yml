@@ -4,6 +4,12 @@ language: go
 
 go:
 - 1.14.x
+- tip
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: tip
 
 # skip non-trunk PMM-XXXX branch builds, but still build pull requests
 branches:

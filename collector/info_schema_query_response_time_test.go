@@ -17,6 +17,7 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 	}
 	defer db.Close()
 
+	mock.ExpectQuery(sanitizeQuery(checkQueryResponseTimePlugins)).WillReturnRows(sqlmock.NewRows([]string{"c"}).AddRow(1))
 	mock.ExpectQuery(queryResponseCheckQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
 
 	rows := sqlmock.NewRows([]string{"TIME", "COUNT", "TOTAL"}).
@@ -74,6 +75,6 @@ func TestScrapeQueryResponseTime(t *testing.T) {
 
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
+		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }

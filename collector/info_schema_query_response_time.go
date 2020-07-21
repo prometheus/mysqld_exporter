@@ -13,6 +13,7 @@ import (
 )
 
 const queryResponseCheckQuery = `SELECT @@query_response_time_stats`
+const checkQueryResponseTimePlugins = "SELECT COUNT(PLUGIN_NAME) AS c FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'QUERY_RESPONSE_TIME' AND PLUGIN_STATUS = 'ACTIVE'"
 
 var (
 	// Use uppercase for table names, otherwise read/write split will return the same results as total
@@ -106,8 +107,23 @@ func (ScrapeQueryResponseTime) Version() float64 {
 
 // Scrape collects data.
 func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric) error {
+	var activeQueryResponseTimePlugins uint8
+	// to reduce amount of erros by getting query_response_time_stats variable
+	// check if query_response_time.so plugin is loaded and active
+	// https://www.percona.com/doc/percona-server/5.7/diagnostics/response_time_distribution.html
+	err := db.QueryRowContext(ctx, checkQueryResponseTimePlugins).Scan(&activeQueryResponseTimePlugins)
+	if err != nil {
+		log.Debugf("Cannot check if QUERY_RESPONSE_TIME plugin is present: %v", err)
+		return nil
+	}
+
+	if activeQueryResponseTimePlugins == 0 {
+		log.Debugln("None or inactive QUERY_RESPONSE_TIME plugin")
+		return nil
+	}
+
 	var queryStats uint8
-	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
+	err = db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
 		log.Debugln("Query response time distribution is not present.")
 		return nil

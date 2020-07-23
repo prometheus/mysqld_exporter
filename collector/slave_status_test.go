@@ -133,9 +133,9 @@ func TestScrapeSlaveStatusVersions(t *testing.T) {
 		defer db.Close()
 
 		versionColumns := []string{"@@version", "@@version_comment"}
-		vesionRows := sqlmock.NewRows(versionColumns).
+		versionRows := sqlmock.NewRows(versionColumns).
 			AddRow(qt.version...)
-		mock.ExpectQuery(sanitizeQuery("SELECT @@version, @@version_comment")).WillReturnRows(vesionRows)
+		mock.ExpectQuery(sanitizeQuery("SELECT @@version, @@version_comment")).WillReturnRows(versionRows)
 
 		columns := []string{"Master_Host", "Read_Master_Log_Pos", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master"}
 		rows := sqlmock.NewRows(columns).

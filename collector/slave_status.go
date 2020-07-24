@@ -54,9 +54,9 @@ func (ScrapeSlaveStatus) Version() float64 {
 
 var (
 	maria55              = regexp.MustCompile(`^5\.[1-5]`)         // support only SHOW SLAVE STATUS
-	perconaNolock55      = regexp.MustCompile(`^5\.5`)             // suport SHOW SLAVE STATUS NOLOCK
-	perconaNolock56      = regexp.MustCompile(`^5\.6\.1[1-9]`)     // suport SHOW SLAVE STATUS NOLOCK
-	perconaNonblocking56 = regexp.MustCompile(`^5\.6\.[2-9][0-9]`) // suport SHOW SLAVE STATUS NONBLOCKING
+	perconaNolock55      = regexp.MustCompile(`^5\.5`)             // support SHOW SLAVE STATUS NOLOCK
+	perconaNolock56      = regexp.MustCompile(`^5\.6\.1[1-9]`)     // support SHOW SLAVE STATUS NOLOCK
+	perconaNonblocking56 = regexp.MustCompile(`^5\.6\.[2-9][0-9]`) // support SHOW SLAVE STATUS NONBLOCKING
 )
 
 // chooseQuery chooses a query to get slave status by database's distro and version.

@@ -43,9 +43,9 @@ var (
 		"The CPU usage as a percentage.",
 		[]string{"server_id", "role"}, nil,
 	)
-	infoSchemaReplicaHostSlaveLatencyDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "replica_host_slave_latency_seconds"),
-		"The master-slave latency in seconds.",
+	infoSchemaReplicaHostReplicaLatencyDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "replica_host_replica_latency_seconds"),
+		"The source-replica latency in seconds.",
 		[]string{"server_id", "role"}, nil,
 	)
 	infoSchemaReplicaHostLagDesc = prometheus.NewDesc(
@@ -102,7 +102,7 @@ func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		serverId       string
 		role           string
 		cpu            float64
-		slaveLatency   uint64
+		replicaLatency uint64
 		replicaLag     float64
 		logStreamSpeed float64
 		replayLatency  uint64
@@ -112,7 +112,7 @@ func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 			&serverId,
 			&role,
 			&cpu,
-			&slaveLatency,
+			&replicaLatency,
 			&replicaLag,
 			&logStreamSpeed,
 			&replayLatency,
@@ -124,7 +124,7 @@ func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 			serverId, role,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			infoSchemaReplicaHostSlaveLatencyDesc, prometheus.GaugeValue, float64(slaveLatency)*0.000001,
+			infoSchemaReplicaHostReplicaLatencyDesc, prometheus.GaugeValue, float64(replicaLatency)*0.000001,
 			serverId, role,
 		)
 		ch <- prometheus.MustNewConstMetric(

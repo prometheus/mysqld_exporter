@@ -3,7 +3,13 @@
         "mysql-overview.json": (import "dashboards/mysql-overview.json"),
     },
 
-    prometheusRules: std.native('parseYaml')(importstr 'rules/rules.yaml'),
+    // Helper function to ensure that we don't override other rules, by forcing
+    // the patching of the groups list, and not the overall rules object.
+    local importRules(rules) = {
+        groups+: std.native('parseYaml')(rules)[0].groups,
+    },
 
-    prometheusAlerts:  std.native('parseYaml')(importstr 'alerts/galera.yaml'),
+    prometheusRules+: importRules(importstr 'rules/rules.yaml'),
+
+    prometheusAlerts+: importRules(importstr 'alerts/galera.yaml'),
 }

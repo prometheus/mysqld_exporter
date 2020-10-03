@@ -173,7 +173,7 @@ This can be useful for having different Prometheus servers collect specific metr
 
 ## Example Rules
 
-There are some sample rules available in [example.rules](example.rules)
+There is a set of sample rules, alerts and dashboards available in the [mysqld-mixin](mysqld-mixin/)
 
 [circleci]: https://circleci.com/gh/prometheus/mysqld_exporter
 [hub]: https://hub.docker.com/r/prom/mysqld-exporter/

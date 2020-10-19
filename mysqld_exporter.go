@@ -66,10 +66,10 @@ var (
 	).Default("false").Bool()
 	multiHostExporterConfigFile = kingpin.Flag(
 		"config-multi-hosts",
-		"Path to yaml config file to fetch mysql client info. Used when export-multi-hosts is true.",
-	).Default("config-multi.yml").String()
-	dsn string
-	configMulti *multiHostExporterConfig
+		"Path to ini config file to fetch mysql client info. Used when export-multi-hosts is true.",
+	).Default("config-multi.ini").String()
+	dsn         string
+	configMulti *ini.File
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
@@ -230,7 +230,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 				return
 			}
 			var err error
-			if dsn, err = configMulti.formDSN(target); err != nil {
+			if dsn, err = formMultiHostExporterDSN(target, configMulti); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -302,7 +302,7 @@ func main() {
 			level.Info(logger).Log("msg", "Error parsing multi host config", "file", *multiHostExporterConfigFile, "err", err)
 			os.Exit(1)
 		}
-		if err := configMulti.validate(); err != nil {
+		if err := validateMultiHostExporterConfig(configMulti); err != nil {
 			level.Info(logger).Log("msg", err)
 			os.Exit(1)
 		}

@@ -1,106 +1,103 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
-    "errors"
-    "fmt"
-    "os"
-    "gopkg.in/yaml.v2"
+	"errors"
+	"fmt"
+	"gopkg.in/ini.v1"
+	"strings"
 )
 
 var (
-    errUserIsNotSet = errors.New("Field 'User' must exist and cannot be empty")
-    errNameIsNotSet = errors.New("Field 'Name' must exist and cannot be empty")
-    errPasswordIsNotSet = errors.New("Field 'Password' must exist and cannot be empty")
-    errPortIsNotSet = errors.New("Field 'Port' must exist and cannot be empty")
-
+	errclientParentIsNotSet = errors.New("Parent Client must exist and cannot be empty")
+	errUserIsNotSet         = errors.New("Field 'User' must exist and cannot be empty")
+	errPasswordIsNotSet     = errors.New("Field 'Password' must exist and cannot be empty")
 )
 
-//multiHostExporterconfig is the struct containing MySQL connection info.
-type multiHostExporterConfig struct{
-    Clients []Client `yaml:"clients"`
+func newMultiHostExporterConfig(configPath string) (*ini.File, error) {
+	opts := ini.LoadOptions{
+		// MySQL ini file can have boolean keys.
+		AllowBooleanKeys: true,
+	}
+
+	var cfg *ini.File
+	var err error
+	if cfg, err = ini.LoadSources(opts, configPath); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
-type Client struct {
-    Name        string `yaml:"name"`
-    User        string `yaml:"user"`
-    Password    string `yaml:"password"`
-    Port        int    `yaml:"port"`
-    SSLCA       string `yaml:"ssl-ca"`
-    SSLCert     string `yaml:"ssl-cert"`
-    SSLKey      string `yaml:"ssl-key"`
-}
+func validateMultiHostExporterConfig(cfg *ini.File) error {
+	var clientParent *ini.Section
+	var err error
 
-// newMultiHostExporterConfig returns a new decoded multiHostExporterConfig struct
-func newMultiHostExporterConfig(configPath string) (*multiHostExporterConfig, error) {
-    c := &multiHostExporterConfig{}
+	if clientParent, err = cfg.GetSection("client"); err != nil {
+		return errclientParentIsNotSet
+	}
+	if !clientParent.HasKey("password") || clientParent.Key("password").String() == "" {
+		return errPasswordIsNotSet
+	}
+	if !clientParent.HasKey("user") || clientParent.Key("user").String() == "" {
+		return errUserIsNotSet
+	}
 
-    f, err := os.Open(configPath)
-    if err != nil {
-        return nil, err
-    }
-    defer f.Close()
+	for _, clientChild := range clientParent.ChildSections() {
+		if !clientChild.HasKey("password") || clientParent.Key("password").String() == "" {
+			return errPasswordIsNotSet
+		}
+		if !clientChild.HasKey("user") || clientParent.Key("user").String() == "" {
+			return errUserIsNotSet
+		}
+	}
 
-    d := yaml.NewDecoder(f)
-    if err := d.Decode(&c); err != nil {
-        return nil, err
-    }
-
-    return c, nil
-}
-
-
-// validate validates the multi host config
-func (c multiHostExporterConfig) validate() error {
-	for _, client := range c.Clients {
-        if client.Name == "" {
-		    return errNameIsNotSet
-	    }
-        if client.User == "" {
-		    return errUserIsNotSet
-	    }
-        if client.Password == "" {
-		    return errPasswordIsNotSet
-	    }
-        if client.Port == 0 {
-		    return errPortIsNotSet
-	    }
-    }
 	return nil
 }
 
-// formDSN returns a dsn for a given host in multi host exporter mode
-func (c multiHostExporterConfig) formDSN(h string) (string, error) {
-    var dsn string
-    var default_client_index *int
-    for i, client := range c.Clients {
-        // Store the default_client index which could be of use later
-        if client.Name == "default_client" {
-            ind := i
-            default_client_index = &ind
-        } else if client.Name == h {
-            dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", client.User, client.Password, h, client.Port)
-            if client.SSLCA != "" {
-                if tlsErr := customizeTLS(client.SSLCA, client.SSLCert, client.SSLKey); tlsErr != nil {
-                    tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-                    return dsn, tlsErr
-                }
-                dsn = fmt.Sprintf("%s?tls=custom", dsn)
-            }
-            return dsn, nil
-        }
-    }
-    // Could not find host specific client config. Try default_client
-    if default_client_index != nil {
-        dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", c.Clients[*default_client_index].User, c.Clients[*default_client_index].Password, h, c.Clients[*default_client_index].Port)
-        client := c.Clients[*default_client_index]
-        if client.SSLCA != "" {
-            if tlsErr := customizeTLS(client.SSLCA, client.SSLCert, client.SSLKey); tlsErr != nil {
-                tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-                return dsn, tlsErr
-            }
-            dsn = fmt.Sprintf("%s?tls=custom", dsn)
-        }
-        return dsn, nil
-    }
-    return "", errors.New("Can't form dsn. Didn't find default client or host specific client")
+func formMultiHostExporterDSN(hostPort string, cfg *ini.File) (string, error) {
+	var dsn, host, port string
+	var client *ini.Section
+	var err error
+
+	targetPort := strings.Split(hostPort, ":")
+	host = targetPort[0]
+	if len(targetPort) > 1 {
+		port = targetPort[1]
+	} else {
+		port = "3306"
+	}
+
+	if client, err = cfg.GetSection(fmt.Sprintf("client.%s", host)); err != nil {
+		// Didn't find host specific client, try default client
+		if client, err = cfg.GetSection("client"); err != nil {
+			return "", errors.New("Can't form dsn. Didn't find default client or host specific client")
+		}
+	}
+
+	user := client.Key("user").String()
+	password := client.Key("password").String()
+	dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, host, port)
+
+	if client.HasKey("ssl-ca") && client.Key("ssl-ca").String() != "" {
+		if tlsErr := customizeTLS(client.Key("ssl-ca").String(), client.Key("ssl-cert").String(), client.Key("ssl-key").String()); tlsErr != nil {
+			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
+			return dsn, tlsErr
+		}
+		dsn = fmt.Sprintf("%s?tls=custom", dsn)
+	}
+
+	return dsn, nil
 }

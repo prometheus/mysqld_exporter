@@ -30,6 +30,8 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 ### Running
 
+#####  Single exporter mode
+
 Running using an environment variable:
 
     export DATA_SOURCE_NAME='user:password@(hostname:3306)/'
@@ -39,6 +41,42 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+#####  Multi exporter mode
+This mode can be useful in monitoring MySQL deployments in cloud like RDS.
+
+
+    ./mysqld_exporter --export-multi-hosts --config-multi-hosts=<path to ini config file>
+ 
+Sample config file for multi exporter mode
+
+        [client]
+        user = foo
+        password = foo123
+        [client.server1]
+        user = bar
+        password = bar123
+        [client.server2]
+        user = bar1
+        password = bar1123
+
+On the prometheus side you can set a scrape config as follows
+
+        - job_name: mysql # To get metrics about the mysql exporter’s targets
+          static_configs:
+            - targets:
+              # All rds hostnames to monitor. The target(s) here is also used to figure out the client name from the multi host config.
+              - server1:3306
+              - server2:3306
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              # The mysqld_exporter host:port
+              replacement: localhost:9104
+
+#####  Flag format
 Example format for flags for version > 0.10.0:
 
     --collect.auto_increment.columns
@@ -105,6 +143,8 @@ exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
+export-multi-hosts                         | Enable multi exporter mode. Useful in monitoring MySQL deployments in cloud like RDS.
+config-multi-hosts                         | Path to the ini file used in multi exporter mode
 
 ### Setting the MySQL server's data source name
 

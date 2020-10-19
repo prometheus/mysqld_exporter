@@ -1,114 +1,117 @@
+// Copyright 2018 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
-    "testing"
-    "gopkg.in/yaml.v2"
+	"gopkg.in/ini.v1"
+	"testing"
 
-    "github.com/smartystreets/goconvey/convey"
+	"github.com/smartystreets/goconvey/convey"
 )
 
-func TestValidate(t *testing.T) {
-    const (
-        missingName = `
-            clients:
-            - user: blah
-              password: abc123
-              port: 3306
+func TestValidateMultiHostExporterConfig(t *testing.T) {
+	const (
+		missingClient = `
+            [Foo]
+            user = root
+            password = abc
+			`
+		missingUser = `
+            [client]
+            password = abc
             `
-         missingUser = `
-            clients:
-            - name: default_client
-              password: abc123
-              port: 3306
+		missingPassword = `
+            [client]
+            user = abc
             `
-         missingPassword = `
-            clients:
-            - name: default_client
-              user: blah
-              port: 3306
-            `
-        missingPort = `
-            clients:
-            - name: default_client
-              user: blah
-              password: abc123
-            `
-    )
-    convey.Convey("Various multi-host exporter config validation", t, func() {
-        convey.Convey("Client without name", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(missingName), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            err = c.validate()
-            convey.So(err, convey.ShouldResemble, errNameIsNotSet)
-        })
-        convey.Convey("Client without user", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(missingUser), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            err = c.validate()
-            convey.So(err, convey.ShouldResemble, errUserIsNotSet)
-        })
-        convey.Convey("Client without password", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(missingPassword), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            err = c.validate()
-            convey.So(err, convey.ShouldResemble, errPasswordIsNotSet)
-        })
-        convey.Convey("Client without port", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(missingPort), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            err = c.validate()
-            convey.So(err, convey.ShouldResemble, errPortIsNotSet)
-        })
+	)
 
-    })
+	var (
+		cfg  *ini.File
+		opts = ini.LoadOptions{
+			// MySQL ini file can have boolean keys.
+			AllowBooleanKeys: true,
+		}
+		err error
+	)
+	convey.Convey("Various multi-host exporter config validation", t, func() {
+		convey.Convey("No parent client", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(missingClient)); err != nil {
+				t.Error(err)
+			}
+			err := validateMultiHostExporterConfig(cfg)
+			convey.So(err, convey.ShouldResemble, errclientParentIsNotSet)
+		})
+		convey.Convey("Client without user", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(missingUser)); err != nil {
+				t.Error(err)
+			}
+			err := validateMultiHostExporterConfig(cfg)
+			convey.So(err, convey.ShouldResemble, errUserIsNotSet)
+		})
+		convey.Convey("Client without password", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(missingPassword)); err != nil {
+				t.Error(err)
+			}
+			err := validateMultiHostExporterConfig(cfg)
+			convey.So(err, convey.ShouldResemble, errPasswordIsNotSet)
+		})
+	})
 }
 
+func TestFormMultiHostExporterDSN(t *testing.T) {
+	const (
+		workingClient = `
+            [client]
+            user = root
+            password = abc
+			[client.server1]
+            user = root1
+            password = abc123
+            `
+	)
+	var (
+		cfg  *ini.File
+		opts = ini.LoadOptions{
+			// MySQL ini file can have boolean keys.
+			AllowBooleanKeys: true,
+		}
+		err error
+	)
 
-func TestFormDSN(t *testing.T) {
-    const (
-        workingClient = `
-            clients:
-            - name: default_client
-              user: default_user
-              password: default_pass
-              port: 3306
-            - name: rds.example.com
-              user: rds_user
-              password: rds_pass
-              port: 8000
-        `
-    )
-    convey.Convey("Multi Host exporter dsn", t, func() {
-        convey.Convey("Default Client", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(workingClient), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            dsn, _ := c.formDSN("rds2.example.com")
-            convey.So(dsn, convey.ShouldEqual, "default_user:default_pass@tcp(rds2.example.com:3306)/")
-        })
-        convey.Convey("Host specific Client", func() {
-            c := &multiHostExporterConfig{}
-            err :=  yaml.Unmarshal([]byte(workingClient), &c)
-            if err != nil {
-                t.Error(err)
-            }
-            dsn, _ := c.formDSN("rds.example.com")
-            convey.So(dsn, convey.ShouldEqual, "rds_user:rds_pass@tcp(rds.example.com:8000)/")
-        })
+	convey.Convey("Multi Host exporter dsn", t, func() {
+		convey.Convey("Default Client", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(workingClient)); err != nil {
+				t.Error(err)
+			}
+			dsn, _ := formMultiHostExporterDSN("server2:3306", cfg)
+			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/")
+		})
+		convey.Convey("Host specific Client", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(workingClient)); err != nil {
+				t.Error(err)
+			}
+			dsn, _ := formMultiHostExporterDSN("server1:8000", cfg)
+			convey.So(dsn, convey.ShouldEqual, "root1:abc123@tcp(server1:8000)/")
+		})
+		convey.Convey("Without explicit port", func() {
+			if cfg, err = ini.LoadSources(opts, []byte(workingClient)); err != nil {
+				t.Error(err)
+			}
+			dsn, _ := formMultiHostExporterDSN("server1", cfg)
+			convey.So(dsn, convey.ShouldEqual, "root1:abc123@tcp(server1:3306)/")
+		})
 
-    })
+	})
 }

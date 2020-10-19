@@ -13,7 +13,6 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/ini.v1 v1.57.0
-	gopkg.in/yaml.v2 v2.2.5
 )
 
 go 1.13

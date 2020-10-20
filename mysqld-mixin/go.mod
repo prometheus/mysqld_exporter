@@ -1,4 +1,4 @@
-module github.com/prometheus/mysqld_exporter/mysqld_mixin
+module github.com/prometheus/mysqld_exporter/mysqld-mixin
 
 go 1.14
 

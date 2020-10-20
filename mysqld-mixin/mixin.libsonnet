@@ -11,5 +11,7 @@
 
   prometheusRules+: importRules(importstr 'rules/rules.yaml'),
 
-  prometheusAlerts+: importRules(importstr 'alerts/galera.yaml'),
+  prometheusAlerts+:
+    importRules(importstr 'alerts/general.yaml') +
+    importRules(importstr 'alerts/galera.yaml'),
 }

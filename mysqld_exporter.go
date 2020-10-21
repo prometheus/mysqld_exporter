@@ -287,13 +287,10 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
 	if !*multiHostExporter {
-		dsn = os.Getenv("DATA_SOURCE_NAME")
-		if len(dsn) == 0 {
-			var err error
-			if dsn, err = parseMycnf(*configMycnf); err != nil {
-				level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-				os.Exit(1)
-			}
+		var err error
+		if dsn, err = parseMycnf(*configMycnf); err != nil {
+			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+			os.Exit(1)
 		}
 	} else {
 		level.Info(logger).Log("msg", "Multi host exporter mode enabled")

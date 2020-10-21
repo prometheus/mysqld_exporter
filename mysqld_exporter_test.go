@@ -183,7 +183,8 @@ func TestBin(t *testing.T) {
 	}
 
 	tests := []func(*testing.T, bin){
-		testLandingPage,
+		testLandingPageSingleExporter,
+		testLandingPageMultiExporter,
 	}
 
 	portStart := 56000
@@ -204,7 +205,7 @@ func TestBin(t *testing.T) {
 	})
 }
 
-func testLandingPage(t *testing.T, data bin) {
+func testLandingPageSingleExporter(t *testing.T, data bin) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -213,8 +214,47 @@ func testLandingPage(t *testing.T, data bin) {
 		ctx,
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+		"--config.my-cnf=test_single_exporter.cnf",
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	// Get the main page.
+	urlToGet := fmt.Sprintf("http://127.0.0.1:%d", data.port)
+	body, err := waitForBody(urlToGet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(body)
+
+	expected := `<html>
+<head><title>MySQLd exporter</title></head>
+<body>
+<h1>MySQLd exporter</h1>
+<p><a href='/metrics'>Metrics</a></p>
+</body>
+</html>
+`
+	if got != expected {
+		t.Fatalf("got '%s' but expected '%s'", got, expected)
+	}
+}
+
+func testLandingPageMultiExporter(t *testing.T, data bin) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Run exporter.
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+		"--export-multi-hosts",
+		"--config-multi-hosts=test_multi_exporter.cnf",
+	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

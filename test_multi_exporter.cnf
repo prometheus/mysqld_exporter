@@ -1,0 +1,7 @@
+
+[client]
+user = foo
+password = foo123
+[client.server1]
+user = bar
+password = bar123

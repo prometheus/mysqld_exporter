@@ -32,11 +32,6 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 #####  Single exporter mode
 
-Running using an environment variable:
-
-    export DATA_SOURCE_NAME='user:password@(hostname:3306)/'
-    ./mysqld_exporter <flags>
-
 Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
@@ -167,8 +162,6 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
-Customizing the SSL configuration is only supported in the mysql cnf file and is not supported if you set the mysql server's data source name in the environment variable DATA_SOURCE_NAME.
-
 
 ## Using Docker
 
@@ -180,11 +173,23 @@ For example:
 docker network create my-mysql-network
 docker pull prom/mysqld-exporter
 
+1. Single exporter mode
+
 docker run -d \
   -p 9104:9104 \
   --network my-mysql-network  \
-  -e DATA_SOURCE_NAME="user:password@(hostname:3306)/" \
   prom/mysqld-exporter
+  --config.my-cnf=<path_to_cnf>
+
+2. Multi exporter mode
+
+docker run -d \
+  -p 9104:9104 \
+  --network my-mysql-network  \
+  prom/mysqld-exporter
+  --export-multi-hosts
+  --config-multi-hosts==<path_to_multi_exporter_cnf>
+
 ```
 
 ## heartbeat

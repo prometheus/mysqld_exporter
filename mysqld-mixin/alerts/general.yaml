@@ -1,7 +1,7 @@
 groups:
 - name: MySQLdAlerts
   rules:
-  - alert: MySQLUp
+  - alert: MySQLDown
     expr: mysql_up != 1
     for: 5m
     labels:

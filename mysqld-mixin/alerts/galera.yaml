@@ -47,7 +47,7 @@ groups:
       description: Slave replication (IO or SQL) has been down for more than 2 minutes.
       summary: Slave replication is not running
   - alert: MySQLReplicationLag
-    expr: (:mysql_slave_lag_seconds > 30) and on(instance) (predict_linear(:mysql_slave_lag_seconds[5m],
+    expr: (instance:mysql_slave_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_slave_lag_seconds[5m],
       60 * 2) > 0)
     for: 1m
     labels:
@@ -56,7 +56,7 @@ groups:
       description: The mysql slave replication has fallen behind and is not recovering
       summary: MySQL slave replication is lagging
   - alert: MySQLReplicationLag
-    expr: (:mysql_heartbeat_lag_seconds > 30) and on(instance) (predict_linear(:mysql_heartbeat_lag_seconds[5m],
+    expr: (instance:mysql_heartbeat_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_heartbeat_lag_seconds[5m],
       60 * 2) > 0)
     for: 1m
     labels:

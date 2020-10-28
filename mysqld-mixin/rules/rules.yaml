@@ -1,0 +1,15 @@
+groups:
+- name: mysqld_rules
+  rules:
+
+  # Record slave lag seconds for pre-computed timeseries that takes
+  # `mysql_slave_status_sql_delay` into account
+  - record: instance:mysql_slave_lag_seconds
+    expr: mysql_slave_status_seconds_behind_master - mysql_slave_status_sql_delay
+
+  # Record slave lag via heartbeat method
+  - record: instance:mysql_heartbeat_lag_seconds
+    expr: mysql_heartbeat_now_timestamp_seconds - mysql_heartbeat_stored_timestamp_seconds
+
+  - record: job:mysql_transactions:rate5m
+    expr: sum without (command) (rate(mysql_global_status_commands_total{command=~"(commit|rollback)"}[5m]))

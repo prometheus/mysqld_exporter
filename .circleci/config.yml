@@ -52,12 +52,13 @@ jobs:
 
   mixin:
     executor: golang
+    working_directory: ~/project/mysqld-mixin
 
     steps:
     - checkout
-    - run: cd mysqld-mixin; go install github.com/monitoring-mixins/mixtool/cmd/mixtool
-    - run: cd mysqld-mixin; go install github.com/google/go-jsonnet/cmd/jsonnetfmt
-    - run: cd mysqld-mixin; make lint build
+    - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool
+    - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt
+    - run: make lint build
 
 workflows:
   version: 2

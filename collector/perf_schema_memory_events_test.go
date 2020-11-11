@@ -23,9 +23,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapePerfMemoryEvents(t *testing.T) {
+	_, err := kingpin.CommandLine.Parse([]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -54,15 +60,15 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"event_name": "memory/innodb/event1"}, value: 1001, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/innodb/event1"}, value: 500, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/innodb/event1"}, value: 501, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"event_name": "memory/innodb/event2"}, value: 2002, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/innodb/event2"}, value: 1000, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/innodb/event2"}, value: 1002, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"event_name": "memory/sql/event1"}, value: 30, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/sql/event1"}, value: 4, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "memory/sql/event1"}, value: 26, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"event_name": "innodb/event1"}, value: 1001, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "innodb/event1"}, value: 500, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "innodb/event1"}, value: 501, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"event_name": "innodb/event2"}, value: 2002, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "innodb/event2"}, value: 1000, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "innodb/event2"}, value: 1002, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"event_name": "sql/event1"}, value: 30, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "sql/event1"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "sql/event1"}, value: 26, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

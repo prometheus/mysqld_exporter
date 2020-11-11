@@ -18,9 +18,11 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const perfMemoryEventsQuery = `
@@ -31,6 +33,15 @@ const perfMemoryEventsQuery = `
 		where COUNT_ALLOC > 0;
 `
 
+// Tunable flags.
+var (
+	performanceSchemaMemoryEventsRemovePrefix = kingpin.Flag(
+		"collect.perf_schema.memory_events.remove_prefix",
+		"Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
+	).Default("memory/").String()
+)
+
+// Metric descriptors.
 var (
 	performanceSchemaMemoryBytesAllocDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "memory_events_bytes_alloc_total"),
@@ -89,6 +100,7 @@ func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 			return err
 		}
 
+		eventName := strings.TrimPrefix(eventName, *performanceSchemaMemoryEventsRemovePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaMemoryBytesAllocDesc, prometheus.CounterValue, float64(bytesAlloc), eventName,
 		)

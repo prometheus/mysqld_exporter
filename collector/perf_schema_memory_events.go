@@ -44,12 +44,12 @@ var (
 // Metric descriptors.
 var (
 	performanceSchemaMemoryBytesAllocDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "memory_events_bytes_alloc_total"),
+		prometheus.BuildFQName(namespace, performanceSchema, "memory_events_alloc_bytes_total"),
 		"The total number of bytes allocated by events.",
 		[]string{"event_name"}, nil,
 	)
 	performanceSchemaMemoryBytesFreeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "memory_events_bytes_free_total"),
+		prometheus.BuildFQName(namespace, performanceSchema, "memory_events_free_bytes_total"),
 		"The total number of bytes freed by events.",
 		[]string{"event_name"}, nil,
 	)

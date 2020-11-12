@@ -13,6 +13,7 @@
 * [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x.
 * [FEATURE] Add collector for `replication_group_members` (PR #459) #362
 * [BUGFIX] Fixed output value of wsrep_cluster_status #473
+* [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` (PR #515) #75
 
 ### BREAKING CHANGES:
 

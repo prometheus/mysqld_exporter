@@ -40,15 +40,15 @@ var (
 		"collect.perf_schema.file_instances.filter",
 		"RegEx file_name filter for performance_schema.file_summary_by_instance",
 	).Default(".*").String()
-)
 
-// Metric descriptors.
-var (
 	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
 		"collect.perf_schema.file_instances.remove_prefix",
 		"Remove path prefix in performance_schema.file_summary_by_instance",
 	).Default("/var/lib/mysql/").String()
+)
 
+// Metric descriptors.
+var (
 	performanceSchemaFileInstancesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "file_instances_bytes"),
 		"The number of bytes processed by file read/write operations.",

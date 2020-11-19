@@ -47,6 +47,7 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 
 	rows := sqlmock.NewRows(columns).
 		AddRow("memory/innodb/event1", "1001", "500", "501").
+		AddRow("memory/performance_schema/event1", "6000", "7", "-83904").
 		AddRow("memory/innodb/event2", "2002", "1000", "1002").
 		AddRow("memory/sql/event1", "30", "4", "26")
 	mock.ExpectQuery(sanitizeQuery(perfMemoryEventsQuery)).WillReturnRows(rows)
@@ -63,6 +64,9 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 		{labels: labelMap{"event_name": "innodb/event1"}, value: 1001, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"event_name": "innodb/event1"}, value: 500, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"event_name": "innodb/event1"}, value: 501, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"event_name": "performance_schema/event1"}, value: 6000, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "performance_schema/event1"}, value: 7, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"event_name": "performance_schema/event1"}, value: -83904, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"event_name": "innodb/event2"}, value: 2002, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"event_name": "innodb/event2"}, value: 1000, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"event_name": "innodb/event2"}, value: 1002, metricType: dto.MetricType_GAUGE},

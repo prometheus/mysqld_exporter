@@ -90,7 +90,7 @@ func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 		eventName    string
 		bytesAlloc   uint64
 		bytesFree    uint64
-		currentBytes uint64
+		currentBytes int64
 	)
 
 	for perfSchemaMemoryEventsRows.Next() {

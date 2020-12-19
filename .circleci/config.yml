@@ -2,7 +2,7 @@
 version: 2.1
 
 orbs:
-  prometheus: prometheus/prometheus@0.5.0
+  prometheus: prometheus/prometheus@0.8.0
 
 executors:
   # Whenever the Go version is updated here, .promu.yml
@@ -22,8 +22,12 @@ jobs:
         file: mysqld_exporter
 
   integration:
-    machine:
-      image: ubuntu-1604:202004-01
+    docker:
+    - image: circleci/golang:1.15
+    - image: << parameters.mysql_image >>
+      environment:
+        MYSQL_ALLOW_EMPTY_PASSWORD: yes
+        MYSQL_ROOT_HOST: '%'
 
     parameters:
       mysql_image:
@@ -31,14 +35,11 @@ jobs:
 
     steps:
     - checkout
+    - setup_remote_docker
     - run: docker version
     - run: docker-compose --version
     - run: make build
-    - run:
-        name: Run integration test
-        command: |
-          MYSQL_IMAGE=<< parameters.mysql_image >> docker-compose up -d
-          make test
+    - run: make test
 
   codespell:
     docker:
@@ -74,10 +75,10 @@ workflows:
             - mysql/mysql-server:5.6
             - mysql/mysql-server:5.7
             - mysql/mysql-server:8.0
-            - mariadb:10.1
             - mariadb:10.2
             - mariadb:10.3
             - mariadb:10.4
+            - mariadb:10.5
     - prometheus/build:
         name: build
         filters:

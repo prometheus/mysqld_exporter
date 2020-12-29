@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -45,6 +46,10 @@ var (
 		"web.listen-address",
 		"Address to listen on for web interface and telemetry.",
 	).Default(":9104").String()
+	unixSocketPath = kingpin.Flag(
+		"web.listen-unix-socket",
+		"Path to the UNIX Socket to listen on for web interface and telemetry.",
+	).String()
 	metricPath = kingpin.Flag(
 		"web.telemetry-path",
 		"Path under which to expose metrics.",
@@ -283,14 +288,29 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
+	mux := http.NewServeMux()
 	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
-	http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
 
-	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
-	if err := http.ListenAndServe(*listenAddress, nil); err != nil {
+	var listener net.Listener
+	var err error
+	if *unixSocketPath != "" {
+		os.Remove(*unixSocketPath)
+		level.Info(logger).Log("msg", "Listening on UNIX socket adress", "address", *unixSocketPath)
+		listener, err = net.Listen("unix", *unixSocketPath)
+	} else {
+		level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
+		listener, err = net.Listen("tcp", *listenAddress)
+	}
+
+	if err != nil {
+		level.Error(logger).Log("msg", "Error creating listener", "err", err)
+	}
+
+	if err := http.Serve(listener, mux); err != nil {
 		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
 		os.Exit(1)
 	}

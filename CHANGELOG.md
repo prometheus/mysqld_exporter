@@ -14,6 +14,7 @@
 * [FEATURE] Add collector for `replication_group_members` (PR #459) #362
 * [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` (PR #515) #75
 * [BUGFIX] Fixed output value of wsrep_cluster_status #473
+* [BUGFIX] Fix collect.info_schema.innodb_tablespaces for new table names #516
 
 ### BREAKING CHANGES:
 

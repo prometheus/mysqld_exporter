@@ -106,9 +106,18 @@ config.my-cnf                              | Path to .my.cnf file to read MySQL 
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
+
+## TLS and basic authentication
+
+The MySQLd Exporter supports TLS and basic authentication.
+
+To use TLS and/or basic authentication, you need to pass a configuration file
+using the `--web.config.file` parameter. The format of the file is described
+[in the exporter-toolkit repository](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md).
 
 ### Setting the MySQL server's data source name
 
@@ -116,9 +125,9 @@ The MySQL server's [data source name](http://en.wikipedia.org/wiki/Data_source_n
 must be set via the `DATA_SOURCE_NAME` environment variable.
 The format of this variable is described at https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 
-
 ## Customizing Configuration for a SSL Connection
-if The MySQL server supports SSL, you may need to specify a CA truststore to verify the server's chain-of-trust. You may also need to specify a SSL keypair for the client side of the SSL connection. To configure the mysqld exporter to use a custom CA certificate, add the following to the mysql cnf file:
+
+If The MySQL server supports SSL, you may need to specify a CA truststore to verify the server's chain-of-trust. You may also need to specify a SSL keypair for the client side of the SSL connection. To configure the mysqld exporter to use a custom CA certificate, add the following to the mysql cnf file:
 
 ```
 ssl-ca=/path/to/ca/file

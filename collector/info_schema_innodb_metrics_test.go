@@ -48,7 +48,7 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 		AddRow("buffer_pool_pages_data", "buffer", "gauge", "Number of data buffer pool pages", 6).
 		AddRow("buffer_pool_pages_total", "buffer", "gauge", "Number of total buffer pool pages", 7).
 		AddRow("NOPE", "buffer_page_io", "counter", "An invalid buffer_page_io metric", 999)
-	query = fmt.Sprintf(infoSchemaInnodbMetricsQuery, "status", "enabled")
+	query := fmt.Sprintf(infoSchemaInnodbMetricsQuery, "status", "enabled")
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)

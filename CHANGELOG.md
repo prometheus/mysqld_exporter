@@ -15,7 +15,7 @@
 * [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` (PR #515) #75
 * [BUGFIX] Fixed output value of wsrep_cluster_status #473
 * [BUGFIX] Fix collect.info_schema.innodb_tablespaces for new table names #516
-* [BUGFIX] Fix collect.info_schema.innodb_metrics for new field names (mariadb 10.4+) #494
+* [BUGFIX] Fix collect.info_schema.innodb_metrics for new field names (mariadb 10.5+) #494
 
 ### BREAKING CHANGES:
 

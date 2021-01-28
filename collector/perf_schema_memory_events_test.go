@@ -61,18 +61,18 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"event_name": "innodb/event1"}, value: 1001, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "innodb/event1"}, value: 500, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "innodb/event1"}, value: 501, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"event_name": "performance_schema/event1"}, value: 6000, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "performance_schema/event1"}, value: 7, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "performance_schema/event1"}, value: -83904, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"event_name": "innodb/event2"}, value: 2002, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "innodb/event2"}, value: 1000, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "innodb/event2"}, value: 1002, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"event_name": "sql/event1"}, value: 30, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "sql/event1"}, value: 4, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"event_name": "sql/event1"}, value: 26, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_memory_events_alloc_bytes_total", help: "The total number of bytes allocated by events.", labels: labelMap{"event_name": "innodb/event1"}, value: 1001, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_free_bytes_total", help: "The total number of bytes freed by events.", labels: labelMap{"event_name": "innodb/event1"}, value: 500, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_used_bytes", help: "The number of bytes currently allocated by events.", labels: labelMap{"event_name": "innodb/event1"}, value: 501, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_memory_events_alloc_bytes_total", help: "The total number of bytes allocated by events.", labels: labelMap{"event_name": "performance_schema/event1"}, value: 6000, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_free_bytes_total", help: "The total number of bytes freed by events.", labels: labelMap{"event_name": "performance_schema/event1"}, value: 7, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_used_bytes", help: "The number of bytes currently allocated by events.", labels: labelMap{"event_name": "performance_schema/event1"}, value: -83904, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_memory_events_alloc_bytes_total", help: "The total number of bytes allocated by events.", labels: labelMap{"event_name": "innodb/event2"}, value: 2002, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_free_bytes_total", help: "The total number of bytes freed by events.", labels: labelMap{"event_name": "innodb/event2"}, value: 1000, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_used_bytes", help: "The number of bytes currently allocated by events.", labels: labelMap{"event_name": "innodb/event2"}, value: 1002, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_memory_events_alloc_bytes_total", help: "The total number of bytes allocated by events.", labels: labelMap{"event_name": "sql/event1"}, value: 30, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_free_bytes_total", help: "The total number of bytes freed by events.", labels: labelMap{"event_name": "sql/event1"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_memory_events_used_bytes", help: "The number of bytes currently allocated by events.", labels: labelMap{"event_name": "sql/event1"}, value: 26, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

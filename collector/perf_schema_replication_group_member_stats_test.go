@@ -73,14 +73,14 @@ func TestScrapePerfReplicationGroupMemberStats(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: float64(7389775), metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: float64(1), metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: float64(48), metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: float64(22), metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: float64(7389759), metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: float64(7), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_transactions_in_queue", help: "The number of transactions in the queue pending conflict detection checks.", labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_transactions_checked_total", help: "The number of transactions that have been checked for conflicts.", labels: labelMap{}, value: float64(7389775), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_conflicts_detected_total", help: "The number of transactions that have not passed the conflict detection check.", labels: labelMap{}, value: float64(1), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_transactions_rows_validating_total", help: "Number of transaction rows which can be used for certification, but have not been garbage collected.", labels: labelMap{}, value: float64(48), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_transactions_remote_in_applier_queue", help: "The number of transactions that this member has received from the replication group which are waiting to be applied.", labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_transactions_remote_applied_total", help: "Number of transactions this member has received from the group and applied.", labels: labelMap{}, value: float64(22), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_transactions_local_proposed_total", help: "Number of transactions which originated on this member and were sent to the group.", labels: labelMap{}, value: float64(7389759), metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_transactions_local_rollback_total", help: "Number of transactions which originated on this member and were rolled back by the group.", labels: labelMap{}, value: float64(7), metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

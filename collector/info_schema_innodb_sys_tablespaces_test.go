@@ -54,12 +54,12 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"tablespace_name": "sys/sys_config", "file_format": "Barracuda", "row_format": "Dynamic", "space_type": "Single"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "db/compressed", "file_format": "Barracuda", "row_format": "Compressed", "space_type": "Single"}, value: 2, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 300, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 200, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_space_info", help: "The Tablespace information and Space ID.", labels: labelMap{"tablespace_name": "sys/sys_config", "file_format": "Barracuda", "row_format": "Dynamic", "space_type": "Single"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_file_size_bytes", help: "The apparent size of the file, which represents the maximum size of the file, uncompressed.", labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_allocated_size_bytes", help: "The actual size of the file, which is the amount of space allocated on disk.", labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_space_info", help: "The Tablespace information and Space ID.", labels: labelMap{"tablespace_name": "db/compressed", "file_format": "Barracuda", "row_format": "Compressed", "space_type": "Single"}, value: 2, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_file_size_bytes", help: "The apparent size of the file, which represents the maximum size of the file, uncompressed.", labels: labelMap{"tablespace_name": "db/compressed"}, value: 300, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_tablespace_allocated_size_bytes", help: "The actual size of the file, which is the amount of space allocated on disk.", labels: labelMap{"tablespace_name": "db/compressed"}, value: 200, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

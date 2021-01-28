@@ -49,9 +49,9 @@ func TestScrapeBinlogSize(t *testing.T) {
 	}()
 
 	counterExpected := []MetricResult{
-		{labels: labelMap{}, value: 574942, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 3, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 444, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_binlog_size_bytes", help: "Combined size of all registered binlog files.", labels: labelMap{}, value: 574942, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_binlog_files", help: "Number of registered binlog files.", labels: labelMap{}, value: 3, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_binlog_file_number", help: "The last binlog file number.", labels: labelMap{}, value: 444, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

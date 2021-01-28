@@ -79,8 +79,8 @@ func TestScrapeHeartbeat(t *testing.T) {
 			}()
 
 			counterExpected := []MetricResult{
-				{labels: labelMap{"server_id": "1"}, value: 1487598113.448042, metricType: dto.MetricType_GAUGE},
-				{labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
+				{name: "mysql_heartbeat_now_timestamp_seconds", help: "Timestamp of the current server.", labels: labelMap{"server_id": "1"}, value: 1487598113.448042, metricType: dto.MetricType_GAUGE},
+				{name: "mysql_heartbeat_stored_timestamp_seconds", help: "Timestamp stored in the heartbeat table.", labels: labelMap{"server_id": "1"}, value: 1487597613.00132, metricType: dto.MetricType_GAUGE},
 			}
 			convey.Convey("Metrics comparison", t, func() {
 				for _, expect := range counterExpected {

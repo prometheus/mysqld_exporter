@@ -53,13 +53,13 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"type": "system_page"}, value: 3, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"type": "undo_log"}, value: 4, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 5, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"state": "data"}, value: 6, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_metrics_lock_lock_timeouts_total", help: "Number of lock timeouts", labels: labelMap{}, value: 0, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_metrics_buffer_buffer_pool_reads_total", help: "Number of reads directly from disk (innodb_buffer_pool_reads)", labels: labelMap{}, value: 1, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_metrics_server_buffer_pool_size", help: "Server buffer pool size (all buffer pools) in bytes", labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_metrics_buffer_page_read_total", help: "Total number of buffer pages read total.", labels: labelMap{"type": "system_page"}, value: 3, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_metrics_buffer_page_written_total", help: "Total number of buffer pages written total.", labels: labelMap{"type": "undo_log"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_metrics_buffer_pool_dirty_pages", help: "Total number of dirty pages in the buffer pool.", labels: labelMap{}, value: 5, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_innodb_metrics_buffer_pool_pages", help: "Total number of buffer pool pages by state.", labels: labelMap{"state": "data"}, value: 6, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

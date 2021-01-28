@@ -14,6 +14,7 @@
 package collector
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,28 +22,36 @@ import (
 )
 
 type labelMap map[string]string
-
 type MetricResult struct {
+	name       string
+	help       string
 	labels     labelMap
 	value      float64
 	metricType dto.MetricType
 }
 
 func readMetric(m prometheus.Metric) MetricResult {
+
+	a := m.Desc()
 	pb := &dto.Metric{}
 	m.Write(pb)
-	labels := make(labelMap, len(pb.Label))
+
+	name := reflect.ValueOf(a).Elem().FieldByName("fqName").String()
+	help := reflect.ValueOf(a).Elem().FieldByName("help").String()
+	labels := labelMap{}
+
 	for _, v := range pb.Label {
 		labels[v.GetName()] = v.GetValue()
 	}
+
 	if pb.Gauge != nil {
-		return MetricResult{labels: labels, value: pb.GetGauge().GetValue(), metricType: dto.MetricType_GAUGE}
+		return MetricResult{name: name, help: help, labels: labels, value: pb.GetGauge().GetValue(), metricType: dto.MetricType_GAUGE}
 	}
 	if pb.Counter != nil {
-		return MetricResult{labels: labels, value: pb.GetCounter().GetValue(), metricType: dto.MetricType_COUNTER}
+		return MetricResult{name: name, help: help, labels: labels, value: pb.GetCounter().GetValue(), metricType: dto.MetricType_COUNTER}
 	}
 	if pb.Untyped != nil {
-		return MetricResult{labels: labels, value: pb.GetUntyped().GetValue(), metricType: dto.MetricType_UNTYPED}
+		return MetricResult{name: name, help: help, labels: labels, value: pb.GetUntyped().GetValue(), metricType: dto.MetricType_UNTYPED}
 	}
 	panic("Unsupported metric type")
 }

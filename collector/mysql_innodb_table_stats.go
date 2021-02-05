@@ -42,15 +42,15 @@ var (
 var (
 	nRowsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_n_rows"),
-		"Stores data related to particular InnoDB Persistent Statistics.",
+		"Number of rows in the table.",
 		tableStatLabelNames, nil)
 	clusteredIndexSizeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_clustered_index_size"),
-		"Stores data related to particular InnoDB Persistent Statistics.",
+		"The size of the primary index, in pages.",
 		tableStatLabelNames, nil)
 	sumOfOtherIndexSizesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_sum_of_other_index_sizes"),
-		"Stores data related to particular InnoDB Persistent Statistics.",
+		"The total size of other (non-primary) indexes, in pages.",
 		tableStatLabelNames, nil)
 )
 

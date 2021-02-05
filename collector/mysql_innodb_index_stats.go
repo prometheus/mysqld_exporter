@@ -42,7 +42,7 @@ var (
 var (
 	indexStatsValueDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, mysql, "innodb_index_stats_stat_value"),
-		"Stores data related to particular InnoDB Persistent Statistics.",
+		"Size of the InnoDB index in bytes.",
 		indexStatLabelNames, nil)
 )
 

@@ -96,6 +96,8 @@ collect.heartbeat                                            | 5.1           | C
 collect.heartbeat.database                                   | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.table                                      | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.utc                                        | 5.1           | Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`). (default: false)
+collect.mysql.innodb_index_stats                             | 5.1           | Collect InnoDB metrics from mysql.innodb_index_stats (default: OFF)
+collect.mysql.innodb_table_stats                             | 5.1           | Collect InnoDB metrics from mysql.innodb_table_stats (default: OFF)
 
 
 ### General Flags

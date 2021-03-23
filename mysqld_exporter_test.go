@@ -30,9 +30,16 @@ import (
 	"time"
 
 	"github.com/smartystreets/goconvey/convey"
+	"gopkg.in/ini.v1"
 )
 
-func TestParseMycnf(t *testing.T) {
+func TestFormExporterDSN(t *testing.T) {
+	var (
+		opts = ini.LoadOptions{
+			// MySQL ini file can have boolean keys.
+			AllowBooleanKeys: true,
+		}
+	)
 	const (
 		tcpConfig = `
 			[client]
@@ -44,6 +51,9 @@ func TestParseMycnf(t *testing.T) {
 			user = root
 			password = abc123
 			port = 3308
+			[client.module1]
+			user = foo
+			password = foo123
 		`
 		socketConfig = `
 			[client]
@@ -88,48 +98,72 @@ func TestParseMycnf(t *testing.T) {
 			[hello]
 			world = ismine
 		`
-		badConfig4 = `[hello`
 	)
 	convey.Convey("Various .my.cnf configurations", t, func() {
 		convey.Convey("Local tcp connection", func() {
-			dsn, _ := parseMycnf([]byte(tcpConfig))
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
 		})
+		convey.Convey("Local tcp connection on non-default host", func() {
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig))
+			dsn, _ := formExporterDSN("1.2.3.4", "default", cfg)
+			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(1.2.3.4:3306)/")
+		})
+		convey.Convey("Local tcp connection on non-default target", func() {
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig))
+			dsn, _ := formExporterDSN("1.2.3.4:3308", "default", cfg)
+			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(1.2.3.4:3308)/")
+		})
 		convey.Convey("Local tcp connection on non-default port", func() {
-			dsn, _ := parseMycnf([]byte(tcpConfig2))
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig2))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3308)/")
 		})
 		convey.Convey("Socket connection", func() {
-			dsn, _ := parseMycnf([]byte(socketConfig))
+			cfg, _ := ini.LoadSources(opts, []byte(socketConfig))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
 		})
 		convey.Convey("Socket connection ignoring defined host", func() {
-			dsn, _ := parseMycnf([]byte(socketConfig2))
+			cfg, _ := ini.LoadSources(opts, []byte(socketConfig2))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@unix(/var/lib/mysql/mysql.sock)/")
 		})
 		convey.Convey("Remote connection", func() {
-			dsn, _ := parseMycnf([]byte(remoteConfig))
+			cfg, _ := ini.LoadSources(opts, []byte(remoteConfig))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "dude:nopassword@tcp(1.2.3.4:3307)/")
 		})
 		convey.Convey("Ignore boolean keys", func() {
-			dsn, _ := parseMycnf([]byte(ignoreBooleanKeys))
+			cfg, _ := ini.LoadSources(opts, []byte(ignoreBooleanKeys))
+			dsn, _ := formExporterDSN("", "", cfg)
 			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3306)/")
 		})
+		convey.Convey("Local tcp connection on other module", func() {
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig2))
+			dsn, _ := formExporterDSN("", "module1", cfg)
+			convey.So(dsn, convey.ShouldEqual, "foo:foo123@tcp(localhost:3308)/")
+		})
 		convey.Convey("Missed user", func() {
-			_, err := parseMycnf([]byte(badConfig))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig))
+			cfg, _ := ini.LoadSources(opts, []byte(badConfig))
+			_, err := formExporterDSN("", "", cfg)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in config"))
 		})
 		convey.Convey("Missed password", func() {
-			_, err := parseMycnf([]byte(badConfig2))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig2))
+			cfg, _ := ini.LoadSources(opts, []byte(badConfig2))
+			_, err := formExporterDSN("", "", cfg)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in config"))
 		})
 		convey.Convey("No [client] section", func() {
-			_, err := parseMycnf([]byte(badConfig3))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig3))
+			cfg, _ := ini.LoadSources(opts, []byte(badConfig3))
+			_, err := formExporterDSN("", "", cfg)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("didn't find section [client] in config"))
 		})
-		convey.Convey("Invalid config", func() {
-			_, err := parseMycnf([]byte(badConfig4))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("failed reading ini file: unclosed section: %s", badConfig4))
+		convey.Convey("Invalid non-default target port", func() {
+			cfg, _ := ini.LoadSources(opts, []byte(tcpConfig2))
+			_, err := formExporterDSN("127.0.0.1:hello", "", cfg)
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("invalid port hello"))
 		})
 	})
 }
@@ -214,7 +248,6 @@ func testLandingPage(t *testing.T, data bin) {
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

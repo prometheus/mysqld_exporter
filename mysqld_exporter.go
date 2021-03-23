@@ -61,7 +61,8 @@ var (
 		"tls.insecure-skip-verify",
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
-	dsn string
+	dsn        string
+	exportConf *ini.File
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
@@ -102,32 +103,73 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeReplicaHost{}:                         false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
-	var dsn string
+func newExporterConfig(configPath interface{}) (*ini.File, error) {
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
 	}
-	cfg, err := ini.LoadSources(opts, config)
-	if err != nil {
-		return dsn, fmt.Errorf("failed reading ini file: %s", err)
+
+	var cfg *ini.File
+	var err error
+	if cfg, err = ini.LoadSources(opts, configPath); err != nil {
+		return nil, err
 	}
-	user := cfg.Section("client").Key("user").String()
-	password := cfg.Section("client").Key("password").String()
+
+	return cfg, nil
+}
+
+func formExporterDSN(target string, module string, cfg *ini.File) (string, error) {
+	var dsn, host string
+	var port uint
+	var client *ini.Section
+	var err error
+
+	// parse specific target
+	if target != "" {
+		targetPort := strings.Split(target, ":")
+		host = targetPort[0]
+		if len(targetPort) > 1 {
+			p, err := strconv.ParseUint(targetPort[1], 10, 64)
+			if err != nil {
+				return "", fmt.Errorf("invalid port %s", targetPort[1])
+			}
+			port = uint(p)
+		}
+	}
+
+	// get config client
+	var section string
+	if module == "" || module == "default" {
+		section = "client"
+	} else {
+		section = fmt.Sprintf("client.%s", module)
+	}
+	if client, err = cfg.GetSection(section); err != nil {
+		return "", fmt.Errorf("didn't find section [%s] in config", section)
+	}
+
+	// default host & port
+	if host == "" {
+		host = cfg.Section("client").Key("host").MustString("localhost")
+	}
+	if port == 0 {
+		port = cfg.Section("client").Key("port").MustUint(3306)
+	}
+
+	user := client.Key("user").String()
+	password := client.Key("password").String()
 	if (user == "") || (password == "") {
-		return dsn, fmt.Errorf("no user or password specified under [client] in %s", config)
+		return dsn, fmt.Errorf("no user or password specified under [%s] in config", section)
 	}
-	host := cfg.Section("client").Key("host").MustString("localhost")
-	port := cfg.Section("client").Key("port").MustUint(3306)
-	socket := cfg.Section("client").Key("socket").String()
+	socket := client.Key("socket").String()
 	if socket != "" {
 		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
 	} else {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 	}
-	sslCA := cfg.Section("client").Key("ssl-ca").String()
-	sslCert := cfg.Section("client").Key("ssl-cert").String()
-	sslKey := cfg.Section("client").Key("ssl-key").String()
+	sslCA := client.Key("ssl-ca").String()
+	sslCert := client.Key("ssl-cert").String()
+	sslKey := client.Key("ssl-key").String()
 	if sslCA != "" {
 		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
 			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
@@ -214,6 +256,14 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 			}
 		}
 
+		var err error
+		target := r.URL.Query().Get("target")
+		module := r.URL.Query().Get("module")
+		if dsn, err = formExporterDSN(target, module, exportConf); err != nil {
+			level.Info(logger).Log("msg", "Error parsing target", "target", target, "err", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
@@ -266,13 +316,10 @@ func main() {
 	level.Info(logger).Log("msg", "Starting msqyld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-			os.Exit(1)
-		}
+	var err error
+	if exportConf, err = newExporterConfig(*configMycnf); err != nil {
+		level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+		os.Exit(1)
 	}
 
 	// Register only scrapers enabled by flag.

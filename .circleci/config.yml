@@ -2,14 +2,14 @@
 version: 2.1
 
 orbs:
-  prometheus: prometheus/prometheus@0.8.0
+  prometheus: prometheus/prometheus@0.11.0
 
 executors:
   # Whenever the Go version is updated here, .promu.yml
   # should also be updated.
   golang:
     docker:
-    - image: circleci/golang:1.15
+    - image: circleci/golang:1.16
 
 jobs:
   test:
@@ -23,7 +23,7 @@ jobs:
 
   integration:
     docker:
-    - image: circleci/golang:1.15
+    - image: circleci/golang:1.16
     - image: << parameters.mysql_image >>
       environment:
         MYSQL_ALLOW_EMPTY_PASSWORD: yes
@@ -56,8 +56,8 @@ jobs:
 
     steps:
     - checkout
-    - run: cd mysqld-mixin; go install github.com/monitoring-mixins/mixtool/cmd/mixtool
-    - run: cd mysqld-mixin; go install github.com/google/go-jsonnet/cmd/jsonnetfmt
+    - run: cd mysqld-mixin; go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
+    - run: cd mysqld-mixin; go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
     - run: cd mysqld-mixin; make lint build
 
 workflows:

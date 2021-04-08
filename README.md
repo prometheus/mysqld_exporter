@@ -73,6 +73,7 @@ collect.info_schema.tables.databases                         | 5.1           | T
 collect.info_schema.tablestats                               | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.schemastats                              | 5.1           | If running with userstat=1, set to true to collect schema statistics
 collect.info_schema.userstats                                | 5.1           | If running with userstat=1, set to true to collect user statistics.
+collect.mysql.user                                           | 5.5             | Collect data from mysql.user table
 collect.perf_schema.eventsstatements                         | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.digest_text_limit       | 5.6           | Maximum length of the normalized statement text. (default: 120)
 collect.perf_schema.eventsstatements.limit                   | 5.6           | Limit the number of events statements digests by response time. (default: 250)

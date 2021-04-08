@@ -114,20 +114,28 @@ func parseMycnf(config interface{}) (string, error) {
 	}
 	user := cfg.Section("client").Key("user").String()
 	password := cfg.Section("client").Key("password").String()
-	if (user == "") || (password == "") {
-		return dsn, fmt.Errorf("no user or password specified under [client] in %s", config)
+	if user == "" {
+		return dsn, fmt.Errorf("no user specified under [client] in %s", config)
 	}
 	host := cfg.Section("client").Key("host").MustString("localhost")
 	port := cfg.Section("client").Key("port").MustUint(3306)
 	socket := cfg.Section("client").Key("socket").String()
-	if socket != "" {
-		dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
-	} else {
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
-	}
 	sslCA := cfg.Section("client").Key("ssl-ca").String()
 	sslCert := cfg.Section("client").Key("ssl-cert").String()
 	sslKey := cfg.Section("client").Key("ssl-key").String()
+	passwordPart := ""
+	if password != "" {
+		passwordPart = ":" + password
+	} else {
+		if sslKey == "" {
+			return dsn, fmt.Errorf("password or ssl-key should be specified under [client] in %s", config)
+		}
+	}
+	if socket != "" {
+		dsn = fmt.Sprintf("%s%s@unix(%s)/", user, passwordPart, socket)
+	} else {
+		dsn = fmt.Sprintf("%s%s@tcp(%s:%d)/", user, passwordPart, host, port)
+	}
 	if sslCA != "" {
 		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
 			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)

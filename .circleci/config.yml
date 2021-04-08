@@ -50,15 +50,14 @@ jobs:
     - run: sudo pip install codespell
     - run: codespell --skip=".git,./vendor,ttar,Makefile.common" -L uint,ist,keypair
 
-
   mixin:
     executor: golang
 
     steps:
     - checkout
-    - run: cd mysqld-mixin; go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
-    - run: cd mysqld-mixin; go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
-    - run: cd mysqld-mixin; make lint build
+    - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
+    - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
+    - run: make -C mysqld-mixin lint build
 
 workflows:
   version: 2

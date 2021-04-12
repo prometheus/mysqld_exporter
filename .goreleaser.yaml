@@ -1,0 +1,44 @@
+project_name: mysqld_exporter
+release:
+  github:
+    owner: CloudTalk-io
+    name: mysqld_exporter
+builds:
+  - id: mysqld_exporter
+    goos:
+    - linux
+    - windows
+    - darwin
+    goarch:
+    - amd64
+    - "386"
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    main: mysqld_exporter.go
+    ldflags: -s -w
+      -X github.com/CloudTalk-io/mysqld_exporter/version.version={{.Version}}
+      -X github.com/CloudTalk-io/mysqld_exporter/version.gitSHA={{.Commit}}
+      -X github.com/CloudTalk-io/mysqld_exporter/version.buildTime={{.Date}}
+      -extldflags "-static"
+    flags: -tags netgo -installsuffix netgo
+    binary: mysqld_exporter
+    hooks: {}
+archives:
+  - id: mysqld_exporter
+    builds:
+      - mysqld_exporter
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - licence*
+      - LICENCE*
+      - license*
+      - LICENSE*
+      - readme*
+      - README*
+      - changelog*
+      - CHANGELOG*

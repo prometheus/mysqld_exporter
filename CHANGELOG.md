@@ -5,24 +5,37 @@
 ### Changes:
 
 * [CHANGE]
-* [BUGFIX]
-* [ENHANCEMENT]
 * [FEATURE]
+* [ENHANCEMENT]
+* [BUGFIX]
 
-* [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors (PR #417) #348
-* [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x.
-* [FEATURE] Add collector for `replication_group_members` (PR #459) #362
-* [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` (PR #515) #75
-* [BUGFIX] Fixed output value of wsrep_cluster_status #473
-* [BUGFIX] Fix collect.info_schema.innodb_tablespaces for new table names #516
-* [BUGFIX] Fix collect.info_schema.innodb_metrics for new field names (mariadb 10.5+) #494
+## 0.13.0-rc.0 / 2021-04-26
 
-### BREAKING CHANGES:
+BREAKING CHANGES:
 
 Changes related to `replication_group_member_stats` collector:
 * metric "transaction_in_queue" was Counter instead of Gauge
 * renamed 3 metrics starting with `mysql_perf_schema_transaction_` to start with `mysql_perf_schema_transactions_` to be consistent with column names
 * exposing only server's own stats by matching MEMBER_ID with @@server_uuid resulting "member_id" label to be dropped.
+
+Changes:
+
+* [CHANGE] Switch to go-kit for logs. #433
+* [FEATURE] Add `tls.insecure-skip-verify` flag to ignore tls verification errors #417
+* [FEATURE] Add collector for AWS Aurora information_schema.replica_host_status #435
+* [FEATURE] Add collector for `replication_group_members` #459
+* [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x. #462
+* [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` #515
+* [FEATURE] Support authenticating using mTLS client cert and no password #539
+* [ENHANCEMENT] Support heartbeats in UTC #471
+* [BUGFIX] Fix binlog metrics on mysql 8.x #419
+* [BUGFIX] Fix output value of wsrep_cluster_status #473
+* [BUGFIX] Fix collect.info_schema.innodb_metrics for new field names (mariadb 10.5+) #494
+* [BUGFIX] Fix log output of collect[] params #505
+* [BUGFIX] Fix collect.info_schema.innodb_tablespaces for new table names #516
+* [BUGFIX] Fix innodb_metrics for mariadb 10.5+ #523
+* [BUGFIX] Allow perf_schema.memory summary current_bytes to be negative #517
+
 
 ## 0.12.1 / 2019-07-10
 

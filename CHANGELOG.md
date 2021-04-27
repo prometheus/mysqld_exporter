@@ -9,6 +9,8 @@
 * [ENHANCEMENT]
 * [BUGFIX]
 
+* [ENHANCEMENT] Improve parsing of boolean strings
+
 ## 0.13.0-rc.0 / 2021-04-26
 
 BREAKING CHANGES:

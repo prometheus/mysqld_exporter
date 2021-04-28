@@ -43,21 +43,19 @@ func newDesc(subsystem, name, help string) *prometheus.Desc {
 }
 
 func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Equal(data, []byte("Yes")) || bytes.Equal(data, []byte("ON")) {
+	dataString := strings.ToLower(string(data))
+	switch dataString {
+	case "yes", "on":
 		return 1, true
-	}
-	if bytes.Equal(data, []byte("No")) || bytes.Equal(data, []byte("OFF")) {
+	case "no", "off", "disabled":
 		return 0, true
-	}
 	// SHOW SLAVE STATUS Slave_IO_Running can return "Connecting" which is a non-running state.
-	if bytes.Equal(data, []byte("Connecting")) {
+	case "connecting":
 		return 0, true
-	}
 	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "non-Primary"/"Disconnected"
-	if bytes.Equal(data, []byte("Primary")) {
+	case "primary":
 		return 1, true
-	}
-	if strings.EqualFold(string(data), "non-Primary") || bytes.Equal(data, []byte("Disconnected")) {
+	case "non-primary", "disconnected":
 		return 0, true
 	}
 	if logNum := logRE.Find(data); logNum != nil {

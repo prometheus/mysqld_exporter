@@ -1,17 +1,15 @@
 ## master / unreleased
 
-### BREAKING CHANGES:
+BREAKING CHANGES:
 
-### Changes:
+Changes:
 
 * [CHANGE]
 * [FEATURE]
 * [ENHANCEMENT]
 * [BUGFIX]
 
-* [ENHANCEMENT] Improve parsing of boolean strings
-
-## 0.13.0-rc.0 / 2021-04-26
+## 0.13.0 / 2021-05-18
 
 BREAKING CHANGES:
 
@@ -29,7 +27,9 @@ Changes:
 * [FEATURE] Add new metrics to `replication_group_member_stats` collector to support MySQL 8.x. #462
 * [FEATURE] Add collector for `performance_schema.memory_summary_global_by_event_name` #515
 * [FEATURE] Support authenticating using mTLS client cert and no password #539
+* [FEATURE] Add TLS and basic authentication #522
 * [ENHANCEMENT] Support heartbeats in UTC #471
+* [ENHANCEMENT] Improve parsing of boolean strings #548
 * [BUGFIX] Fix binlog metrics on mysql 8.x #419
 * [BUGFIX] Fix output value of wsrep_cluster_status #473
 * [BUGFIX] Fix collect.info_schema.innodb_metrics for new field names (mariadb 10.5+) #494

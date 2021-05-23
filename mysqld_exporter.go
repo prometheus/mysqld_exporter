@@ -64,7 +64,16 @@ var (
 		"tls.insecure-skip-verify",
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
-	dsn string
+	multiHostExporter = kingpin.Flag(
+		"export-multi-hosts",
+		"Setting it to true enables scraping multiple mysql hosts.",
+	).Default("false").Bool()
+	multiHostExporterConfigFile = kingpin.Flag(
+		"config-multi-hosts",
+		"Path to ini config file to fetch mysql client info. Used when export-multi-hosts is true.",
+	).Default("config-multi.ini").String()
+	dsn         string
+	configMulti *ini.File
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
@@ -226,6 +235,19 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 		}
 
 		registry := prometheus.NewRegistry()
+
+		if *multiHostExporter {
+			target := r.URL.Query().Get("target")
+			if target == "" {
+				http.Error(w, "Target parameter is missing", http.StatusBadRequest)
+				return
+			}
+			var err error
+			if dsn, err = formMultiHostExporterDSN(target, configMulti); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
 		gatherers := prometheus.Gatherers{
@@ -277,11 +299,21 @@ func main() {
 	level.Info(logger).Log("msg", "Starting msqyld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
+	if !*multiHostExporter {
 		var err error
 		if dsn, err = parseMycnf(*configMycnf); err != nil {
 			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+			os.Exit(1)
+		}
+	} else {
+		level.Info(logger).Log("msg", "Multi host exporter mode enabled")
+		var err error
+		if configMulti, err = newMultiHostExporterConfig(*multiHostExporterConfigFile); err != nil {
+			level.Info(logger).Log("msg", "Error parsing multi host config", "file", *multiHostExporterConfigFile, "err", err)
+			os.Exit(1)
+		}
+		if err := validateMultiHostExporterConfig(configMulti); err != nil {
+			level.Info(logger).Log("msg", err)
 			os.Exit(1)
 		}
 	}

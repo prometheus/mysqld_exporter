@@ -46,8 +46,8 @@ func TestScrapeSlaveHostsOldFormat(t *testing.T) {
 	}()
 
 	counterExpected := []MetricResult{
-		{labels: labelMap{"server_id": "380239978", "slave_host": "backup_server_1", "port": "0", "master_id": "192168011", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "11882498", "slave_host": "backup_server_2", "port": "0", "master_id": "192168011", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_heartbeat_mysql_slave_hosts_info", help: "Information about running slaves", labels: labelMap{"server_id": "380239978", "slave_host": "backup_server_1", "port": "0", "master_id": "192168011", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_heartbeat_mysql_slave_hosts_info", help: "Information about running slaves", labels: labelMap{"server_id": "11882498", "slave_host": "backup_server_2", "port": "0", "master_id": "192168011", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {
@@ -84,8 +84,8 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 	}()
 
 	counterExpected := []MetricResult{
-		{labels: labelMap{"server_id": "192168010", "slave_host": "iconnect2", "port": "3306", "master_id": "192168011", "slave_uuid": "14cb6624-7f93-11e0-b2c0-c80aa9429562"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "1921680101", "slave_host": "athena", "port": "3306", "master_id": "192168011", "slave_uuid": "07af4990-f41f-11df-a566-7ac56fdaf645"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_heartbeat_mysql_slave_hosts_info", help: "Information about running slaves", labels: labelMap{"server_id": "192168010", "slave_host": "iconnect2", "port": "3306", "master_id": "192168011", "slave_uuid": "14cb6624-7f93-11e0-b2c0-c80aa9429562"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_heartbeat_mysql_slave_hosts_info", help: "Information about running slaves", labels: labelMap{"server_id": "1921680101", "slave_host": "athena", "port": "3306", "master_id": "192168011", "slave_uuid": "07af4990-f41f-11df-a566-7ac56fdaf645"}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

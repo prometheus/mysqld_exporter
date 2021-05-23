@@ -61,20 +61,20 @@ func TestScrapePerfReplicationApplierStatsByWorker(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521600001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521660001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521720001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521780001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521840001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521900001e+9, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521960001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_original_commit_timestamp_seconds", help: "A timestamp shows when the last transaction applied by this worker was committed on the original master.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_immediate_commit_timestamp_seconds", help: "A timestamp shows when the last transaction applied by this worker was committed on the immediate master.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_start_apply_timestamp_seconds", help: "A timestamp shows when this worker started applying the last applied transaction.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_end_apply_timestamp_seconds", help: "A shows when this worker finished applying the last applied transaction.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_original_commit_timestamp_seconds", help: "A timestamp that shows when the transaction this worker is currently applying was committed on the original master.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_immediate_commit_timestamp_seconds", help: "A timestamp shows when the transaction this worker is currently applying was committed on the immediate master.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_start_apply_timestamp_seconds", help: "A timestamp shows when this worker started its first attempt to apply the transaction that is currently being applied.", labels: labelMap{"channel_name": "dummy_0", "member_id": "0"}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_original_commit_timestamp_seconds", help: "A timestamp shows when the last transaction applied by this worker was committed on the original master.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521600001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_immediate_commit_timestamp_seconds", help: "A timestamp shows when the last transaction applied by this worker was committed on the immediate master.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521660001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_start_apply_timestamp_seconds", help: "A timestamp shows when this worker started applying the last applied transaction.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521720001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_last_applied_transaction_end_apply_timestamp_seconds", help: "A shows when this worker finished applying the last applied transaction.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521780001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_original_commit_timestamp_seconds", help: "A timestamp that shows when the transaction this worker is currently applying was committed on the original master.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521840001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_immediate_commit_timestamp_seconds", help: "A timestamp shows when the transaction this worker is currently applying was committed on the immediate master.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521900001e+9, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_perf_schema_applying_transaction_start_apply_timestamp_seconds", help: "A timestamp shows when this worker started its first attempt to apply the transaction that is currently being applied.", labels: labelMap{"channel_name": "dummy_1", "member_id": "1"}, value: 1.552521960001e+9, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

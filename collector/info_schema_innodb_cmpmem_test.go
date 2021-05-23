@@ -45,10 +45,10 @@ func TestScrapeInnodbCmpMem(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 30, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 40, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 50, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 6, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmpmem_pages_used_total", help: "Number of blocks of the size PAGE_SIZE that are currently in use.", labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 30, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmpmem_pages_free_total", help: "Number of blocks of the size PAGE_SIZE that are currently available for allocation.", labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 40, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmpmem_relocation_ops_total", help: "Number of times a block of the size PAGE_SIZE has been relocated.", labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 50, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmpmem_relocation_time_seconds_total", help: "Total time in seconds spent in relocating blocks.", labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 6, metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

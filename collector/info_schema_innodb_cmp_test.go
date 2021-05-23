@@ -45,11 +45,11 @@ func TestScrapeInnodbCmp(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"page_size": "1024"}, value: 10, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024"}, value: 20, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024"}, value: 30, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024"}, value: 40, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024"}, value: 50, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmp_compress_ops_total", help: "Number of times a B-tree page of the size PAGE_SIZE has been compressed.", labels: labelMap{"page_size": "1024"}, value: 10, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmp_compress_ops_ok_total", help: "Number of times a B-tree page of the size PAGE_SIZE has been successfully compressed.", labels: labelMap{"page_size": "1024"}, value: 20, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmp_compress_time_seconds_total", help: "Total time in seconds spent in attempts to compress B-tree pages.", labels: labelMap{"page_size": "1024"}, value: 30, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmp_uncompress_ops_total", help: "Number of times a B-tree page of the size PAGE_SIZE has been uncompressed.", labels: labelMap{"page_size": "1024"}, value: 40, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_info_schema_innodb_cmp_uncompress_time_seconds_total", help: "Total time in seconds spent in uncompressing B-tree pages.", labels: labelMap{"page_size": "1024"}, value: 50, metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

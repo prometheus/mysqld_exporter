@@ -49,15 +49,15 @@ func TestScrapeTableStat(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"schema": "mysql", "table": "db"}, value: 238},
-		{labels: labelMap{"schema": "mysql", "table": "db"}, value: 0},
-		{labels: labelMap{"schema": "mysql", "table": "db"}, value: 8},
-		{labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 99},
-		{labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 1},
-		{labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 0},
-		{labels: labelMap{"schema": "mysql", "table": "user"}, value: 1064},
-		{labels: labelMap{"schema": "mysql", "table": "user"}, value: 2},
-		{labels: labelMap{"schema": "mysql", "table": "user"}, value: 5},
+		{name: "mysql_info_schema_table_statistics_rows_read_total", help: "The number of rows read from the table.", labels: labelMap{"schema": "mysql", "table": "db"}, value: 238},
+		{name: "mysql_info_schema_table_statistics_rows_changed_total", help: "The number of rows changed in the table.", labels: labelMap{"schema": "mysql", "table": "db"}, value: 0},
+		{name: "mysql_info_schema_table_statistics_rows_changed_x_indexes_total", help: "The number of rows changed in the table, multiplied by the number of indexes changed.", labels: labelMap{"schema": "mysql", "table": "db"}, value: 8},
+		{name: "mysql_info_schema_table_statistics_rows_read_total", help: "The number of rows read from the table.", labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 99},
+		{name: "mysql_info_schema_table_statistics_rows_changed_total", help: "The number of rows changed in the table.", labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 1},
+		{name: "mysql_info_schema_table_statistics_rows_changed_x_indexes_total", help: "The number of rows changed in the table, multiplied by the number of indexes changed.", labels: labelMap{"schema": "mysql", "table": "proxies_priv"}, value: 0},
+		{name: "mysql_info_schema_table_statistics_rows_read_total", help: "The number of rows read from the table.", labels: labelMap{"schema": "mysql", "table": "user"}, value: 1064},
+		{name: "mysql_info_schema_table_statistics_rows_changed_total", help: "The number of rows changed in the table.", labels: labelMap{"schema": "mysql", "table": "user"}, value: 2},
+		{name: "mysql_info_schema_table_statistics_rows_changed_x_indexes_total", help: "The number of rows changed in the table, multiplied by the number of indexes changed.", labels: labelMap{"schema": "mysql", "table": "user"}, value: 5},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

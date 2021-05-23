@@ -47,20 +47,20 @@ func TestScrapePerfIndexIOWaits(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "fetch"}, value: 10, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "update"}, value: 12, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "delete"}, value: 13, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "fetch"}, value: 14, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "update"}, value: 16, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "delete"}, value: 17, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "fetch"}, value: 20, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "insert"}, value: 21, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "update"}, value: 22, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "delete"}, value: 23, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "fetch"}, value: 24, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "insert"}, value: 25, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "update"}, value: 26, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "delete"}, value: 27, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "fetch"}, value: 10, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "update"}, value: 12, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "delete"}, value: 13, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "fetch"}, value: 14, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "update"}, value: 16, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "index", "operation": "delete"}, value: 17, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "fetch"}, value: 20, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "insert"}, value: 21, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "update"}, value: 22, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_total", help: "The total number of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "delete"}, value: 23, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "fetch"}, value: 24, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "insert"}, value: 25, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "update"}, value: 26, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_index_io_waits_seconds_total", help: "The total time of index I/O wait events for each index and operation.", labels: labelMap{"schema": "database", "name": "table", "index": "NONE", "operation": "delete"}, value: 27, metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

@@ -59,16 +59,16 @@ func TestScrapeGlobalVariables(t *testing.T) {
 	}()
 
 	counterExpected := []MetricResult{
-		{labels: labelMap{}, value: 28800, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 4096, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 16777216, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"innodb_version": "5.6.30-76.3", "version": "5.6.30-76.3-56", "version_comment": "Percona XtraDB Cluster..."}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"wsrep_cluster_name": "supercluster"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 134217728, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_wait_timeout", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 28800, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_userstat", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_transaction_prealloc_size", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 4096, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_tmp_table_size", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 16777216, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_sync_binlog", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_sync_frm", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_global_variables_slow_launch_time", help: "Generic gauge metric from SHOW GLOBAL VARIABLES.", labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_version_info", help: "MySQL version and distribution.", labels: labelMap{"innodb_version": "5.6.30-76.3", "version": "5.6.30-76.3-56", "version_comment": "Percona XtraDB Cluster..."}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_galera_variables_info", help: "PXC/Galera variables information.", labels: labelMap{"wsrep_cluster_name": "supercluster"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_galera_gcache_size_bytes", help: "PXC/Galera gcache size.", labels: labelMap{}, value: 134217728, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

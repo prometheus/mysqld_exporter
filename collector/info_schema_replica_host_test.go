@@ -46,17 +46,17 @@ func TestScrapeReplicaHost(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 1.2531328201293945, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.25, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.020069000244140625, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 2.0368164549078225, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.5, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_cpu_percent", help: "The CPU usage as a percentage.", labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 1.2531328201293945, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_slave_latency_seconds", help: "The master-slave latency in seconds.", labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.25, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_lag_seconds", help: "The replica lag in seconds.", labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.020069000244140625, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_log_stream_speed", help: "The log stream speed in kilobytes per second.", labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 2.0368164549078225, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_replay_latency_seconds", help: "The current replay latency in seconds.", labels: labelMap{"server_id": "dbtools-cluster-us-west-2c", "role": "reader"}, value: 0.5, metricType: dto.MetricType_GAUGE},
 
-		{labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 1.9607843160629272, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.25, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.0, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 2.0368164549078225, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_cpu_percent", help: "The CPU usage as a percentage.", labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 1.9607843160629272, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_slave_latency_seconds", help: "The master-slave latency in seconds.", labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.25, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_lag_seconds", help: "The replica lag in seconds.", labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.0, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_log_stream_speed", help: "The log stream speed in kilobytes per second.", labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 2.0368164549078225, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_info_schema_replica_host_replay_latency_seconds", help: "The current replay latency in seconds.", labels: labelMap{"server_id": "dbtools-cluster-writer", "role": "writer"}, value: 0.0, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

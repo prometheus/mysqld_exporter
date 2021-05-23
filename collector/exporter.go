@@ -92,7 +92,10 @@ func New(ctx context.Context, dsn string, metrics Metrics, scrapers []Scraper, l
 		dsnParams = append(dsnParams, sessionSettingsParam)
 	}
 
-	if strings.Contains(dsn, "?") {
+	dsnParts := strings.Split(dsn, "/")
+	lastDsnPart := dsnParts[len(dsnParts)-1]
+
+	if strings.Contains(lastDsnPart, "?") {
 		dsn = dsn + "&"
 	} else {
 		dsn = dsn + "?"

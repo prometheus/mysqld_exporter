@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -31,6 +32,8 @@ const (
 	// Query to check whether user/table/client stats are enabled.
 	userstatCheckQuery = `SHOW GLOBAL VARIABLES WHERE Variable_Name='userstat'
 		OR Variable_Name='userstat_running'`
+	// date layout
+	dateLayout = "Jan 02 15:04:05 2006 GMT"
 )
 
 var logRE = regexp.MustCompile(`.+\.(\d+)$`)
@@ -57,6 +60,10 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 		return 1, true
 	case "non-primary", "disconnected":
 		return 0, true
+	}
+	if ts, err := time.Parse(dateLayout, string(data)); err == nil {
+		unixStamp := float64(ts.Unix())
+		return unixStamp, err == nil
 	}
 	if logNum := logRE.Find(data); logNum != nil {
 		value, err := strconv.ParseFloat(string(logNum), 64)

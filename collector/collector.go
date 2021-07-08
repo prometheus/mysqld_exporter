@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -57,6 +58,12 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 		return 1, true
 	case "non-primary", "disconnected":
 		return 0, true
+	}
+	if ts, err := time.Parse("Jan 02 15:04:05 2006 MST", string(data)); err == nil {
+		return float64(ts.Unix()), true
+	}
+	if ts, err := time.Parse("2006-01-02 15:04:05", string(data)); err == nil {
+		return float64(ts.Unix()), true
 	}
 	if logNum := logRE.Find(data); logNum != nil {
 		value, err := strconv.ParseFloat(string(logNum), 64)

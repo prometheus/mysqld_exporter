@@ -277,14 +277,14 @@ func main() {
 	level.Info(logger).Log("msg", "Starting msqyld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-			os.Exit(1)
-		}
-	}
+	//dsn = os.Getenv("DATA_SOURCE_NAME")
+	//if len(dsn) == 0 {
+	//	var err error
+	//	if dsn, err = parseMycnf(*configMycnf); err != nil {
+	//		level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+	//		os.Exit(1)
+	//	}
+	//}
 
 	// Register only scrapers enabled by flag.
 	enabledScrapers := []collector.Scraper{}
@@ -294,10 +294,16 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
-	http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
+
+	//handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
+	//http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
+	})
+	http.HandleFunc("/probe", func(w http.ResponseWriter, r *http.Request) {
+
+		collector.ProbeHandler(w, r, collector.NewMetrics(), enabledScrapers, logger)
+
 	})
 
 	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)

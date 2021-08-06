@@ -17,6 +17,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -81,6 +84,19 @@ type Exporter struct {
 	dsn      string
 	scrapers []Scraper
 	metrics  Metrics
+}
+
+func ProbeHandler(w http.ResponseWriter, r *http.Request, metrics Metrics, scrapers []Scraper, logger log.Logger) {
+	dsn := r.URL.Query().Get("dsn")
+	if dsn == "" {
+		http.Error(w, fmt.Sprintf("dsn empty %q", dsn), http.StatusBadRequest)
+		return
+	}
+	mysqlExp := New(r.Context(), dsn, metrics, scrapers, logger)
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(mysqlExp)
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	h.ServeHTTP(w, r)
 }
 
 // New returns a new MySQL exporter for the provided DSN.

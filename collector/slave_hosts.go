@@ -80,25 +80,42 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 	var masterId string
 	var slaveUuid string
 
+	columnNames, err := slaveHostsRows.Columns()
+	if err != nil {
+		return err
+	}
+
 	for slaveHostsRows.Next() {
 		// Newer versions of mysql have the following
 		// 		Server_id, Host, Port, Master_id, Slave_UUID
 		// Older versions of mysql have the following
 		// 		Server_id, Host, Port, Rpl_recovery_rank, Master_id
-		err := slaveHostsRows.Scan(&serverId, &host, &port, &rrrOrMasterId, &slaveUuidOrMasterId)
+		// MySQL 5.5 and MariaDB 10.5 have the following
+		// 		Server_id, Host, Port, Master_id
+		if len(columnNames) == 5 {
+			err = slaveHostsRows.Scan(&serverId, &host, &port, &rrrOrMasterId, &slaveUuidOrMasterId)
+		} else {
+			err = slaveHostsRows.Scan(&serverId, &host, &port, &rrrOrMasterId)
+		}
 		if err != nil {
 			return err
 		}
 
-		// Check to see if slaveUuidOrMasterId resembles a UUID or not
-		// to find out if we are using an old version of MySQL
-		if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
-			// We are running an older version of MySQL with no slave UUID
-			slaveUuid = ""
-			masterId = slaveUuidOrMasterId
+		// if a Slave_UUID or Rpl_recovery_rank field is present
+		if len(columnNames) == 5 {
+			// Check to see if slaveUuidOrMasterId resembles a UUID or not
+			// to find out if we are using an old version of MySQL
+			if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
+				// We are running an older version of MySQL with no slave UUID
+				slaveUuid = ""
+				masterId = slaveUuidOrMasterId
+			} else {
+				// We are running a more recent version of MySQL
+				slaveUuid = slaveUuidOrMasterId
+				masterId = rrrOrMasterId
+			}
 		} else {
-			// We are running a more recent version of MySQL
-			slaveUuid = slaveUuidOrMasterId
+			slaveUuid = ""
 			masterId = rrrOrMasterId
 		}
 

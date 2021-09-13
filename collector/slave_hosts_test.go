@@ -99,3 +99,41 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
 }
+
+func TestScrapeSlaveHostsWithoutSlaveUuid(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"Server_id", "Host", "Port", "Master_id"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("192168010", "iconnect2", "3306", "192168012").
+		AddRow("1921680101", "athena", "3306", "192168012")
+	mock.ExpectQuery(sanitizeQuery("SHOW SLAVE HOSTS")).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	counterExpected := []MetricResult{
+		{labels: labelMap{"server_id": "192168010", "slave_host": "iconnect2", "port": "3306", "master_id": "192168012", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"server_id": "1921680101", "slave_host": "athena", "port": "3306", "master_id": "192168012", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range counterExpected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}

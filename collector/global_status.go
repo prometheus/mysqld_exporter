@@ -34,7 +34,7 @@ const (
 )
 
 // Regexp to match various groups of status vars.
-var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
+var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema|ssl_server)_(.*)$`)
 
 // Metric descriptors.
 var (
@@ -78,6 +78,16 @@ var (
 		"Total number of MySQL instrumentations that could not be loaded or created due to memory constraints.",
 		[]string{"instrumentation"}, nil,
 	)
+        globalSSLCertExpiryBeforeDesc = prometheus.NewDesc(
+                prometheus.BuildFQName(namespace, globalStatus, "ssl_server_not_before"),
+                "Mysql server ssl certificate expiry start date.",
+                []string{}, nil,
+        )
+        globalSSLCertExpiryAfterDesc = prometheus.NewDesc(
+                prometheus.BuildFQName(namespace, globalStatus, "ssl_server_not_after"),
+                "Mysql server ssl certificate expiry end date.",
+                []string{}, nil,
+        )
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
@@ -168,6 +178,17 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 				ch <- prometheus.MustNewConstMetric(
 					globalPerformanceSchemaLostDesc, prometheus.CounterValue, floatVal, match[2],
 				)
+                        case "ssl_server":
+                                switch match[2] {
+                                case "not_before":
+                                        ch <- prometheus.MustNewConstMetric(
+                                                globalSSLCertExpiryBeforeDesc, prometheus.GaugeValue, floatVal,
+                                        )
+                                case "not_after":
+                                        ch <- prometheus.MustNewConstMetric(
+                                                globalSSLCertExpiryAfterDesc, prometheus.GaugeValue, floatVal,
+                                        )
+                                }
 			}
 		} else if _, ok := textItems[key]; ok {
 			textItems[key] = string(val)

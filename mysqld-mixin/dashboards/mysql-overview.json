@@ -3712,7 +3712,7 @@
         "definition": "label_values(mysql_up, instance)",
         "hide": 0,
         "includeAll": true,
-        "label": null,
+        "label": "Data Source",
         "multi": true,
         "name": "instance",
         "options": [],

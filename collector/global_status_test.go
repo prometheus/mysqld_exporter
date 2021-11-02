@@ -81,7 +81,7 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{"state": "free"}, value: 8, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"state": "misc"}, value: 9, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"state": "old"}, value: 10, metricType: dto.MetricType_GAUGE},
-		//{labels: labelMap{"state": "total_pages"}, value: 11, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 11, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"operation": "lru_flushed"}, value: 13, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"operation": "made_not_young"}, value: 14, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"operation": "made_young"}, value: 15, metricType: dto.MetricType_COUNTER},

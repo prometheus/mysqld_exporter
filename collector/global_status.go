@@ -154,7 +154,9 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 						globalBufferPoolDirtyPagesDesc, prometheus.GaugeValue, floatVal,
 					)
 				case "total":
-					continue
+					ch <- prometheus.MustNewConstMetric(
+						globalBufferPoolPagesDesc, prometheus.GaugeValue, floatVal, "total",
+					)
 				default:
 					ch <- prometheus.MustNewConstMetric(
 						globalBufferPoolPageChangesDesc, prometheus.CounterValue, floatVal, match[2],

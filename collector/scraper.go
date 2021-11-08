@@ -17,7 +17,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )

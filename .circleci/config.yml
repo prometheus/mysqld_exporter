@@ -91,14 +91,14 @@ workflows:
         filters:
           tags:
             only: /.*/
-    - prometheus/publish_master:
+    - prometheus/publish_main:
         context: org-context
         requires:
         - test
         - build
         filters:
           branches:
-            only: master
+            only: main
     - prometheus/publish_release:
         context: org-context
         requires:

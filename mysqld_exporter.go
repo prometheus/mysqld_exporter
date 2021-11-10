@@ -88,9 +88,9 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapePerfFileEvents{}:                      false,
 	collector.ScrapePerfFileInstances{}:                   false,
 	collector.ScrapePerfMemoryEvents{}:                    false,
-	collector.ScrapePerfReplicationGroupMembers{}:         false,
-	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
-	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
+	collector.ScrapePerfReplicationGroupMembers{}:         true,
+	collector.ScrapePerfReplicationGroupMemberStats{}:     true,
+	collector.ScrapePerfReplicationApplierStatsByWorker{}: true,
 	collector.ScrapeUserStat{}:                            false,
 	collector.ScrapeClientStat{}:                          false,
 	collector.ScrapeTableStat{}:                           false,
@@ -103,6 +103,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeHeartbeat{}:                           false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
+	collector.ScrapeCustomQuery{}: 						   false,
 }
 
 func parseMycnf(config interface{}) (string, error) {

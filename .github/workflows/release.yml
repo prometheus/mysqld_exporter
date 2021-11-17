@@ -22,6 +22,7 @@ jobs:
 
       - name: Run checks
         run: |
+          make promu
           make check_license style staticcheck unused build test-short
 
       - name: Build
@@ -30,8 +31,9 @@ jobs:
           DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           USERNAME: 1gtm
         run: |
+          export PATH=$(go env GOPATH)/bin:$PATH
+          export DOCKER_IMAGE_TAG=${GITHUB_REF#"refs/tags/"}
           docker login --username ${USERNAME} --password ${DOCKER_TOKEN}
-          make promu
           promu crossbuild
           make docker
           make docker-publish

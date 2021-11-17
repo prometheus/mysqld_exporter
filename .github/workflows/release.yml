@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*"
+      - "*.*.*"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Run checks
+        run: |
+          make check_license style staticcheck unused build test-short
+
+      - name: Build
+        env:
+          DOCKER_REPO: kubedb
+          DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          USERNAME: 1gtm
+        run: |
+          docker login --username ${USERNAME} --password ${DOCKER_TOKEN}
+          make promu
+          promu crossbuild
+          make docker
+          make docker-publish
+          make docker-manifest

@@ -7,6 +7,8 @@ ARG ARCH="amd64"
 ARG OS="linux"
 COPY .build/${OS}-${ARCH}/mysqld_exporter /bin/mysqld_exporter
 
+COPY custom-queries.yaml custom-queries.yaml
+
 EXPOSE      9104
 USER        nobody
 ENTRYPOINT  [ "/bin/mysqld_exporter" ]

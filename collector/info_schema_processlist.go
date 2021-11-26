@@ -27,19 +27,20 @@ import (
 )
 
 const infoSchemaProcesslistQuery = `
-		  SELECT
-		    user,
-		    SUBSTRING_INDEX(host, ':', 1) AS host,
-		    COALESCE(command,'') AS command,
-		    COALESCE(state,'') AS state,
-		    count(*) AS processes,
-		    sum(time) AS seconds
-		  FROM information_schema.processlist
-		  WHERE ID != connection_id()
-		    AND TIME >= %d
-		  GROUP BY user,SUBSTRING_INDEX(host, ':', 1),command,state
-		  ORDER BY null
-		`
+	SELECT ps.user,
+	  SUBSTRING_INDEX(ps.host, ':', 1) AS host,
+	  COALESCE(ps.command,'') AS command,
+	  COALESCE(ps.state,'') AS state,
+	  count(*) AS processes,
+	  SUM(ps.time) AS seconds,
+	  COALESCE(MAX(TIMESTAMPDIFF(SECOND,trx.trx_started,CURRENT_TIMESTAMP)), 0) AS max_tx_duration
+	FROM information_schema.processlist ps LEFT JOIN INFORMATION_SCHEMA.INNODB_TRX trx
+	  ON trx.trx_mysql_thread_id = ps.id
+	WHERE ps.id != connection_id()
+	  AND ps.time >= %d
+	GROUP BY ps.user, SUBSTRING_INDEX(ps.host, ':', 1), ps.command, ps.state
+	ORDER BY null
+	`
 
 // Tunable flags.
 var (
@@ -66,6 +67,10 @@ var (
 	processlistTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "threads_seconds"),
 		"The number of seconds threads (connections) have used split by current state.",
+		[]string{"state"}, nil)
+	processlistTxDurationDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "max_tx_duration"),
+		"Max transaction duration of thread (connections) split by current state.",
 		[]string{"state"}, nil)
 	processesByUserDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "processes_by_user"),
@@ -189,24 +194,27 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 	defer processlistRows.Close()
 
 	var (
-		user      string
-		host      string
-		command   string
-		state     string
-		processes uint32
-		time      uint32
+		user            string
+		host            string
+		command         string
+		state           string
+		processes       uint32
+		time            uint32
+		max_tx_duration uint32
 	)
 	stateCounts := make(map[string]uint32, len(threadStateCounterMap))
 	stateTime := make(map[string]uint32, len(threadStateCounterMap))
+	stateMaxTxDuration := make(map[string]uint32, len(threadStateCounterMap))
 	hostCount := make(map[string]uint32)
 	userCount := make(map[string]uint32)
 	for k, v := range threadStateCounterMap {
 		stateCounts[k] = v
 		stateTime[k] = v
+		stateMaxTxDuration[k] = v
 	}
 
 	for processlistRows.Next() {
-		err = processlistRows.Scan(&user, &host, &command, &state, &processes, &time)
+		err = processlistRows.Scan(&user, &host, &command, &state, &processes, &time, &max_tx_duration)
 		if err != nil {
 			return err
 		}
@@ -215,6 +223,9 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		stateTime[realState] += time
 		hostCount[host] = hostCount[host] + processes
 		userCount[user] = userCount[user] + processes
+		if stateMaxTxDuration[realState] < max_tx_duration {
+			stateMaxTxDuration[realState] = max_tx_duration
+		}
 	}
 
 	if *processesByHostFlag {
@@ -234,6 +245,9 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 	}
 	for state, time := range stateTime {
 		ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(time), state)
+	}
+	for state, max_tx_duration := range stateMaxTxDuration {
+		ch <- prometheus.MustNewConstMetric(processlistTxDurationDesc, prometheus.GaugeValue, float64(max_tx_duration), state)
 	}
 
 	return nil

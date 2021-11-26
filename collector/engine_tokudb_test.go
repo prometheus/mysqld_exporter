@@ -66,9 +66,9 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 	}()
 
 	metricsExpected := []MetricResult{
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 45316247, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 9115.904484, metricType: dto.MetricType_UNTYPED},
+		{name: "mysql_engine_tokudb_indexer_number_of_calls_to_indexer_build_succeeded", help: "Generic metric from SHOW ENGINE TOKUDB STATUS.", labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
+		{name: "mysql_engine_tokudb_ft_promotion_stopped_anyway_after_locking_the_child", help: "Generic metric from SHOW ENGINE TOKUDB STATUS.", labels: labelMap{}, value: 45316247, metricType: dto.MetricType_UNTYPED},
+		{name: "mysql_engine_tokudb_locktree_time_spent_ending_the_sto_early_seconds", help: "Generic metric from SHOW ENGINE TOKUDB STATUS.", labels: labelMap{}, value: 9115.904484, metricType: dto.MetricType_UNTYPED},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricsExpected {

@@ -55,18 +55,18 @@ func TestScrapePerfFileInstances(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "read"}, value: 3, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "write"}, value: 4, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "read"}, value: 725, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "write"}, value: 128, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "read"}, value: 23, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "write"}, value: 12, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "read"}, value: 3123, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "write"}, value: 967, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "read"}, value: 45, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "write"}, value: 32, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "read"}, value: 1337, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "write"}, value: 326, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "read"}, value: 3, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "write"}, value: 4, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "read"}, value: 725, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db1/file", "event_name": "event1", "mode": "write"}, value: 128, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "read"}, value: 23, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "write"}, value: 12, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "read"}, value: 3123, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db2/file", "event_name": "event2", "mode": "write"}, value: 967, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "read"}, value: 45, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_total", help: "The total number of file read/write operations.", labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "write"}, value: 32, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "read"}, value: 1337, metricType: dto.MetricType_COUNTER},
+		{name: "mysql_perf_schema_file_instances_bytes", help: "The number of bytes processed by file read/write operations.", labels: labelMap{"file_name": "db3/file", "event_name": "event3", "mode": "write"}, value: 326, metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricExpected {

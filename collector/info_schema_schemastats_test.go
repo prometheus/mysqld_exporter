@@ -48,12 +48,12 @@ func TestScrapeSchemaStat(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"schema": "mysql"}, value: 238},
-		{labels: labelMap{"schema": "mysql"}, value: 0},
-		{labels: labelMap{"schema": "mysql"}, value: 8},
-		{labels: labelMap{"schema": "default"}, value: 99},
-		{labels: labelMap{"schema": "default"}, value: 1},
-		{labels: labelMap{"schema": "default"}, value: 0},
+		{name: "mysql_info_schema_schema_statistics_rows_read_total", help: "The number of rows read from the schema.", labels: labelMap{"schema": "mysql"}, value: 238},
+		{name: "mysql_info_schema_schema_statistics_rows_changed_total", help: "The number of rows changed in the schema.", labels: labelMap{"schema": "mysql"}, value: 0},
+		{name: "mysql_info_schema_schema_statistics_rows_changed_x_indexes_total", help: "The number of rows changed in the schema, multiplied by the number of indexes changed.", labels: labelMap{"schema": "mysql"}, value: 8},
+		{name: "mysql_info_schema_schema_statistics_rows_read_total", help: "The number of rows read from the schema.", labels: labelMap{"schema": "default"}, value: 99},
+		{name: "mysql_info_schema_schema_statistics_rows_changed_total", help: "The number of rows changed in the schema.", labels: labelMap{"schema": "default"}, value: 1},
+		{name: "mysql_info_schema_schema_statistics_rows_changed_x_indexes_total", help: "The number of rows changed in the schema, multiplied by the number of indexes changed.", labels: labelMap{"schema": "default"}, value: 0},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

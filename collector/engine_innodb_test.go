@@ -162,9 +162,9 @@ END OF INNODB MONITOR OUTPUT
 	}()
 
 	metricsExpected := []MetricResult{
-		{labels: labelMap{}, value: 661, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 10, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{}, value: 15, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_engine_innodb_queries_inside_innodb", help: "Queries inside InnoDB.", labels: labelMap{}, value: 661, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_engine_innodb_queries_in_queue", help: "Queries in queue.", labels: labelMap{}, value: 10, metricType: dto.MetricType_GAUGE},
+		{name: "mysql_engine_innodb_read_views_open_inside_innodb", help: "Read views open inside InnoDB.", labels: labelMap{}, value: 15, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range metricsExpected {

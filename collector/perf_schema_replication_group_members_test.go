@@ -15,12 +15,13 @@ package collector
 
 import (
 	"context"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestScrapePerfReplicationGroupMembers(t *testing.T) {
@@ -56,11 +57,11 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid1", "member_host": "hostname1", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid1", "member_host": "hostname1", "member_port": "3306",
 			"member_state": "ONLINE", "member_role": "PRIMARY", "member_version": "8.0.19"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid2", "member_host": "hostname2", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid2", "member_host": "hostname2", "member_port": "3306",
 			"member_state": "ONLINE", "member_role": "SECONDARY", "member_version": "8.0.19"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
 			"member_state": "ONLINE", "member_role": "SECONDARY", "member_version": "8.0.19"}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
@@ -107,11 +108,11 @@ func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
 	}()
 
 	metricExpected := []MetricResult{
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid1", "member_host": "hostname1", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid1", "member_host": "hostname1", "member_port": "3306",
 			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid2", "member_host": "hostname2", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid2", "member_host": "hostname2", "member_port": "3306",
 			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
+		{name: "mysql_perf_schema_replication_group_member_info", help: "Information about the replication group member: channel_name, member_id, member_host, member_port, member_state. (member_role and member_version where available)", labels: labelMap{"channel_name": "group_replication_applier", "member_id": "uuid3", "member_host": "hostname3", "member_port": "3306",
 			"member_state": "ONLINE"}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {

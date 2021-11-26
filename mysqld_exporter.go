@@ -274,7 +274,7 @@ func main() {
 </html>
 `)
 
-	level.Info(logger).Log("msg", "Starting msqyld_exporter", "version", version.Info())
+	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
 	dsn = os.Getenv("DATA_SOURCE_NAME")

@@ -74,6 +74,7 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		slaveStatusRows *sql.Rows
 		err             error
 	)
+	rowCount := 0
 	// Try the both syntax for MySQL/Percona and MariaDB
 	for _, query := range slaveStatusQueries {
 		slaveStatusRows, err = db.QueryContext(ctx, query)
@@ -98,8 +99,8 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 	if err != nil {
 		return err
 	}
-
 	for slaveStatusRows.Next() {
+		rowCount++
 		// As the number of columns varies with mysqld versions,
 		// and sql.Scan requires []interface{}, we need to create a
 		// slice of pointers to the elements of slaveData.
@@ -133,6 +134,19 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 			}
 		}
 	}
+	var isConfigured float64
+	if rowCount > 0 {
+		isConfigured = 1
+	} else {
+		isConfigured = 0
+	}
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, slaveStatus, "is_configured"),
+			"Returns 1 or 0 depending on whether replication is configured.",
+			nil, nil,
+		), prometheus.UntypedValue, isConfigured,
+	)
 	return nil
 }
 

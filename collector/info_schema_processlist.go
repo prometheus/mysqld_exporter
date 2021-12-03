@@ -130,7 +130,7 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		command = sanitizeState(command)
 		state = sanitizeState(state)
 		if host == "" {
-			host = "blank"
+			host = "unknown"
 		}
 
 		// Init maps
@@ -188,7 +188,7 @@ func sortedMapKeys(m interface{}) []string {
 
 func sanitizeState(state string) string {
 	if state == "" {
-		state = "blank"
+		state = "unknown"
 	}
 	state = strings.ToLower(state)
 	replacements := map[string]string{

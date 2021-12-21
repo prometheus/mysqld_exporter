@@ -153,6 +153,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 		"version_comment":        "",
 		"wsrep_cluster_name":     "",
 		"wsrep_provider_options": "",
+		"tx_isolation":           "",
 		"transaction_isolation":  "",
 	}
 
@@ -206,12 +207,16 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 	}
 
 	// mysql_transaction_isolation metric.
-	if textItems["transaction_isolation"] != "" {
+	if textItems["transaction_isolation"] != "" || textItems["tx_isolation"] != "" {
+		level := textItems["transaction_isolation"]
+		if level == "" {
+			level = textItems["tx_isolation"]
+		}
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(prometheus.BuildFQName(namespace, "transaction", "isolation"), "MySQL transaction isolation.",
 				[]string{"level"}, nil),
 			prometheus.GaugeValue,
-			1, textItems["transaction_isolation"],
+			1, level,
 		)
 	}
 

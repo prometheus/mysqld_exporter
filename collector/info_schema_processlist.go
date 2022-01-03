@@ -61,19 +61,19 @@ var (
 // Metric descriptors.
 var (
 	processlistCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processlist_total"),
+		prometheus.BuildFQName(namespace, informationSchema, "processlist_threads"),
 		"The number of threads split by current state.",
 		[]string{"command", "state"}, nil)
 	processlistTimeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processlist_seconds_total"),
+		prometheus.BuildFQName(namespace, informationSchema, "processlist_seconds"),
 		"The number of seconds threads have used split by current state.",
 		[]string{"command", "state"}, nil)
 	processesByUserDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processlist_by_user"),
+		prometheus.BuildFQName(namespace, informationSchema, "processlist_processes_by_user"),
 		"The number of processes by user.",
 		[]string{"mysql_user"}, nil)
 	processesByHostDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "processlist_by_host"),
+		prometheus.BuildFQName(namespace, informationSchema, "processlist_processes_by_host"),
 		"The number of processes by host.",
 		[]string{"client_host"}, nil)
 )

@@ -9,7 +9,18 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.14.0 / 2022-01-05
+
+BREAKING CHANGES:
+
+Metric names in the info_schema.processlist collector have been changed. #603
+Metric names in the info_schema.replica_host collector have been changed. #496
+
+* [CHANGE] Rewrite processlist collector #603
 * [FEATURE] Add collector for `replica_host_status` #496
+* [ENHANCEMENT] Expose dates as timestamps grom GLOBAL STATUS #561
+* [BUGFIX] Fix mysql_slave_hosts_info for mysql 5.5 and mariadb 10.5 #577
+* [BUGFIX] Fix logging issues #562 #602
 
 ## 0.13.0 / 2021-05-18
 

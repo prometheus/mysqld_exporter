@@ -9,6 +9,8 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+* [FEATURE] Add collector for `replica_host_status` #496
+
 ## 0.13.0 / 2021-05-18
 
 BREAKING CHANGES:

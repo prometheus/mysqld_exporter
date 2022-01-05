@@ -55,15 +55,15 @@ groups:
     annotations:
       description: The mysql slave replication has fallen behind and is not recovering
       summary: MySQL slave replication is lagging
-  - alert: MySQLReplicationLag
+  - alert: MySQLHeartbeatLag
     expr: (instance:mysql_heartbeat_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_heartbeat_lag_seconds[5m],
       60 * 2) > 0)
     for: 1m
     labels:
       severity: critical
     annotations:
-      description: The mysql slave replication has fallen behind and is not recovering
-      summary: MySQL slave replication is lagging
+      description: The mysql heartbeat is lagging and is not recovering
+      summary: MySQL heartbeat is lagging
   - alert: MySQLInnoDBLogWaits
     expr: rate(mysql_global_status_innodb_log_waits[15m]) > 10
     labels:

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -54,7 +54,7 @@ var (
 var (
 	exporterLockTimeout = kingpin.Flag(
 		"exporter.lock_wait_timeout",
-		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
+		"Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking.",
 	).Default("2").Int()
 	slowLogFilter = kingpin.Flag(
 		"exporter.log_slow_filter",

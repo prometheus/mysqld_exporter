@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -153,6 +153,8 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 		"version_comment":        "",
 		"wsrep_cluster_name":     "",
 		"wsrep_provider_options": "",
+		"tx_isolation":           "",
+		"transaction_isolation":  "",
 	}
 
 	for globalVariablesRows.Next() {
@@ -201,6 +203,20 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 			newDesc("galera", "gcache_size_bytes", "PXC/Galera gcache size."),
 			prometheus.GaugeValue,
 			parseWsrepProviderOptions(textItems["wsrep_provider_options"]),
+		)
+	}
+
+	// mysql_transaction_isolation metric.
+	if textItems["transaction_isolation"] != "" || textItems["tx_isolation"] != "" {
+		level := textItems["transaction_isolation"]
+		if level == "" {
+			level = textItems["tx_isolation"]
+		}
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(prometheus.BuildFQName(namespace, "transaction", "isolation"), "MySQL transaction isolation.",
+				[]string{"level"}, nil),
+			prometheus.GaugeValue,
+			1, level,
 		)
 	}
 

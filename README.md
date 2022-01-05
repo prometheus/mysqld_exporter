@@ -1,6 +1,6 @@
 # MySQL Server Exporter [![Build Status](https://travis-ci.org/prometheus/mysqld_exporter.svg)][travis]
 
-[![CircleCI](https://circleci.com/gh/prometheus/mysqld_exporter/tree/master.svg?style=shield)][circleci]
+[![CircleCI](https://circleci.com/gh/prometheus/mysqld_exporter/tree/main.svg?style=shield)][circleci]
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/mysqld-exporter/status)][quay]
 [![Docker Pulls](https://img.shields.io/docker/pulls/prom/mysqld-exporter.svg?maxAge=604800)][hub]
 [![Go Report Card](https://goreportcard.com/badge/github.com/prometheus/mysqld_exporter)](https://goreportcard.com/report/github.com/prometheus/mysqld_exporter)
@@ -9,7 +9,7 @@ Prometheus exporter for MySQL server metrics.
 
 Supported versions:
 * MySQL >= 5.6.
-* MariaDB >= 10.1
+* MariaDB >= 10.2
 
 NOTE: Not all collection methods are supported on MySQL/MariaDB < 5.6
 
@@ -73,6 +73,7 @@ collect.info_schema.tables.databases                         | 5.1           | T
 collect.info_schema.tablestats                               | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.schemastats                              | 5.1           | If running with userstat=1, set to true to collect schema statistics
 collect.info_schema.userstats                                | 5.1           | If running with userstat=1, set to true to collect user statistics.
+collect.mysql.user                                           | 5.5             | Collect data from mysql.user table
 collect.perf_schema.eventsstatements                         | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.digest_text_limit       | 5.6           | Maximum length of the normalized statement text. (default: 120)
 collect.perf_schema.eventsstatements.limit                   | 5.6           | Limit the number of events statements digests by response time. (default: 250)
@@ -81,7 +82,10 @@ collect.perf_schema.eventsstatementssum                      | 5.7           | C
 collect.perf_schema.eventswaits                              | 5.5           | Collect metrics from performance_schema.events_waits_summary_global_by_event_name.
 collect.perf_schema.file_events                              | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
 collect.perf_schema.file_instances                           | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
+collect.perf_schema.file_instances.remove_prefix             | 5.5           | Remove path prefix in performance_schema.file_summary_by_instance.
 collect.perf_schema.indexiowaits                             | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
+collect.perf_schema.memory_events                            | 5.7           | Collect metrics from performance_schema.memory_summary_global_by_event_name.
+collect.perf_schema.memory_events.remove_prefix              | 5.7           | Remove instrument prefix in performance_schema.memory_summary_global_by_event_name.
 collect.perf_schema.tableiowaits                             | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_table.
 collect.perf_schema.tablelocks                               | 5.6           | Collect metrics from performance_schema.table_lock_waits_summary_by_table.
 collect.perf_schema.replication_group_members                | 5.7           | Collect metrics from performance_schema.replication_group_members.
@@ -100,11 +104,20 @@ Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
-exporter.lock_wait_timeout                 | Set a lock_wait_timeout on the connection to avoid long metadata locking. (default: 2 seconds)
+exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
+
+## TLS and basic authentication
+
+The MySQLd Exporter supports TLS and basic authentication.
+
+To use TLS and/or basic authentication, you need to pass a configuration file
+using the `--web.config.file` parameter. The format of the file is described
+[in the exporter-toolkit repository](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md).
 
 ### Setting the MySQL server's data source name
 
@@ -112,9 +125,9 @@ The MySQL server's [data source name](http://en.wikipedia.org/wiki/Data_source_n
 must be set via the `DATA_SOURCE_NAME` environment variable.
 The format of this variable is described at https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 
-
 ## Customizing Configuration for a SSL Connection
-if The MySQL server supports SSL, you may need to specify a CA truststore to verify the server's chain-of-trust. You may also need to specify a SSL keypair for the client side of the SSL connection. To configure the mysqld exporter to use a custom CA certificate, add the following to the mysql cnf file:
+
+If The MySQL server supports SSL, you may need to specify a CA truststore to verify the server's chain-of-trust. You may also need to specify a SSL keypair for the client side of the SSL connection. To configure the mysqld exporter to use a custom CA certificate, add the following to the mysql cnf file:
 
 ```
 ssl-ca=/path/to/ca/file
@@ -132,7 +145,7 @@ Customizing the SSL configuration is only supported in the mysql cnf file and is
 
 ## Using Docker
 
-You can deploy this exporter using the [prom/mysqld-exporter](https://registry.hub.docker.com/u/prom/mysqld-exporter/) Docker image.
+You can deploy this exporter using the [prom/mysqld-exporter](https://registry.hub.docker.com/r/prom/mysqld-exporter/) Docker image.
 
 For example:
 
@@ -173,7 +186,7 @@ This can be useful for having different Prometheus servers collect specific metr
 
 ## Example Rules
 
-There are some sample rules available in [example.rules](example.rules)
+There is a set of sample rules, alerts and dashboards available in the [mysqld-mixin](mysqld-mixin/)
 
 [circleci]: https://circleci.com/gh/prometheus/mysqld_exporter
 [hub]: https://hub.docker.com/r/prom/mysqld-exporter/

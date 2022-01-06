@@ -15,10 +15,11 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -31,8 +32,13 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 	}
 	defer db.Close()
 
+	enabledColumnName := []string{"COLUMN_NAME"}
+	rows := sqlmock.NewRows(enabledColumnName).
+		AddRow("STATUS")
+	mock.ExpectQuery(sanitizeQuery(infoSchemaInnodbMetricsEnabledColumnQuery)).WillReturnRows(rows)
+
 	columns := []string{"name", "subsystem", "type", "comment", "count"}
-	rows := sqlmock.NewRows(columns).
+	rows = sqlmock.NewRows(columns).
 		AddRow("lock_timeouts", "lock", "counter", "Number of lock timeouts", 0).
 		AddRow("buffer_pool_reads", "buffer", "status_counter", "Number of reads directly from disk (innodb_buffer_pool_reads)", 1).
 		AddRow("buffer_pool_size", "server", "value", "Server buffer pool size (all buffer pools) in bytes", 2).
@@ -42,7 +48,8 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 		AddRow("buffer_pool_pages_data", "buffer", "gauge", "Number of data buffer pool pages", 6).
 		AddRow("buffer_pool_pages_total", "buffer", "gauge", "Number of total buffer pool pages", 7).
 		AddRow("NOPE", "buffer_page_io", "counter", "An invalid buffer_page_io metric", 999)
-	mock.ExpectQuery(sanitizeQuery(infoSchemaInnodbMetricsQuery)).WillReturnRows(rows)
+	query := fmt.Sprintf(infoSchemaInnodbMetricsQuery, "status", "enabled")
+	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {

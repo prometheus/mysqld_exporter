@@ -45,6 +45,14 @@ func TestParseMycnf(t *testing.T) {
 			password = abc123
 			port = 3308
 		`
+		clientAuthConfig = `
+			[client]
+			user = root
+			port = 3308
+			ssl-ca = ca.crt
+ 			ssl-cert = tls.crt
+ 			ssl-key = tls.key
+		`
 		socketConfig = `
 			[client]
 			user = user
@@ -99,6 +107,10 @@ func TestParseMycnf(t *testing.T) {
 			dsn, _ := parseMycnf([]byte(tcpConfig2))
 			convey.So(dsn, convey.ShouldEqual, "root:abc123@tcp(localhost:3308)/")
 		})
+		convey.Convey("Authentication with client certificate and no password", func() {
+			dsn, _ := parseMycnf([]byte(clientAuthConfig))
+			convey.So(dsn, convey.ShouldEqual, "root@tcp(localhost:3308)/")
+		})
 		convey.Convey("Socket connection", func() {
 			dsn, _ := parseMycnf([]byte(socketConfig))
 			convey.So(dsn, convey.ShouldEqual, "user:pass@unix(/var/lib/mysql/mysql.sock)/")
@@ -117,15 +129,15 @@ func TestParseMycnf(t *testing.T) {
 		})
 		convey.Convey("Missed user", func() {
 			_, err := parseMycnf([]byte(badConfig))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig))
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("password or ssl-key should be specified under [client] in %s", badConfig))
 		})
 		convey.Convey("Missed password", func() {
 			_, err := parseMycnf([]byte(badConfig2))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig2))
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user specified under [client] in %s", badConfig2))
 		})
 		convey.Convey("No [client] section", func() {
 			_, err := parseMycnf([]byte(badConfig3))
-			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user or password specified under [client] in %s", badConfig3))
+			convey.So(err, convey.ShouldBeError, fmt.Errorf("no user specified under [client] in %s", badConfig3))
 		})
 		convey.Convey("Invalid config", func() {
 			_, err := parseMycnf([]byte(badConfig4))

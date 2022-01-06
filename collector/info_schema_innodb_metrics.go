@@ -18,20 +18,29 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"regexp"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+const infoSchemaInnodbMetricsEnabledColumnQuery = `
+	SELECT
+	    column_name
+	  FROM information_schema.columns
+	  WHERE table_name = 'INNODB_METRICS'
+	    AND column_name IN ('status', 'enabled')
+	`
 
 const infoSchemaInnodbMetricsQuery = `
 		SELECT
 		  name, subsystem, type, comment,
 		  count
 		  FROM information_schema.innodb_metrics
-		  WHERE status = 'enabled'
-		`
+		  WHERE ` + "`%s` = '%s'"
 
 // Metrics descriptors.
 var (
@@ -83,7 +92,24 @@ func (ScrapeInnodbMetrics) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	innodbMetricsRows, err := db.QueryContext(ctx, infoSchemaInnodbMetricsQuery)
+	var enabledColumnName string
+	var query string
+
+	err := db.QueryRowContext(ctx, infoSchemaInnodbMetricsEnabledColumnQuery).Scan(&enabledColumnName)
+	if err != nil {
+		return err
+	}
+
+	switch enabledColumnName {
+	case "STATUS":
+		query = fmt.Sprintf(infoSchemaInnodbMetricsQuery, "status", "enabled")
+	case "ENABLED":
+		query = fmt.Sprintf(infoSchemaInnodbMetricsQuery, "enabled", "1")
+	default:
+		return errors.New("Couldn't find column STATUS or ENABLED in innodb_metrics table.")
+	}
+
+	innodbMetricsRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}

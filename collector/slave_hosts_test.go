@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -86,6 +86,44 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 	counterExpected := []MetricResult{
 		{labels: labelMap{"server_id": "192168010", "slave_host": "iconnect2", "port": "3306", "master_id": "192168011", "slave_uuid": "14cb6624-7f93-11e0-b2c0-c80aa9429562"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"server_id": "1921680101", "slave_host": "athena", "port": "3306", "master_id": "192168011", "slave_uuid": "07af4990-f41f-11df-a566-7ac56fdaf645"}, value: 1, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range counterExpected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	// Ensure all SQL queries were executed
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestScrapeSlaveHostsWithoutSlaveUuid(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"Server_id", "Host", "Port", "Master_id"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("192168010", "iconnect2", "3306", "192168012").
+		AddRow("1921680101", "athena", "3306", "192168012")
+	mock.ExpectQuery(sanitizeQuery("SHOW SLAVE HOSTS")).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	counterExpected := []MetricResult{
+		{labels: labelMap{"server_id": "192168010", "slave_host": "iconnect2", "port": "3306", "master_id": "192168012", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"server_id": "1921680101", "slave_host": "athena", "port": "3306", "master_id": "192168012", "slave_uuid": ""}, value: 1, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

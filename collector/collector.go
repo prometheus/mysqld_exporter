@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -43,22 +44,26 @@ func newDesc(subsystem, name, help string) *prometheus.Desc {
 }
 
 func parseStatus(data sql.RawBytes) (float64, bool) {
-	if bytes.Equal(data, []byte("Yes")) || bytes.Equal(data, []byte("ON")) {
+	dataString := strings.ToLower(string(data))
+	switch dataString {
+	case "yes", "on":
 		return 1, true
-	}
-	if bytes.Equal(data, []byte("No")) || bytes.Equal(data, []byte("OFF")) {
+	case "no", "off", "disabled":
 		return 0, true
-	}
 	// SHOW SLAVE STATUS Slave_IO_Running can return "Connecting" which is a non-running state.
-	if bytes.Equal(data, []byte("Connecting")) {
+	case "connecting":
 		return 0, true
-	}
 	// SHOW GLOBAL STATUS like 'wsrep_cluster_status' can return "Primary" or "non-Primary"/"Disconnected"
-	if bytes.Equal(data, []byte("Primary")) {
+	case "primary":
 		return 1, true
-	}
-	if strings.EqualFold(string(data), "non-Primary") || bytes.Equal(data, []byte("Disconnected")) {
+	case "non-primary", "disconnected":
 		return 0, true
+	}
+	if ts, err := time.Parse("Jan 02 15:04:05 2006 MST", string(data)); err == nil {
+		return float64(ts.Unix()), true
+	}
+	if ts, err := time.Parse("2006-01-02 15:04:05", string(data)); err == nil {
+		return float64(ts.Unix()), true
 	}
 	if logNum := logRE.Find(data); logNum != nil {
 		value, err := strconv.ParseFloat(string(logNum), 64)

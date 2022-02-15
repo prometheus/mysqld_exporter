@@ -34,7 +34,7 @@ const (
 )
 
 // Regexp to match various groups of status vars.
-var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
+var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema|threads)_(.*)$`)
 
 // Metric descriptors.
 var (
@@ -77,6 +77,11 @@ var (
 		prometheus.BuildFQName(namespace, globalStatus, "performance_schema_lost_total"),
 		"Total number of MySQL instrumentations that could not be loaded or created due to memory constraints.",
 		[]string{"instrumentation"}, nil,
+	)
+	globalThreadsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, globalStatus, "threads"),
+		"MySQL threads in each state.",
+		[]string{"state"}, nil,
 	)
 )
 
@@ -167,6 +172,10 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 			case "performance_schema":
 				ch <- prometheus.MustNewConstMetric(
 					globalPerformanceSchemaLostDesc, prometheus.CounterValue, floatVal, match[2],
+				)
+			case "threads":
+				ch <- prometheus.MustNewConstMetric(
+					globalThreadsDesc, prometheus.GaugeValue, floatVal, match[2],
 				)
 			}
 		} else if _, ok := textItems[key]; ok {

@@ -38,10 +38,10 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 	mock.ExpectQuery(sanitizeQuery(innodbTablespacesTablenameQuery)).WillReturnRows(rows)
 
 	tablespacesTablename := "INNODB_SYS_TABLESPACES"
-	columns = []string{"SPACE", "NAME", "FILE_FORMAT", "ROW_FORMAT", "SPACE_TYPE", "FILE_SIZE", "ALLOCATED_SIZE"}
+	columns = []string{"SPACE", "NAME", "FILE_FORMAT", "ROW_FORMAT", "FILE_SIZE", "ALLOCATED_SIZE"}
 	rows = sqlmock.NewRows(columns).
-		AddRow(1, "sys/sys_config", "Barracuda", "Dynamic", "Single", 100, 100).
-		AddRow(2, "db/compressed", "Barracuda", "Compressed", "Single", 300, 200)
+		AddRow(1, "sys/sys_config", "Barracuda", "Dynamic", 100, 100).
+		AddRow(2, "db/compressed", "Barracuda", "Compressed", 300, 200)
 	query := fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
@@ -54,10 +54,10 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 	}()
 
 	expected := []MetricResult{
-		{labels: labelMap{"tablespace_name": "sys/sys_config", "file_format": "Barracuda", "row_format": "Dynamic", "space_type": "Single"}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "sys/sys_config", "file_format": "Barracuda", "row_format": "Dynamic"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
-		{labels: labelMap{"tablespace_name": "db/compressed", "file_format": "Barracuda", "row_format": "Compressed", "space_type": "Single"}, value: 2, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "db/compressed", "file_format": "Barracuda", "row_format": "Compressed"}, value: 2, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 300, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 200, metricType: dto.MetricType_GAUGE},
 	}

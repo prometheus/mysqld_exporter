@@ -20,8 +20,8 @@ import (
 	"database/sql"
 
 	"github.com/go-kit/log"
+	"github.com/gofrs/uuid"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/satori/go.uuid"
 )
 
 const (

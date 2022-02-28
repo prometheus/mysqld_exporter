@@ -2259,7 +2259,7 @@
           "calculatedInterval": "2m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "rate(mysql_global_status_handlers_total{instance=~\"$host\", handler!~\"commit|rollback|savepoint.*|prepare\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_handlers_total{job=~\"$job\",instance=~\"$instance\", handler!~\"commit|rollback|savepoint.*|prepare\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -2369,7 +2369,7 @@
           "calculatedInterval": "2m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "rate(mysql_global_status_handlers_total{instance=~\"$host\", handler=~\"commit|rollback|savepoint.*|prepare\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_handlers_total{job=~\"$job\",instance=~\"$instance\", handler=~\"commit|rollback|savepoint.*|prepare\"}[$__rate_interval])",
           "interval": "1m",
           "intervalFactor": 1,
           "legendFormat": "{{ handler }}",
@@ -2588,7 +2588,7 @@
           "calculatedInterval": "2m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "topk(5, avg_over_time(mysql_info_schema_threads{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "topk(5, avg_over_time(mysql_info_schema_threads{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "interval": "1m",
           "intervalFactor": 1,
           "legendFormat": "{{ state }}",
@@ -3671,7 +3671,7 @@
         "type": "datasource"
       },
       {
-        "allValue": null,
+        "allValue": ".+",
         "current": {
           "selected": true,
           "text": "hosted-grafana/cloudsql-proxy-mysql-exporter",
@@ -3683,7 +3683,7 @@
         "definition": "label_values(mysql_up, job)",
         "hide": 0,
         "includeAll": true,
-        "label": null,
+        "label": "job",
         "multi": true,
         "name": "job",
         "options": [],
@@ -3699,7 +3699,7 @@
         "useTags": false
       },
       {
-        "allValue": null,
+        "allValue": ".+",
         "current": {
           "selected": true,
           "tags": [],
@@ -3712,7 +3712,7 @@
         "definition": "label_values(mysql_up, instance)",
         "hide": 0,
         "includeAll": true,
-        "label": "Data Source",
+        "label": "instance",
         "multi": true,
         "name": "instance",
         "options": [],

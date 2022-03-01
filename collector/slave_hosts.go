@@ -20,7 +20,7 @@ import (
 	"database/sql"
 
 	"github.com/go-kit/log"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -105,7 +105,7 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 		if len(columnNames) == 5 {
 			// Check to see if slaveUuidOrMasterId resembles a UUID or not
 			// to find out if we are using an old version of MySQL
-			if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
+			if _, err = uuid.Parse(slaveUuidOrMasterId); err != nil {
 				// We are running an older version of MySQL with no slave UUID
 				slaveUuid = ""
 				masterId = slaveUuidOrMasterId

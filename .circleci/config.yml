@@ -18,7 +18,7 @@ jobs:
           file: mysqld_exporter
   integration:
     docker:
-      - image: circleci/golang:1.16
+      - image: circleci/golang:1.17
       - image: << parameters.mysql_image >>
         environment:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
@@ -66,6 +66,7 @@ workflows:
                 - mariadb:10.3
                 - mariadb:10.4
                 - mariadb:10.5
+                - mariadb:10.6
       - prometheus/build:
           name: build
           filters:

@@ -1,0 +1,7 @@
+exclusions:
+    template-job-rule:
+        reason: "Renamed to $prometheus_datasource as loki datasource also added"
+    template-datasource-rule:
+        reason: "Renamed to $prometheus_datasource as loki datasource also added"
+    panel-datasource-rule:
+        reason: "Renamed to $prometheus_datasource as loki datasource also added"

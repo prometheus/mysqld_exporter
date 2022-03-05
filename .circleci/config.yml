@@ -18,11 +18,12 @@ jobs:
           file: mysqld_exporter
   integration:
     docker:
-      - image: circleci/golang:1.17
+      - image: cimg/go:1.17
       - image: << parameters.mysql_image >>
         environment:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_ROOT_HOST: '%'
+          DATA_SOURCE_NAME: 'exporter:integration-test@/'
     parameters:
       mysql_image:
         type: string
@@ -31,6 +32,8 @@ jobs:
       - setup_remote_docker
       - run: docker version
       - run: docker-compose --version
+      - run: sudo apt-get install -y mysql-client
+      - run: mysql < scripts/test_grant.sql
       - run: make build
       - run: make test
   codespell:

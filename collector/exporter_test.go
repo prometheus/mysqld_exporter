@@ -26,7 +26,14 @@ import (
 	"github.com/smartystreets/goconvey/convey"
 )
 
-const dsn = "root@/mysql"
+var testDSN = "root@/mysql"
+
+func init() {
+	testDSNEnv := os.Getenv("DATA_SOURCE_NAME")
+	if testDSNEnv != ""
+		testDSN = testDSNEnv
+	}
+}
 
 func TestExporter(t *testing.T) {
 	if testing.Short() {
@@ -35,7 +42,7 @@ func TestExporter(t *testing.T) {
 
 	exporter := New(
 		context.Background(),
-		dsn,
+		testDSN,
 		NewMetrics(),
 		[]Scraper{
 			ScrapeGlobalStatus{},
@@ -79,7 +86,7 @@ func TestGetMySQLVersion(t *testing.T) {
 	logger = level.NewFilter(logger, level.AllowDebug())
 
 	convey.Convey("Version parsing", t, func() {
-		db, err := sql.Open("mysql", dsn)
+		db, err := sql.Open("mysql", testDSN)
 		convey.So(err, convey.ShouldBeNil)
 		defer db.Close()
 

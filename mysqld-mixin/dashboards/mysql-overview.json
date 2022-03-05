@@ -3669,7 +3669,7 @@
       "type": "timeseries",
       "title": "Logs by Level",
       "datasource": {
-        "uid": "${logs_datasource}",
+        "uid": "${loki_datasource}",
         "type": "loki"
       },
       "fieldConfig": {
@@ -3739,7 +3739,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "${logs_datasource}"
+            "uid": "${loki_datasource}"
           },
           "expr": "sum(count_over_time({job=~\"$job\", instance=~\"$instance\", label=~\".+\"}[$__interval])) by (label)",
           "legendFormat": "{{ label }}",
@@ -3759,7 +3759,7 @@
       "type": "timeseries",
       "title": "Logs by Error Codes",
       "datasource": {
-        "uid": "${logs_datasource}",
+        "uid": "${loki_datasource}",
         "type": "loki"
       },
       "fieldConfig": {
@@ -3828,7 +3828,7 @@
       "targets": [
         {
           "datasource": {
-            "uid": "${logs_datasource}",
+            "uid": "${loki_datasource}",
             "type": "loki"
           },
           "refId": "B",
@@ -3852,7 +3852,7 @@
       "title": "MySQL Errors Log",
       "datasource": {
         "type": "loki",
-        "uid": "${logs_datasource}"
+        "uid": "${loki_datasource}"
       },
       "options": {
         "showTime": false,
@@ -3868,7 +3868,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "${logs_datasource}"
+            "uid": "${loki_datasource}"
           },
           "expr": "{job=~\"$job\", instance=~\"$instance\"}",
           "refId": "A"

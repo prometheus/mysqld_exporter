@@ -4,24 +4,41 @@ local grafana = import 'github.com/grafana/grafonnet-lib/grafonnet/grafana.libso
 
   grafanaDashboards::
     if $._config.enableLokiLogs then {
-    'mysql-overview.json': (import 'mysql-overview.json') +
-    {
-      templating+:
+      'mysql-overview.json':
+        (import 'mysql-overview.json')
+        +
         {
-          list+: [
-            grafana.template.new(
-            name="loki_datasource",
-            label="Logs Data Source",
-            query='loki',
-            refresh='load',
-            datasource='loki'
-            ) + { type: "datasource"}
-          ]
+          links+: [
+            {
+              asDropdown: false,
+              icon: 'dashboard',
+              includeVars: true,
+              keepTime: true,
+              tags: [],
+              targetBlank: false,
+              title: 'MySQL Logs',
+              tooltip: '',
+              type: 'link',
+              url: 'd/DlHAFwE7z',
+            },
+          ],
+          templating+:
+            {
+
+              list+: [
+                grafana.template.new(
+                  name='loki_datasource',
+                  label='Logs Data Source',
+                  query='loki',
+                  refresh='load',
+                  datasource='loki'
+                ) + { type: 'datasource' },
+              ],
+            },
         },
-      panels+: import '../lib/loki-panels.json'
-    },
+      'mysql-logs.json': (import 'mysql-logs.json'),
     }
     else {
-    'mysql-overview.json': (import 'mysql-overview.json'),
-  }
+      'mysql-overview.json': (import 'mysql-overview.json'),
+    },
 }

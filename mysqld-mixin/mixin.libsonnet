@@ -1,5 +1,5 @@
-  (import 'config.libsonnet') +
-  (import 'dashboards/dashboards.libsonnet') + 
+(import 'config.libsonnet') +
+(import 'dashboards/dashboards.libsonnet') +
 {
 
   // Helper function to ensure that we don't override other rules, by forcing

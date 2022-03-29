@@ -25,20 +25,6 @@
     "graphTooltip": 1,
     "id": 3,
     "iteration": 1647879063849,
-    "links": [
-      {
-        "asDropdown": false,
-        "icon": "dashboard",
-        "includeVars": true,
-        "keepTime": true,
-        "tags": [],
-        "targetBlank": false,
-        "title": "MySQL Overview",
-        "tooltip": "",
-        "type": "link",
-        "url": "d/549c2bf8936f7767ea6ac47c47b00f2a"
-      }
-    ],
     "liveNow": false,
     "panels": [
       {
@@ -374,7 +360,6 @@
           "definition": "label_values(mysql_up, instance)",
           "hide": 0,
           "includeAll": true,
-          "label": false,
           "multi": true,
           "name": "instance",
           "options": [],

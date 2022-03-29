@@ -36,9 +36,7 @@ for Grafana:
 $ make build
 ```
 
-### Loki Logs configuration
-
-For proper logs correlation, you need to make sure that `job` and `instance` labels values match for both mysql_exporter metrics and logs, collected by promtail or grafana agent.
+## Loki Logs configuration
 
 To enable logs support in MySQLd mixin, enable them in config.libsonnet first:
 
@@ -56,7 +54,39 @@ then run
 $ make build
 ```
 
-This would generate mysql logs dashboard, as well as modified mysql overview dashboard.
+This would generate MySQL logs dashboard, as well as modified MySQL overview dashboard.
 
-For more advanced uses of mixins, see
-https://github.com/monitoring-mixins/docs.
+For proper logs correlation, you need to make sure that `job` and `instance` labels values match for both mysql_exporter metrics and logs, collected by [Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) or [Grafana Agent](https://grafana.com/docs/grafana-cloud/agent/).
+
+To scrape MySQL logs the following promtail config snippet can be used for `job=integrations/mysql` and `instance=mysql-01`:
+
+```yaml
+scrape_configs:
+- job_name: integrations/mysql 
+  static_configs:
+    - labels:
+        instance: mysql-01 # must match instance used in mysqld_exporter
+        job: integrations/mysql # must match job used in mysqld_exporter
+        __path__: /var/log/mysql/*.log
+  pipeline_stages:
+    - 
+      # logs of mysql in sample-apps https://dev.mysql.com/doc/refman/8.0/en/error-log-format.html
+      # format time thread [label] [err_code] [subsystem] msg
+      # The [err_code] and [subsystem] fields were added in MySQL 8.0
+      # https://regex101.com/r/jwEke3/2
+      regex:
+          expression: '(?P<timestamp>.+) (?P<thread>[\d]+) \[(?P<label>.+?)\]( \[(?P<err_code>.+?)\] \[(?P<subsystem>.+?)\])? (?P<msg>.+)'
+    - labels:
+        label:
+        err_code:
+        subsystem:
+      # (optional) uncomment parse timestamp, but make sure you set the proper location to parse timezone
+      #- timestamp:
+      #    source: timestamp
+      #    fallback_formats: ["2006-01-02 15:04:05"]
+      #    format: "2006-01-02T15:04:05.000000Z"
+      #    location: Etc/UTC
+    - drop:
+        expression: "^ *$"
+        drop_counter_reason: "drop empty lines"
+```

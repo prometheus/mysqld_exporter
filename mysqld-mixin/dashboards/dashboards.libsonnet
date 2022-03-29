@@ -1,5 +1,3 @@
-local grafana = import 'github.com/grafana/grafonnet-lib/grafonnet/grafana.libsonnet';
-
 {
 
   grafanaDashboards::

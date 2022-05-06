@@ -17,7 +17,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"time"
 
@@ -48,7 +47,7 @@ var (
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
-	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	).Default(".my.cnf").String()
 	mysqldAddress = kingpin.Flag(
 		"mysqld.address",
 		"Address to use for connecting to MySQL",

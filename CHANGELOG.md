@@ -2,7 +2,11 @@
 
 BREAKING CHANGES:
 
+Don't prepend the `.my.cnf` file with the `HOME` environment.
+
 Changes:
+
+* [CHANGE] Don't use HOME env in the my-cnf config path.
 
 * [CHANGE]
 * [FEATURE]

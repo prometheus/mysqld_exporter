@@ -12,6 +12,7 @@ require (
 	github.com/smartystreets/goconvey v1.7.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/ini.v1 v1.66.4
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 go 1.15

@@ -69,9 +69,9 @@ var (
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
 var scrapers = map[collector.Scraper]bool{
-	collector.ScrapeGlobalStatus{}:                        true,
-	collector.ScrapeGlobalVariables{}:                     true,
-	collector.ScrapeSlaveStatus{}:                         true,
+	collector.ScrapeGlobalStatus{}:                        false,
+	collector.ScrapeGlobalVariables{}:                     false,
+	collector.ScrapeSlaveStatus{}:                         false,
 	collector.ScrapeProcesslist{}:                         false,
 	collector.ScrapeUser{}:                                false,
 	collector.ScrapeTableSchema{}:                         false,
@@ -97,21 +97,26 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeSchemaStat{}:                          false,
 	collector.ScrapeInnodbCmp{}:                           true,
 	collector.ScrapeInnodbCmpMem{}:                        true,
-	collector.ScrapeQueryResponseTime{}:                   true,
+	collector.ScrapeQueryResponseTime{}:                   false,
 	collector.ScrapeEngineTokudbStatus{}:                  false,
 	collector.ScrapeEngineInnodbStatus{}:                  false,
 	collector.ScrapeHeartbeat{}:                           false,
+	collector.ScrapeInnodbCmp{}:                           false,
+	collector.ScrapeInnodbCmpMem{}:                        false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
 	collector.ScrapeCustomQuery{Resolution: collector.HR}: false,
 	collector.ScrapeCustomQuery{Resolution: collector.MR}: false,
 	collector.ScrapeCustomQuery{Resolution: collector.LR}: false,
+	collector.NewStandardGo():                             false,
+	collector.NewStandardProcess():                        false,
 }
 
 func parseMycnf(config interface{}) (string, error) {
 	var dsn string
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
+		// PMM-2469: my.cnf can have boolean keys.
 		AllowBooleanKeys: true,
 	}
 	cfg, err := ini.LoadSources(opts, config)
@@ -262,6 +267,7 @@ func main() {
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("mysqld_exporter"))
+	kingpin.CommandLine.UsageWriter(os.Stdout)
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)

@@ -33,10 +33,16 @@ func TestExporter(t *testing.T) {
 		t.Skip("-short is passed, skipping test")
 	}
 
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
 	exporter := New(
 		context.Background(),
-		dsn,
-		NewMetrics(),
+		db,
+		NewMetrics(""),
 		[]Scraper{
 			ScrapeGlobalStatus{},
 		},

@@ -15,3 +15,8 @@ package collector
 
 // Subsystem.
 const informationSchema = "info_schema"
+
+/* percona public accessors */
+
+const InformationSchema = informationSchema
+const Namespace = namespace

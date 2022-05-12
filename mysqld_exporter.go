@@ -33,6 +33,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/percona/mysqld_exporter/collector"
+	pcl "github.com/percona/mysqld_exporter/percona/perconacollector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -185,7 +186,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeEngineTokudbStatus{}:                  false,
 	collector.ScrapeEngineInnodbStatus{}:                  false,
 	collector.ScrapeHeartbeat{}:                           false,
-	collector.ScrapeInnodbCmp{}:                           false,
+	pcl.ScrapeInnodbCmp{}:                                 false,
 	collector.ScrapeInnodbCmpMem{}:                        false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
@@ -212,7 +213,7 @@ var scrapersMr = map[collector.Scraper]struct{}{
 	collector.ScrapePerfTableLockWaits{}:                  {},
 	collector.ScrapeQueryResponseTime{}:                   {},
 	collector.ScrapeEngineInnodbStatus{}:                  {},
-	collector.ScrapeInnodbCmp{}:                           {},
+	pcl.ScrapeInnodbCmp{}:                                 {},
 	collector.ScrapeInnodbCmpMem{}:                        {},
 	collector.ScrapeCustomQuery{Resolution: collector.MR}: {},
 }

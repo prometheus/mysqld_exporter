@@ -42,7 +42,7 @@ import (
 	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v2"
 
-	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/percona/mysqld_exporter/collector"
 )
 
 var (

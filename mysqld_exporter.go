@@ -32,21 +32,24 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
+	"github.com/percona/mysqld_exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
+	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
-	"gopkg.in/yaml.v2"
-
-	"github.com/percona/mysqld_exporter/collector"
 )
 
 var (
 	webConfig     = webflag.AddFlags(kingpin.CommandLine)
+	webConfigFile = kingpin.Flag(
+		"web.config",
+		"[EXPERIMENTAL] Path to config yaml file that can enable TLS or authentication.",
+	).Default("").String()
 	listenAddress = kingpin.Flag(
 		"web.listen-address",
 		"Address to listen on for web interface and telemetry.",
@@ -541,23 +544,7 @@ func main() {
 	cfg := &webAuth{}
 	httpAuth := os.Getenv("HTTP_AUTH")
 
-	// Those flags defined in "github.com/percona/exporter_shared"
-	empty := ""
-	webAuthFile := &empty
-	sslCertFile := &empty
-	sslKeyFile := &empty
-
-	if *webAuthFile != "" {
-		bytes, err := ioutil.ReadFile(*webAuthFile)
-		if err != nil {
-			level.Error(logger).Log("msg", "Cannot read auth file", "error", err)
-			return
-		}
-		if err := yaml.Unmarshal(bytes, cfg); err != nil {
-			level.Error(logger).Log("msg", "Cannot parse auth file", "error", err)
-			return
-		}
-	} else if httpAuth != "" {
+	if httpAuth != "" {
 		data := strings.SplitN(httpAuth, ":", 2)
 		if len(data) != 2 || data[0] == "" || data[1] == "" {
 			level.Error(logger).Log("msg", "HTTP_AUTH should be formatted as user:password")
@@ -569,8 +556,6 @@ func main() {
 	if cfg.User != "" && cfg.Password != "" {
 		level.Info(logger).Log("msg", "HTTP basic authentication is enabled")
 	}
-
-	ssl := false
 
 	// Use default mux for /debug/vars and /debug/pprof
 	mux := http.DefaultServeMux
@@ -623,16 +608,27 @@ func main() {
 
 	level.Info(logger).Log("msg", "Listening on", "address", *listenAddress)
 
-	if ssl {
+	if *webConfigFile != "" && *webConfig != "" {
+		level.Error(logger).Log("msg", "Should specify only one web-config file")
+		os.Exit(1)
+	}
+
+	webCfg := ""
+	if *webConfigFile != "" {
+		webCfg = *webConfigFile
+	}
+	if *webConfig != "" {
+		webCfg = *webConfig
+	}
+
+	if webCfg != "" {
 		// https
 		mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 			w.Write(landingPage)
 		})
-		//srv.TLSConfig = exporter_shared.TLSConfig()
-		//srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
 
-		level.Error(logger).Log("error", srv.ListenAndServeTLS(*sslCertFile, *sslKeyFile))
+		level.Error(logger).Log("error", web.ListenAndServe(srv, webCfg, logger))
 	} else {
 		// http
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

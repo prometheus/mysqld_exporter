@@ -199,3 +199,11 @@ func NewMetrics(resolution string) Metrics {
 		}),
 	}
 }
+
+/* percona private accessors */
+
+const VersionQuery = versionQuery
+
+func GetMySQLVersion(db *sql.DB, logger log.Logger) float64 {
+	return getMySQLVersion(db, logger)
+}

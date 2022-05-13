@@ -13,5 +13,24 @@
 
 package collector
 
-// Subsystem.
-const informationSchema = "info_schema"
+import (
+	"database/sql"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+/* percona private accessors */
+
+const InformationSchema = informationSchema
+const Namespace = namespace
+
+func NewDesc(subsystem, name, help string) *prometheus.Desc {
+	return newDesc(subsystem, name, help)
+}
+
+func ParseStatus(data sql.RawBytes) (float64, bool) {
+	return parseStatus(data)
+}
+
+func ValidPrometheusName(s string) string {
+	return validPrometheusName(s)
+}

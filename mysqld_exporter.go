@@ -156,6 +156,7 @@ func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
 var scrapers = map[collector.Scraper]bool{
+	pcl.ScrapeGlobalStatus{}:                              false,
 	collector.ScrapeGlobalStatus{}:                        false,
 	collector.ScrapeGlobalVariables{}:                     false,
 	collector.ScrapeSlaveStatus{}:                         false,
@@ -200,7 +201,7 @@ var scrapers = map[collector.Scraper]bool{
 
 // TODO Remove
 var scrapersHr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalStatus{}:                        {},
+	pcl.ScrapeGlobalStatus{}:                              {},
 	collector.ScrapeInnodbMetrics{}:                       {},
 	collector.ScrapeCustomQuery{Resolution: collector.HR}: {},
 }

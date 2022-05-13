@@ -82,3 +82,17 @@ func parsePrivilege(data sql.RawBytes) (float64, bool) {
 	}
 	return -1, false
 }
+
+/* percona private accessors */
+
+func ParseStatus(data sql.RawBytes) (float64, bool) {
+	return parseStatus(data)
+}
+
+func ValidPrometheusName(s string) string {
+	return validPrometheusName(s)
+}
+
+func NewDesc(subsystem, name, help string) *prometheus.Desc {
+	return newDesc(subsystem, name, help)
+}

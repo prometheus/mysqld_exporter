@@ -45,7 +45,7 @@ const infoSchemaProcesslistQuery = `
 // Tunable flags.
 var (
 	processlistMinTime = kingpin.Flag(
-		"collect.info_schema.processlist.min_time",
+		"collect.info_schema.processlist.min_time.prometheus",
 		"Minimum time a thread must be in each state to be counted",
 	).Default("0").Int()
 	processesByUserFlag = kingpin.Flag(
@@ -83,7 +83,7 @@ type ScrapeProcesslist struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeProcesslist) Name() string {
-	return informationSchema + ".processlist"
+	return informationSchema + ".processlist.prometheus"
 }
 
 // Help describes the role of the Scraper.

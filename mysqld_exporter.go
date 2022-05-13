@@ -159,6 +159,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeGlobalStatus{}:                        false,
 	collector.ScrapeGlobalVariables{}:                     false,
 	collector.ScrapeSlaveStatus{}:                         false,
+	pcl.ScrapeProcesslist{}:                               false,
 	collector.ScrapeProcesslist{}:                         false,
 	collector.ScrapeUser{}:                                false,
 	collector.ScrapeTableSchema{}:                         false,
@@ -207,7 +208,7 @@ var scrapersHr = map[collector.Scraper]struct{}{
 // TODO Remove
 var scrapersMr = map[collector.Scraper]struct{}{
 	collector.ScrapeSlaveStatus{}:                         {},
-	collector.ScrapeProcesslist{}:                         {},
+	pcl.ScrapeProcesslist{}:                               {},
 	collector.ScrapePerfEventsWaits{}:                     {},
 	collector.ScrapePerfFileEvents{}:                      {},
 	collector.ScrapePerfTableLockWaits{}:                  {},

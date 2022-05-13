@@ -196,8 +196,8 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeCustomQuery{Resolution: collector.HR}: false,
 	collector.ScrapeCustomQuery{Resolution: collector.MR}: false,
 	collector.ScrapeCustomQuery{Resolution: collector.LR}: false,
-	collector.NewStandardGo():                             false,
-	collector.NewStandardProcess():                        false,
+	pcl.NewStandardGo():                                   false,
+	pcl.NewStandardProcess():                              false,
 }
 
 // TODO Remove

@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector
+package perconacollector
 
 import (
 	"context"
 	"database/sql"
 
 	"github.com/go-kit/log"
+	cl "github.com/percona/mysqld_exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 )
@@ -26,7 +27,7 @@ type standardGo struct {
 	c prometheus.Collector
 }
 
-func NewStandardGo() Scraper {
+func NewStandardGo() cl.Scraper {
 	return standardGo{
 		c: collectors.NewGoCollector(),
 	}
@@ -57,7 +58,7 @@ type standardProcess struct {
 	c prometheus.Collector
 }
 
-func NewStandardProcess() Scraper {
+func NewStandardProcess() cl.Scraper {
 	return standardProcess{
 		c: collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	}

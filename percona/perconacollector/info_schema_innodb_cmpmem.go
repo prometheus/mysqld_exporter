@@ -13,13 +13,14 @@
 
 // Scrape `information_schema.INNODB_CMPMEM`.
 
-package collector
+package perconacollector
 
 import (
 	"context"
 	"database/sql"
 
 	"github.com/go-kit/log"
+	cl "github.com/percona/mysqld_exporter/collector"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -32,24 +33,24 @@ const innodbCmpMemQuery = `
 // Metric descriptors.
 var (
 	infoSchemaInnodbCmpMemPagesRead = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_used_total"),
+		prometheus.BuildFQName(cl.Namespace, cl.InformationSchema, "innodb_cmpmem_pages_used_total"),
 		"Number of blocks of the size PAGE_SIZE that are currently in use.",
-		[]string{"page_size", "buffer_pool"}, nil,
+		[]string{"page_size", "buffer"}, nil,
 	)
 	infoSchemaInnodbCmpMemPagesFree = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_pages_free_total"),
+		prometheus.BuildFQName(cl.Namespace, cl.InformationSchema, "innodb_cmpmem_pages_free_total"),
 		"Number of blocks of the size PAGE_SIZE that are currently available for allocation.",
-		[]string{"page_size", "buffer_pool"}, nil,
+		[]string{"page_size", "buffer"}, nil,
 	)
 	infoSchemaInnodbCmpMemRelocationOps = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_ops_total"),
+		prometheus.BuildFQName(cl.Namespace, cl.InformationSchema, "innodb_cmpmem_relocation_ops_total"),
 		"Number of times a block of the size PAGE_SIZE has been relocated.",
-		[]string{"page_size", "buffer_pool"}, nil,
+		[]string{"page_size", "buffer"}, nil,
 	)
 	infoSchemaInnodbCmpMemRelocationTime = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_cmpmem_relocation_time_seconds_total"),
+		prometheus.BuildFQName(cl.Namespace, cl.InformationSchema, "innodb_cmpmem_relocation_time_seconds_total"),
 		"Total time in seconds spent in relocating blocks.",
-		[]string{"page_size", "buffer_pool"}, nil,
+		[]string{"page_size", "buffer"}, nil,
 	)
 )
 
@@ -58,7 +59,7 @@ type ScrapeInnodbCmpMem struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeInnodbCmpMem) Name() string {
-	return informationSchema + ".innodb_cmpmem.prometheus"
+	return cl.InformationSchema + ".innodb_cmpmem"
 }
 
 // Help describes the role of the Scraper.
@@ -100,4 +101,4 @@ func (ScrapeInnodbCmpMem) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 }
 
 // check interface
-var _ Scraper = ScrapeInnodbCmpMem{}
+var _ cl.Scraper = ScrapeInnodbCmpMem{}

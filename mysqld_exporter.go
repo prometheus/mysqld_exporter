@@ -189,6 +189,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeEngineInnodbStatus{}:                  false,
 	collector.ScrapeHeartbeat{}:                           false,
 	pcl.ScrapeInnodbCmp{}:                                 false,
+	pcl.ScrapeInnodbCmpMem{}:                              false,
 	collector.ScrapeInnodbCmpMem{}:                        false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
@@ -216,7 +217,7 @@ var scrapersMr = map[collector.Scraper]struct{}{
 	collector.ScrapeQueryResponseTime{}:                   {},
 	collector.ScrapeEngineInnodbStatus{}:                  {},
 	pcl.ScrapeInnodbCmp{}:                                 {},
-	collector.ScrapeInnodbCmpMem{}:                        {},
+	pcl.ScrapeInnodbCmpMem{}:                              {},
 	collector.ScrapeCustomQuery{Resolution: collector.MR}: {},
 }
 

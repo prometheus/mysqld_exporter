@@ -193,51 +193,51 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeInnodbCmpMem{}:                        false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
-	collector.ScrapeCustomQuery{Resolution: collector.HR}: false,
-	collector.ScrapeCustomQuery{Resolution: collector.MR}: false,
-	collector.ScrapeCustomQuery{Resolution: collector.LR}: false,
+	pcl.ScrapeCustomQuery{Resolution: pcl.HR}:             false,
+	pcl.ScrapeCustomQuery{Resolution: pcl.MR}:             false,
+	pcl.ScrapeCustomQuery{Resolution: pcl.LR}:             false,
 	pcl.NewStandardGo():                                   false,
 	pcl.NewStandardProcess():                              false,
 }
 
 // TODO Remove
 var scrapersHr = map[collector.Scraper]struct{}{
-	pcl.ScrapeGlobalStatus{}:                              {},
-	collector.ScrapeInnodbMetrics{}:                       {},
-	collector.ScrapeCustomQuery{Resolution: collector.HR}: {},
+	pcl.ScrapeGlobalStatus{}:                  {},
+	collector.ScrapeInnodbMetrics{}:           {},
+	pcl.ScrapeCustomQuery{Resolution: pcl.HR}: {},
 }
 
 // TODO Remove
 var scrapersMr = map[collector.Scraper]struct{}{
-	collector.ScrapeSlaveStatus{}:                         {},
-	pcl.ScrapeProcesslist{}:                               {},
-	collector.ScrapePerfEventsWaits{}:                     {},
-	collector.ScrapePerfFileEvents{}:                      {},
-	collector.ScrapePerfTableLockWaits{}:                  {},
-	collector.ScrapeQueryResponseTime{}:                   {},
-	collector.ScrapeEngineInnodbStatus{}:                  {},
-	pcl.ScrapeInnodbCmp{}:                                 {},
-	pcl.ScrapeInnodbCmpMem{}:                              {},
-	collector.ScrapeCustomQuery{Resolution: collector.MR}: {},
+	collector.ScrapeSlaveStatus{}:             {},
+	pcl.ScrapeProcesslist{}:                   {},
+	collector.ScrapePerfEventsWaits{}:         {},
+	collector.ScrapePerfFileEvents{}:          {},
+	collector.ScrapePerfTableLockWaits{}:      {},
+	collector.ScrapeQueryResponseTime{}:       {},
+	collector.ScrapeEngineInnodbStatus{}:      {},
+	pcl.ScrapeInnodbCmp{}:                     {},
+	pcl.ScrapeInnodbCmpMem{}:                  {},
+	pcl.ScrapeCustomQuery{Resolution: pcl.MR}: {},
 }
 
 // TODO Remove
 var scrapersLr = map[collector.Scraper]struct{}{
-	collector.ScrapeGlobalVariables{}:                     {},
-	collector.ScrapeTableSchema{}:                         {},
-	collector.ScrapeAutoIncrementColumns{}:                {},
-	collector.ScrapeBinlogSize{}:                          {},
-	collector.ScrapePerfTableIOWaits{}:                    {},
-	collector.ScrapePerfIndexIOWaits{}:                    {},
-	collector.ScrapePerfFileInstances{}:                   {},
-	collector.ScrapeUserStat{}:                            {},
-	collector.ScrapeTableStat{}:                           {},
-	collector.ScrapePerfEventsStatements{}:                {},
-	collector.ScrapeClientStat{}:                          {},
-	collector.ScrapeInfoSchemaInnodbTablespaces{}:         {},
-	collector.ScrapeEngineTokudbStatus{}:                  {},
-	collector.ScrapeHeartbeat{}:                           {},
-	collector.ScrapeCustomQuery{Resolution: collector.LR}: {},
+	collector.ScrapeGlobalVariables{}:             {},
+	collector.ScrapeTableSchema{}:                 {},
+	collector.ScrapeAutoIncrementColumns{}:        {},
+	collector.ScrapeBinlogSize{}:                  {},
+	collector.ScrapePerfTableIOWaits{}:            {},
+	collector.ScrapePerfIndexIOWaits{}:            {},
+	collector.ScrapePerfFileInstances{}:           {},
+	collector.ScrapeUserStat{}:                    {},
+	collector.ScrapeTableStat{}:                   {},
+	collector.ScrapePerfEventsStatements{}:        {},
+	collector.ScrapeClientStat{}:                  {},
+	collector.ScrapeInfoSchemaInnodbTablespaces{}: {},
+	collector.ScrapeEngineTokudbStatus{}:          {},
+	collector.ScrapeHeartbeat{}:                   {},
+	pcl.ScrapeCustomQuery{Resolution: pcl.LR}:     {},
 }
 
 func parseMycnf(config interface{}, logger log.Logger) (string, error) {

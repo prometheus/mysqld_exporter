@@ -13,7 +13,7 @@
 
 // Scrape custom queries
 
-package collector
+package perconacollector
 
 import (
 	"context"

@@ -85,7 +85,7 @@ type ScrapeGlobalStatus struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeGlobalStatus) Name() string {
-	return globalStatus
+	return globalStatus + ".prometheus"
 }
 
 // Help describes the role of the Scraper.

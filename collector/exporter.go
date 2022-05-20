@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
@@ -40,7 +42,10 @@ const (
 )
 
 var (
-	versionRE = regexp.MustCompile(`^\d+\.\d+`)
+	versionRE                = regexp.MustCompile(`^\d+\.\d+`)
+	collectorFailuresAsError = kingpin.Flag(
+		"collector.failures.error",
+		"Log collector failures as errors (Debug by default)").Bool()
 )
 
 // Metric descriptors.
@@ -134,7 +139,12 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			if err := scraper.Scrape(scrapeCtx, e.db, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
-				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
+				if *collectorFailuresAsError {
+					level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
+				} else {
+					level.Debug(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
+				}
+
 				e.metrics.ScrapeErrors.WithLabelValues(label).Inc()
 				e.metrics.Error.Set(1)
 			}

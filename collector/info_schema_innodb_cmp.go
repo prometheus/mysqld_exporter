@@ -63,7 +63,7 @@ type ScrapeInnodbCmp struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeInnodbCmp) Name() string {
-	return informationSchema + ".innodb_cmp"
+	return informationSchema + ".innodb_cmp.prometheus"
 }
 
 // Help describes the role of the Scraper.

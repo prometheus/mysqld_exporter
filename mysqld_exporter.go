@@ -70,7 +70,7 @@ var (
 
 	exporterLockTimeout = kingpin.Flag(
 		"exporter.lock_wait_timeout",
-		"Set a lock_wait_timeout on the connection to avoid long metadata locking.",
+		"Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking.",
 	).Default("2").Int()
 	exporterLogSlowFilter = kingpin.Flag(
 		"exporter.log_slow_filter",

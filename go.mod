@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/exporter-toolkit v0.7.1
 	github.com/smartystreets/goconvey v1.7.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/ini.v1 v1.66.4
+	gopkg.in/ini.v1 v1.66.6
 )
 
 require (

@@ -16,7 +16,7 @@ groups:
       severity: warning
     annotations:
       description: '{{$labels.job}} on {{$labels.instance}} is not ready.'
-      summary: Galera cluster node not ready
+      summary: Galera cluster node not ready.
   - alert: MySQLGaleraOutOfSync
     expr: (mysql_global_status_wsrep_local_state != 4 and mysql_global_variables_wsrep_desync
       == 0)
@@ -26,7 +26,7 @@ groups:
     annotations:
       description: '{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}}
         != 4).'
-      summary: Galera cluster node out of sync
+      summary: Galera cluster node out of sync.
   - alert: MySQLGaleraDonorFallingBehind
     expr: (mysql_global_status_wsrep_local_state == 2 and mysql_global_status_wsrep_local_recv_queue
       > 100)
@@ -36,7 +36,7 @@ groups:
     annotations:
       description: '{{$labels.job}} on {{$labels.instance}} is a donor (hotbackup)
         and is falling behind (queue size {{$value}}).'
-      summary: xtradb cluster donor node falling behind
+      summary: XtraDB cluster donor node falling behind.
   - alert: MySQLReplicationNotRunning
     expr: mysql_slave_status_slave_io_running == 0 or mysql_slave_status_slave_sql_running
       == 0
@@ -44,8 +44,8 @@ groups:
     labels:
       severity: critical
     annotations:
-      description: Slave replication (IO or SQL) has been down for more than 2 minutes.
-      summary: Slave replication is not running
+      description: "Replication on {{$labels.instance}} (IO or SQL) has been down for more than 2 minutes."
+      summary: Replication is not running.
   - alert: MySQLReplicationLag
     expr: (instance:mysql_slave_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_slave_lag_seconds[5m],
       60 * 2) > 0)
@@ -53,8 +53,8 @@ groups:
     labels:
       severity: critical
     annotations:
-      description: The mysql slave replication has fallen behind and is not recovering
-      summary: MySQL slave replication is lagging
+      description: "Replication on {{$labels.instance}} has fallen behind and is not recovering."
+      summary: MySQL slave replication is lagging.
   - alert: MySQLHeartbeatLag
     expr: (instance:mysql_heartbeat_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_heartbeat_lag_seconds[5m],
       60 * 2) > 0)
@@ -62,8 +62,8 @@ groups:
     labels:
       severity: critical
     annotations:
-      description: The mysql heartbeat is lagging and is not recovering
-      summary: MySQL heartbeat is lagging
+      description: "The heartbeat is lagging on {{$labels.instance}} and is not recovering."
+      summary: MySQL heartbeat is lagging.
   - alert: MySQLInnoDBLogWaits
     expr: rate(mysql_global_status_innodb_log_waits[15m]) > 10
     labels:
@@ -71,4 +71,4 @@ groups:
     annotations:
       description: The innodb logs are waiting for disk at a rate of {{$value}} /
         second
-      summary: MySQL innodb log writes stalling
+      summary: MySQL innodb log writes stalling.

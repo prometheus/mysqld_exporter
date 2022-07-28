@@ -16,7 +16,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -157,7 +157,7 @@ func TestBin(t *testing.T) {
 	var err error
 	binName := "mysqld_exporter"
 
-	binDir, err := ioutil.TempDir("/tmp", binName+"-test-bindir-")
+	binDir, err := os.MkdirTemp("/tmp", binName+"-test-bindir-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func getBody(urlToGet string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

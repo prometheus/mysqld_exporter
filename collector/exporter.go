@@ -134,6 +134,9 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		level.Error(e.logger).Log("msg", "Error opening connection to database", "err", err)
+
+		// 赋值默认值 解决 链接 不存在 mysql_up 不更新的问题
+		e.metrics.MySQLUp.Set(0)
 		e.metrics.Error.Set(1)
 		return
 	}

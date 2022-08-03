@@ -105,7 +105,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeReplicaHost{}:                         false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
+func parseMycnf(config interface{}, clientname string) (string, error) {
 	var dsn string
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
@@ -115,23 +115,23 @@ func parseMycnf(config interface{}) (string, error) {
 	if err != nil {
 		return dsn, fmt.Errorf("failed reading ini file: %s", err)
 	}
-	user := cfg.Section("client").Key("user").String()
-	password := cfg.Section("client").Key("password").String()
+	user := cfg.Section(clientname).Key("user").String()
+	password := cfg.Section(clientname).Key("password").String()
 	if user == "" {
-		return dsn, fmt.Errorf("no user specified under [client] in %s", config)
+		return dsn, fmt.Errorf("no user specified under [%s] in %s", clientname, config)
 	}
-	host := cfg.Section("client").Key("host").MustString("localhost")
-	port := cfg.Section("client").Key("port").MustUint(3306)
-	socket := cfg.Section("client").Key("socket").String()
-	sslCA := cfg.Section("client").Key("ssl-ca").String()
-	sslCert := cfg.Section("client").Key("ssl-cert").String()
-	sslKey := cfg.Section("client").Key("ssl-key").String()
+	host := cfg.Section(clientname).Key("host").MustString("localhost")
+	port := cfg.Section(clientname).Key("port").MustUint(3306)
+	socket := cfg.Section(clientname).Key("socket").String()
+	sslCA := cfg.Section(clientname).Key("ssl-ca").String()
+	sslCert := cfg.Section(clientname).Key("ssl-cert").String()
+	sslKey := cfg.Section(clientname).Key("ssl-key").String()
 	passwordPart := ""
 	if password != "" {
 		passwordPart = ":" + password
 	} else {
 		if sslKey == "" {
-			return dsn, fmt.Errorf("password or ssl-key should be specified under [client] in %s", config)
+			return dsn, fmt.Errorf("password or ssl-key should be specified under [%s] in %s", clientname, config)
 		}
 	}
 	if socket != "" {
@@ -184,7 +184,18 @@ func init() {
 func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filteredScrapers := scrapers
+		clientname := "client"
 		params := r.URL.Query()["collect[]"]
+		name := r.URL.Query()["name"]
+		// 判断是否传入name， 未传入取默认值
+		if len(name) != 0 {
+			clientname = name[0]
+		}
+		var err error
+		if dsn, err = parseMycnf(*configMycnf, clientname); err != nil {
+			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+		}
+
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
@@ -278,13 +289,13 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
 	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-			os.Exit(1)
-		}
-	}
+	// if len(dsn) == 0 {
+	// 	var err error
+	// 	if dsn, err = parseMycnf(*configMycnf); err != nil {
+	// 		level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+	// 		os.Exit(1)
+	// 	}
+	// }
 
 	// Register only scrapers enabled by flag.
 	enabledScrapers := []collector.Scraper{}

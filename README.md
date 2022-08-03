@@ -39,6 +39,45 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+单进程监控多个mysql的方式
+
+    # cat my.cnf
+    [client]
+    host=192.168.42.128
+    port=3306
+    user=root
+    password=123456
+
+    [client2]
+    host=192.168.42.128
+    port=3306
+    user=root
+    password=12345678
+
+    # 测试
+    curl http://localhost:9104/metrics?name=client
+
+    # 普罗米修斯配置参考
+     - job_name: 'mysql_exporter_test001'
+            scrape_timeout: 10s
+            scrape_interval: 1m
+            static_configs:
+            - targets:
+                - '192.168.42.128:9104'
+                labels:
+                name: test001
+                __metrics_path__: /metrics
+                __param_name: client
+            
+            - targets:
+                - '192.168.42.128:9104'
+                labels:
+                name: test001
+                __metrics_path__: /metrics
+                __param_name: client2
+
+ 
+
 Example format for flags for version > 0.10.0:
 
     --collect.auto_increment.columns

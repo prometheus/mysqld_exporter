@@ -15,12 +15,12 @@ wait_start() {
             sleep 1
         fi
     done
-
+    
     exit 1
 }
 
 docker_start() {
-    container_id=$(docker run -d --network mysql-test -e DATA_SOURCE_NAME="root:secret@(mysql-test:3306)/" -p "${port}":"${port}" "${docker_image}")
+    container_id=$(docker run -d --network mysql-test -p "${port}":"${port}" "${docker_image}" --export-multi-hosts --config-multi-hosts=test_multi_exporter.cnf)
 }
 
 docker_cleanup() {

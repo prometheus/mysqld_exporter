@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -63,7 +62,7 @@ var (
 		"tls.insecure-skip-verify",
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
-	dsn string
+	config *ini.File
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
@@ -104,8 +103,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeReplicaHost{}:                         false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
-	var dsn string
+func parseMycnf(config interface{}) (dsn string, err error) {
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
@@ -176,14 +174,43 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 	return nil
 }
 
+func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
+	filteredScrapers := scrapers
+
+	// Check if we have some "collect[]" query parameters.
+	if len(collectParams) > 0 {
+		filters := make(map[string]bool)
+		for _, param := range collectParams {
+			filters[param] = true
+		}
+
+		for _, scraper := range scrapers {
+			if filters[scraper.Name()] {
+				filteredScrapers = append(filteredScrapers, scraper)
+			}
+		}
+	}
+	return filteredScrapers
+}
+
 func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, cfg *ini.File, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filteredScrapers := scrapers
-		params := r.URL.Query()["collect[]"]
+		var section *ini.Section
+		var dsn string
+		var err error
+
+		collect := r.URL.Query()["collect[]"]
+		if section, err = validateMyConfig(cfg, "client"); err != nil {
+			level.Error(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+		}
+		if dsn, err = formDSN("", section); err != nil {
+			level.Error(logger).Log("msg", "Error forming dsn", "file", *configMycnf, "err", err)
+		}
+
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
@@ -207,24 +234,11 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 				r = r.WithContext(ctx)
 			}
 		}
-		level.Debug(logger).Log("msg", "collect[] params", "params", strings.Join(params, ","))
 
-		// Check if we have some "collect[]" query parameters.
-		if len(params) > 0 {
-			filters := make(map[string]bool)
-			for _, param := range params {
-				filters[param] = true
-			}
-
-			filteredScrapers = nil
-			for _, scraper := range scrapers {
-				if filters[scraper.Name()] {
-					filteredScrapers = append(filteredScrapers, scraper)
-				}
-			}
-		}
+		filteredScrapers := filterScrapers(scrapers, collect)
 
 		registry := prometheus.NewRegistry()
+
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
 		gatherers := prometheus.Gatherers{
@@ -276,13 +290,10 @@ func main() {
 	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-			os.Exit(1)
-		}
+	var err error
+	if config, err = newMyConfig(*configMycnf); err != nil {
+		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
+		os.Exit(1)
 	}
 
 	// Register only scrapers enabled by flag.
@@ -293,11 +304,12 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
+	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, config, logger)
 	http.Handle(*metricPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
+	http.HandleFunc("/probe", handleProbe(collector.NewMetrics(), enabledScrapers, config, logger))
 
 	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
 	srv := &http.Server{Addr: *listenAddress}

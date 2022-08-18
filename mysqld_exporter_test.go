@@ -195,7 +195,8 @@ func TestBin(t *testing.T) {
 	}
 
 	tests := []func(*testing.T, bin){
-		testLandingPage,
+		testLanding,
+		testProbe,
 	}
 
 	portStart := 56000
@@ -216,7 +217,7 @@ func TestBin(t *testing.T) {
 	})
 }
 
-func testLandingPage(t *testing.T, data bin) {
+func testLanding(t *testing.T, data bin) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -225,8 +226,8 @@ func testLandingPage(t *testing.T, data bin) {
 		ctx,
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+		"--config.my-cnf=test_single_exporter.cnf",
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -249,6 +250,38 @@ func testLandingPage(t *testing.T, data bin) {
 </body>
 </html>
 `
+	if got != expected {
+		t.Fatalf("got '%s' but expected '%s'", got, expected)
+	}
+}
+
+func testProbe(t *testing.T, data bin) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Run exporter.
+	cmd := exec.CommandContext(
+		ctx,
+		data.path,
+		"--web.listen-address", fmt.Sprintf(":%d", data.port),
+		"--config.my-cnf=test_single_exporter.cnf",
+	)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
+
+	// Get the main page.
+	urlToGet := fmt.Sprintf("http://127.0.0.1:%d/probe", data.port)
+	body, err := waitForBody(urlToGet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(string(body))
+
+	expected := `target is required`
+
 	if got != expected {
 		t.Fatalf("got '%s' but expected '%s'", got, expected)
 	}

@@ -30,15 +30,49 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 ### Running
 
-Running using an environment variable:
-
-    export DATA_SOURCE_NAME='user:password@(hostname:3306)/'
-    ./mysqld_exporter <flags>
+#####  Single exporter mode
 
 Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+#####  Multi exporter mode
+This mode can be useful in monitoring MySQL deployments in cloud like RDS.
+
+
+    ./mysqld_exporter --export-multi-hosts --config-multi-hosts=<path to ini config file>
+ 
+Sample config file for multi exporter mode
+
+        [client]
+        user = foo
+        password = foo123
+        target = localhost:3306
+        [client.server1]
+        user = bar
+        password = bar123
+
+On the prometheus side you can set a scrape config as follows
+
+        - job_name: mysql # To get metrics about the mysql exporter’s targets
+          params:
+            # Not required. Will match value to child in config file.
+            module: server1
+          static_configs:
+            - targets:
+              # All rds hostnames to monitor. The target(s) here is also used to figure out the client name from the multi host config.
+              - server1:3306
+              - server2:3306
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              # The mysqld_exporter host:port
+              replacement: localhost:9104
+
+#####  Flag format
 Example format for flags for version > 0.10.0:
 
     --collect.auto_increment.columns
@@ -111,6 +145,8 @@ web.config.file                            | Path to a [web configuration file](
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
+export-multi-hosts                         | Enable multi exporter mode. Useful in monitoring MySQL deployments in cloud like RDS.
+config-multi-hosts                         | Path to the ini file used in multi exporter mode
 
 ## TLS and basic authentication
 
@@ -141,8 +177,6 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
-Customizing the SSL configuration is only supported in the mysql cnf file and is not supported if you set the mysql server's data source name in the environment variable DATA_SOURCE_NAME.
-
 
 ## Using Docker
 
@@ -154,11 +188,23 @@ For example:
 docker network create my-mysql-network
 docker pull prom/mysqld-exporter
 
+1. Single exporter mode
+
 docker run -d \
   -p 9104:9104 \
   --network my-mysql-network  \
-  -e DATA_SOURCE_NAME="user:password@(hostname:3306)/" \
   prom/mysqld-exporter
+  --config.my-cnf=<path_to_cnf>
+
+2. Multi exporter mode
+
+docker run -d \
+  -p 9104:9104 \
+  --network my-mysql-network  \
+  prom/mysqld-exporter
+  --export-multi-hosts
+  --config-multi-hosts==<path_to_multi_exporter_cnf>
+
 ```
 
 ## heartbeat

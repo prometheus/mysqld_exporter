@@ -226,7 +226,7 @@ func testLanding(t *testing.T, data bin) {
 		ctx,
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
-		"--config.my-cnf=test_single_exporter.cnf",
+		"--config.my-cnf=test_exporter.cnf",
 	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -264,7 +264,7 @@ func testProbe(t *testing.T, data bin) {
 		ctx,
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
-		"--config.my-cnf=test_single_exporter.cnf",
+		"--config.my-cnf=test_exporter.cnf",
 	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)

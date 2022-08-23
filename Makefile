@@ -24,6 +24,6 @@ DOCKER_IMAGE_NAME ?= mysqld-exporter
 
 test-docker-single-exporter:
 	@echo ">> testing docker image for single exporter"
-	./test_image_single_exporter.sh "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" 9104
+	./test_image.sh "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" 9104
 
 .PHONY: test-docker

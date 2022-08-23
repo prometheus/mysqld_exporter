@@ -36,19 +36,20 @@ Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
-#####  Multi exporter mode
-This mode can be useful in monitoring MySQL deployments in cloud like RDS.
+#####  Multi-target support
 
+This exporter supports the multi-target pattern. This allows running a single instance of this exporter for multiple MySQL targets.
 
-    ./mysqld_exporter --export-multi-hosts --config-multi-hosts=<path to ini config file>
+To use the multi-target functionality, send an http request to the endpoint /probe?target=foo:5432 where target is set to the DSN of the MySQL instance to scrape metrics from.
+
+To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
  
-Sample config file for multi exporter mode
+Sample config file for multiple configurations
 
         [client]
         user = foo
         password = foo123
-        target = localhost:3306
-        [client.server1]
+        [client.servers]
         user = bar
         password = bar123
 
@@ -56,8 +57,8 @@ On the prometheus side you can set a scrape config as follows
 
         - job_name: mysql # To get metrics about the mysql exporter’s targets
           params:
-            # Not required. Will match value to child in config file.
-            module: server1
+            # Not required. Will match value to child in config file. Default value is `client`.
+            auth_module: client.servers
           static_configs:
             - targets:
               # All rds hostnames to monitor. The target(s) here is also used to figure out the client name from the multi host config.

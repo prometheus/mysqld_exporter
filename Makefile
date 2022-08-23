@@ -26,7 +26,4 @@ test-docker-single-exporter:
 	@echo ">> testing docker image for single exporter"
 	./test_image_single_exporter.sh "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" 9104
 
-test-docker-multi-exporter:
-	@echo ">> testing docker image for multi exporter"
-	./test_image_multi_exporter.sh "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" 9104
 .PHONY: test-docker

@@ -61,7 +61,7 @@ On the prometheus side you can set a scrape config as follows
             auth_module: client.servers
           static_configs:
             - targets:
-              # All rds hostnames to monitor. The target(s) here is also used to figure out the client name from the multi host config.
+              # All mysql hostnames to monitor.
               - server1:3306
               - server2:3306
           relabel_configs:
@@ -146,8 +146,6 @@ web.config.file                            | Path to a [web configuration file](
 web.listen-address                         | Address to listen on for web interface and telemetry.
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
-export-multi-hosts                         | Enable multi exporter mode. Useful in monitoring MySQL deployments in cloud like RDS.
-config-multi-hosts                         | Path to the ini file used in multi exporter mode
 
 ## TLS and basic authentication
 

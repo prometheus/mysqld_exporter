@@ -103,7 +103,8 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeReplicaHost{}:                         false,
 }
 
-func parseMycnf(config interface{}) (dsn string, err error) {
+func parseMycnf(config interface{}) (string, error) {
+	var dsn string
 	opts := ini.LoadOptions{
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,

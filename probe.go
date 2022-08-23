@@ -16,7 +16,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -61,28 +60,18 @@ func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, cfg *i
 			Name: "probe_success",
 			Help: "Displays whether or not the probe was a success",
 		})
-		probeDurationGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_duration_seconds",
-			Help: "Returns how long the probe took to complete in seconds",
-		})
 
 		filteredScrapers := filterScrapers(scrapers, collectParams)
 
-		start := time.Now()
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(probeSuccessGauge)
-		registry.MustRegister(probeDurationGauge)
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
 		if err != nil {
-			probeSuccessGauge.Set(0)
-			probeDurationGauge.Set(time.Since(start).Seconds())
+			probeSuccessGauge.Set(1)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		duration := time.Since(start).Seconds()
-		probeDurationGauge.Set(duration)
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

@@ -22,15 +22,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/mysqld_exporter/collector"
-	"gopkg.in/ini.v1"
 )
 
-func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, cfg *ini.File, logger log.Logger) http.HandlerFunc {
+func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var section *ini.Section
-		var dsn string
+		var dsn, authModule string
 		var err error
-		var authModule string
 
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -45,15 +42,15 @@ func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, cfg *i
 			authModule = "client"
 		}
 
-		if section, err = validateMyConfig(cfg, authModule); err != nil {
-			level.Error(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
+		cfg := c.GetConfig()
+		cfgsection, ok := cfg.Sections[authModule]
+		if !ok {
+			level.Error(logger).Log("msg", fmt.Sprintf("Failed to parse section [%s] from config file", authModule), "err", err)
 			http.Error(w, fmt.Sprintf("Error parsing config section [%s]", authModule), http.StatusBadRequest)
-			return
 		}
-		if dsn, err = formDSN(target, section); err != nil {
-			level.Error(logger).Log("msg", "Error forming dsn", "file", *configMycnf, "target", target, "err", err)
-			http.Error(w, fmt.Sprintf("Error forming dsn for %s", target), http.StatusBadRequest)
-			return
+		if dsn, err = cfgsection.FormDSN(target); err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
+			http.Error(w, fmt.Sprintf("Error forming dsn from config section [%s]", authModule), http.StatusBadRequest)
 		}
 
 		probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{

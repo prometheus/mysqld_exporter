@@ -49,7 +49,7 @@ func TestValidateConfig(t *testing.T) {
 
 		})
 
-		convey.Convey("False on non-existant section", func() {
+		convey.Convey("False on non-existent section", func() {
 			cfg := c.GetConfig()
 			_, ok := cfg.Sections["fakeclient"]
 			convey.So(ok, convey.ShouldBeFalse)

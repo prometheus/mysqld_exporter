@@ -90,15 +90,6 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, tlsInsecureSkipVerif
 			configReloadSeconds.SetToCurrentTime()
 		}
 	}()
-	// configs := append(make(
-	// 	[]interface{}, 0),
-	// // These arguments are mappings from MySqlConfig struct
-	// // to environment variables. Config files takes precedence.
-	// )
-
-	// if filename != "" {
-	// 	configs = append(configs, filename)
-	// }
 
 	cfg, err := ini.LoadSources(
 		opts,

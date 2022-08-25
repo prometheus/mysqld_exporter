@@ -147,6 +147,13 @@ web.listen-address                         | Address to listen on for web interf
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
 
+### Environment Variables
+Name                                       | Description
+-------------------------------------------|--------------------------------------------------------------------------------------------------
+MYSQLD_EXPORTER_HOST                       | Hostname to be used for connecting to MySQL Server
+MYSQLD_EXPORTER_USER                       | Username to be used for connecting to MySQL Server
+MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting to MySQL Server
+
 ## TLS and basic authentication
 
 The MySQLd Exporter supports TLS and basic authentication.

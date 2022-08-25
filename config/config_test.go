@@ -72,6 +72,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
+		os.Setenv("MYSQLD_EXPORTER_HOST", "testhost")
 		os.Setenv("MYSQLD_EXPORTER_USER", "testuser")
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		if err := c.ReloadConfig("", true, log.NewNopLogger()); err != nil {
@@ -80,6 +81,7 @@ func TestValidateConfig(t *testing.T) {
 
 		cfg := c.GetConfig()
 		section := cfg.Sections["client"]
+		convey.So(section.Host, convey.ShouldEqual, "testhost")
 		convey.So(section.User, convey.ShouldEqual, "testuser")
 		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
 	})

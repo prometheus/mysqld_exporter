@@ -102,6 +102,7 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, tlsInsecureSkipVerif
 
 	cfg, err := ini.LoadSources(
 		opts,
+		[]byte("[client]\nhost = ${MYSQLD_EXPORTER_HOST}\n"),
 		[]byte("[client]\nuser = ${MYSQLD_EXPORTER_USER}\n"),
 		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
 		filename,

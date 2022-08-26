@@ -157,7 +157,7 @@ docker pull prom/mysqld-exporter
 docker run -d \
   -p 9104:9104 \
   --network my-mysql-network  \
-  -e DATA_SOURCE_NAME="user:password@(hostname:3306)/" \
+  -e DATA_SOURCE_NAME=user:password@(hostname:3306)/ \
   prom/mysqld-exporter
 ```
 

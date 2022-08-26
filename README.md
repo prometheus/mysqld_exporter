@@ -65,16 +65,16 @@ Running using ~/.my.cnf:
             - targets:
                 - '192.168.42.128:9104'
                 labels:
-                name: test001
-                __metrics_path__: /metrics
-                __param_name: client
+                    name: test001
+                    __metrics_path__: /metrics
+                    __param_name: client
             
             - targets:
                 - '192.168.42.128:9104'
                 labels:
-                name: test001
-                __metrics_path__: /metrics
-                __param_name: client2
+                    name: test002
+                    __metrics_path__: /metrics
+                    __param_name: client2
 
  
 

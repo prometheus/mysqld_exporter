@@ -54,6 +54,14 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	mysqldHost = kingpin.Flag(
+		"mysqld.host",
+		"Hostname to use for connecting to MySQL",
+	).Default("localhost").String()
+	mysqldUser = kingpin.Flag(
+		"mysqld.username",
+		"Hostname to use for connecting to MySQL",
+	).String()
 	tlsInsecureSkipVerify = kingpin.Flag(
 		"tls.insecure-skip-verify",
 		"Ignore certificate and server verification when using a tls connection.",
@@ -220,7 +228,7 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
 	var err error
-	if err = c.ReloadConfig(*configMycnf, *tlsInsecureSkipVerify, logger); err != nil {
+	if err = c.ReloadConfig(*configMycnf, *mysqldHost, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
 	}
 

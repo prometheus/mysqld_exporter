@@ -43,6 +43,8 @@ var (
 		Help:      "Timestamp of the last successful configuration reload.",
 	})
 
+	cfg *ini.File
+
 	opts = ini.LoadOptions{
 		// Do not error on nonexistent file to allow empty string as filename input
 		Loose: true,
@@ -81,7 +83,7 @@ func (ch *MySqlConfigHandler) GetConfig() *Config {
 	return ch.Config
 }
 
-func (ch *MySqlConfigHandler) ReloadConfig(filename string, tlsInsecureSkipVerify bool, logger log.Logger) error {
+func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldHost string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
 	defer func() {
 		if err != nil {
 			configReloadSuccess.Set(0)
@@ -91,16 +93,21 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, tlsInsecureSkipVerif
 		}
 	}()
 
-	cfg, err := ini.LoadSources(
+	if cfg, err = ini.LoadSources(
 		opts,
-		[]byte("[client]\nhost = ${MYSQLD_EXPORTER_HOST}\n"),
-		[]byte("[client]\nuser = ${MYSQLD_EXPORTER_USER}\n"),
 		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
 		filename,
-	)
-
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("failed to load %s", filename)
+	}
+
+	if clientSection := cfg.Section("client"); clientSection != nil {
+		if host := clientSection.Key("host"); host.String() == "" {
+			host.SetValue(mysqldHost)
+		}
+		if user := clientSection.Key("user"); user.String() == "" {
+			user.SetValue(mysqldUser)
+		}
 	}
 
 	cfg.ValueMapper = os.ExpandEnv
@@ -161,9 +168,6 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 	password := m.Password
 	if target == "" {
 		host := m.Host
-		if host == "" {
-			host = "localhost"
-		}
 		port := m.Port
 		if port == 0 {
 			port = 3306

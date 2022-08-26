@@ -28,7 +28,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/client.cnf", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -60,7 +60,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/child_client.cnf", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		cfg := c.GetConfig()
@@ -68,14 +68,12 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
-	convey.Convey("Environment variables only", t, func() {
+	convey.Convey("Environment variables / CLI arguments only", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		os.Setenv("MYSQLD_EXPORTER_HOST", "testhost")
-		os.Setenv("MYSQLD_EXPORTER_USER", "testuser")
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -86,13 +84,12 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
 	})
 
-	convey.Convey("Config file takes precedence over environment variables", t, func() {
+	convey.Convey("Config file precedence over environment variables", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		os.Setenv("MYSQLD_EXPORTER_USER", "testuser")
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("testdata/client.cnf", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "fakeuser", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -107,7 +104,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_user.cnf", true, log.NewNopLogger())
+		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost", "", true, log.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -120,7 +117,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_password.cnf", true, log.NewNopLogger())
+		err := c.ReloadConfig("testdata/missing_password.cnf", "localhost", "", true, log.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -139,7 +136,7 @@ func TestFormDSN(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {

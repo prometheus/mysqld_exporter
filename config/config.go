@@ -83,7 +83,7 @@ func (ch *MySqlConfigHandler) GetConfig() *Config {
 	return ch.Config
 }
 
-func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldHost string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
+func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
 	defer func() {
 		if err != nil {
 			configReloadSuccess.Set(0)
@@ -101,12 +101,17 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldHost string, m
 		return fmt.Errorf("failed to load %s", filename)
 	}
 
+	host, port := parseAddress(mysqldAddress)
+
 	if clientSection := cfg.Section("client"); clientSection != nil {
-		if host := clientSection.Key("host"); host.String() == "" {
-			host.SetValue(mysqldHost)
+		if cfgHost := clientSection.Key("host"); cfgHost.String() == "" {
+			cfgHost.SetValue(host)
 		}
-		if user := clientSection.Key("user"); user.String() == "" {
-			user.SetValue(mysqldUser)
+		if cfgPort := clientSection.Key("port"); cfgPort.String() == "" {
+			cfgPort.SetValue(port)
+		}
+		if cfgUser := clientSection.Key("user"); cfgUser.String() == "" {
+			cfgUser.SetValue(mysqldUser)
 		}
 	}
 
@@ -162,17 +167,13 @@ func (m MySqlConfig) validateConfig() error {
 }
 
 func (m MySqlConfig) FormDSN(target string) (string, error) {
-	var dsn, host string
+	var dsn string
 
 	user := m.User
 	password := m.Password
 	if target == "" {
 		host := m.Host
 		port := m.Port
-		if port == 0 {
-			port = 3306
-		}
-
 		socket := m.Socket
 		if socket != "" {
 			dsn = fmt.Sprintf("%s:%s@unix(%s)/", user, password, socket)
@@ -180,14 +181,7 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 			dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 		}
 	} else {
-		targetPort := strings.Split(target, ":")
-		host = targetPort[0]
-		var port string
-		if len(targetPort) > 1 {
-			port = targetPort[1]
-		} else {
-			port = "3306"
-		}
+		host, port := parseAddress(target)
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, host, port)
 	}
 
@@ -227,4 +221,17 @@ func (m MySqlConfig) CustomizeTLS() error {
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
 	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil
+}
+
+func parseAddress(address string) (string, string) {
+	target := strings.Split(address, ":")
+	host := target[0]
+	var port string
+	if len(target) > 1 {
+		port = target[1]
+	} else {
+		port = "3306"
+	}
+
+	return host, port
 }

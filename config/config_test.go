@@ -68,7 +68,24 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
-	convey.Convey("Environment variables / CLI arguments only", t, func() {
+	convey.Convey("Environment variables / CLI arguments with port", t, func() {
+		c := MySqlConfigHandler{
+			Config: &Config{},
+		}
+		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
+		if err := c.ReloadConfig("", "testhost:5000", "testuser", true, log.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+
+		cfg := c.GetConfig()
+		section := cfg.Sections["client"]
+		convey.So(section.Host, convey.ShouldEqual, "testhost")
+		convey.So(section.Port, convey.ShouldEqual, 5000)
+		convey.So(section.User, convey.ShouldEqual, "testuser")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+	})
+
+	convey.Convey("Environment variables / CLI arguments without port", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
@@ -80,6 +97,7 @@ func TestValidateConfig(t *testing.T) {
 		cfg := c.GetConfig()
 		section := cfg.Sections["client"]
 		convey.So(section.Host, convey.ShouldEqual, "testhost")
+		convey.So(section.Port, convey.ShouldEqual, 3306)
 		convey.So(section.User, convey.ShouldEqual, "testuser")
 		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
 	})

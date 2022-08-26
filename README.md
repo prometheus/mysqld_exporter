@@ -137,6 +137,8 @@ collect.heartbeat.utc                                        | 5.1           | U
 ### General Flags
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
+mysqld.host                                | Hostname to be used for connecting to MySQL Server
+mysqld.username                            | Username to be used for connecting to MySQL Server
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
@@ -150,9 +152,11 @@ version                                    | Print the version information.
 ### Environment Variables
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
-MYSQLD_EXPORTER_HOST                       | Hostname to be used for connecting to MySQL Server
-MYSQLD_EXPORTER_USER                       | Username to be used for connecting to MySQL Server
 MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting to MySQL Server
+
+### Configuration precedence
+
+If you have configured cli with both `mysqld` flags and a valid configuration file, the options in the configuration file will override the flags for `client` section.
 
 ## TLS and basic authentication
 

@@ -230,6 +230,7 @@ func main() {
 	var err error
 	if err = c.ReloadConfig(*configMycnf, *mysqldHost, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
+		os.Exit(1)
 	}
 
 	// Register only scrapers enabled by flag.

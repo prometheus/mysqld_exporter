@@ -28,7 +28,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -60,7 +60,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		cfg := c.GetConfig()
@@ -68,7 +68,7 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
-	convey.Convey("Environment variables / CLI arguments with port", t, func() {
+	convey.Convey("Environment variable / CLI flags", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
@@ -85,21 +85,17 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
 	})
 
-	convey.Convey("Environment variables / CLI arguments without port", t, func() {
+	convey.Convey("Environment variable / CLI flags error without port", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger()); err != nil {
-			t.Error(err)
-		}
-
-		cfg := c.GetConfig()
-		section := cfg.Sections["client"]
-		convey.So(section.Host, convey.ShouldEqual, "testhost")
-		convey.So(section.Port, convey.ShouldEqual, 3306)
-		convey.So(section.User, convey.ShouldEqual, "testuser")
-		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+		err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger())
+		convey.So(
+			err,
+			convey.ShouldResemble,
+			fmt.Errorf("failed to parse address: address testhost: missing port in address"),
+		)
 	})
 
 	convey.Convey("Config file precedence over environment variables", t, func() {
@@ -107,7 +103,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "fakeuser", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "fakeuser", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -122,7 +118,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost", "", true, log.NewNopLogger())
+		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost:3306", "", true, log.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -135,7 +131,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_password.cnf", "localhost", "", true, log.NewNopLogger())
+		err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, log.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -154,7 +150,7 @@ func TestFormDSN(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {

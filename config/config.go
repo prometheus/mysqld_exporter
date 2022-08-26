@@ -17,8 +17,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/go-kit/log"
@@ -84,6 +84,7 @@ func (ch *MySqlConfigHandler) GetConfig() *Config {
 }
 
 func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
+	var host, port string
 	defer func() {
 		if err != nil {
 			configReloadSuccess.Set(0)
@@ -101,7 +102,9 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		return fmt.Errorf("failed to load %s", filename)
 	}
 
-	host, port := parseAddress(mysqldAddress)
+	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
+		return fmt.Errorf("failed to parse address: %s", err)
+	}
 
 	if clientSection := cfg.Section("client"); clientSection != nil {
 		if cfgHost := clientSection.Key("host"); cfgHost.String() == "" {
@@ -167,7 +170,7 @@ func (m MySqlConfig) validateConfig() error {
 }
 
 func (m MySqlConfig) FormDSN(target string) (string, error) {
-	var dsn string
+	var dsn, host, port string
 
 	user := m.User
 	password := m.Password
@@ -181,7 +184,9 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 			dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
 		}
 	} else {
-		host, port := parseAddress(target)
+		if host, port, err = net.SplitHostPort(target); err != nil {
+			return dsn, fmt.Errorf("failed to parse target: %s", err)
+		}
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, host, port)
 	}
 
@@ -221,17 +226,4 @@ func (m MySqlConfig) CustomizeTLS() error {
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
 	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil
-}
-
-func parseAddress(address string) (string, string) {
-	target := strings.Split(address, ":")
-	host := target[0]
-	var port string
-	if len(target) > 1 {
-		port = target[1]
-	} else {
-		port = "3306"
-	}
-
-	return host, port
 }

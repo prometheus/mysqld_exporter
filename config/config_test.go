@@ -169,13 +169,5 @@ func TestFormDSN(t *testing.T) {
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
 		})
-		convey.Convey("Target specific without explicit port", func() {
-			cfg := c.GetConfig()
-			section, _ := cfg.Sections["client.server1"]
-			if dsn, err = section.FormDSN("server1"); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:3306)/")
-		})
 	})
 }

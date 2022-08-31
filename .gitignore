@@ -9,3 +9,5 @@
 .idea
 *.iml
 /vendor
+/percona/tests/assets/mysqld_exporter
+/percona/tests/assets/mysqld_exporter_percona

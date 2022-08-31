@@ -93,8 +93,7 @@ func TestValidateConfig(t *testing.T) {
 		err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger())
 		convey.So(
 			err,
-			convey.ShouldResemble,
-			fmt.Errorf("failed to parse address: address testhost: missing port in address"),
+			convey.ShouldBeError,
 		)
 	})
 

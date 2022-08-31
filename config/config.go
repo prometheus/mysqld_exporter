@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2022 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -99,11 +99,11 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
 		filename,
 	); err != nil {
-		return fmt.Errorf("failed to load %s", filename)
+		return fmt.Errorf("failed to load %s: %w", filename, err)
 	}
 
 	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
-		return fmt.Errorf("failed to parse address: %s", err)
+		return fmt.Errorf("failed to parse address: %w", err)
 	}
 
 	if clientSection := cfg.Section("client"); clientSection != nil {
@@ -191,9 +191,9 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 	}
 
 	if m.SslCa != "" {
-		if tlsErr := m.CustomizeTLS(); tlsErr != nil {
-			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-			return dsn, tlsErr
+		if err := m.CustomizeTLS(); err != nil {
+			err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
+			return dsn, err
 		}
 		dsn = fmt.Sprintf("%s?tls=custom", dsn)
 	}
@@ -217,7 +217,7 @@ func (m MySqlConfig) CustomizeTLS() error {
 		certPairs := make([]tls.Certificate, 0, 1)
 		keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
 		if err != nil {
-			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %s",
+			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
 				m.SslCert, m.SslKey, err)
 		}
 		certPairs = append(certPairs, keypair)

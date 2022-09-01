@@ -15,19 +15,14 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -36,9 +31,9 @@ import (
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/ini.v1"
 
 	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 var (
@@ -59,11 +54,21 @@ var (
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
 	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	mysqldAddress = kingpin.Flag(
+		"mysqld.address",
+		"Address to use for connecting to MySQL",
+	).Default("localhost:3306").String()
+	mysqldUser = kingpin.Flag(
+		"mysqld.username",
+		"Hostname to use for connecting to MySQL",
+	).String()
 	tlsInsecureSkipVerify = kingpin.Flag(
 		"tls.insecure-skip-verify",
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
-	dsn string
+	c = config.MySqlConfigHandler{
+		Config: &config.Config{},
+	}
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
@@ -104,76 +109,23 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeReplicaHost{}:                         false,
 }
 
-func parseMycnf(config interface{}) (string, error) {
-	var dsn string
-	opts := ini.LoadOptions{
-		// MySQL ini file can have boolean keys.
-		AllowBooleanKeys: true,
-	}
-	cfg, err := ini.LoadSources(opts, config)
-	if err != nil {
-		return dsn, fmt.Errorf("failed reading ini file: %s", err)
-	}
-	user := cfg.Section("client").Key("user").String()
-	password := cfg.Section("client").Key("password").String()
-	if user == "" {
-		return dsn, fmt.Errorf("no user specified under [client] in %s", config)
-	}
-	host := cfg.Section("client").Key("host").MustString("localhost")
-	port := cfg.Section("client").Key("port").MustUint(3306)
-	socket := cfg.Section("client").Key("socket").String()
-	sslCA := cfg.Section("client").Key("ssl-ca").String()
-	sslCert := cfg.Section("client").Key("ssl-cert").String()
-	sslKey := cfg.Section("client").Key("ssl-key").String()
-	passwordPart := ""
-	if password != "" {
-		passwordPart = ":" + password
-	} else {
-		if sslKey == "" {
-			return dsn, fmt.Errorf("password or ssl-key should be specified under [client] in %s", config)
-		}
-	}
-	if socket != "" {
-		dsn = fmt.Sprintf("%s%s@unix(%s)/", user, passwordPart, socket)
-	} else {
-		dsn = fmt.Sprintf("%s%s@tcp(%s:%d)/", user, passwordPart, host, port)
-	}
-	if sslCA != "" {
-		if tlsErr := customizeTLS(sslCA, sslCert, sslKey); tlsErr != nil {
-			tlsErr = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %s", tlsErr)
-			return dsn, tlsErr
-		}
-		dsn = fmt.Sprintf("%s?tls=custom", dsn)
-	}
+func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
+	filteredScrapers := scrapers
 
-	return dsn, nil
-}
-
-func customizeTLS(sslCA string, sslCert string, sslKey string) error {
-	var tlsCfg tls.Config
-	caBundle := x509.NewCertPool()
-	pemCA, err := os.ReadFile(sslCA)
-	if err != nil {
-		return err
-	}
-	if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
-		tlsCfg.RootCAs = caBundle
-	} else {
-		return fmt.Errorf("failed parse pem-encoded CA certificates from %s", sslCA)
-	}
-	if sslCert != "" && sslKey != "" {
-		certPairs := make([]tls.Certificate, 0, 1)
-		keypair, err := tls.LoadX509KeyPair(sslCert, sslKey)
-		if err != nil {
-			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %s",
-				sslCert, sslKey, err)
+	// Check if we have some "collect[]" query parameters.
+	if len(collectParams) > 0 {
+		filters := make(map[string]bool)
+		for _, param := range collectParams {
+			filters[param] = true
 		}
-		certPairs = append(certPairs, keypair)
-		tlsCfg.Certificates = certPairs
+
+		for _, scraper := range scrapers {
+			if filters[scraper.Name()] {
+				filteredScrapers = append(filteredScrapers, scraper)
+			}
+		}
 	}
-	tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
-	mysql.RegisterTLSConfig("custom", &tlsCfg)
-	return nil
+	return filteredScrapers
 }
 
 func init() {
@@ -182,8 +134,20 @@ func init() {
 
 func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filteredScrapers := scrapers
-		params := r.URL.Query()["collect[]"]
+		var dsn string
+		var err error
+
+		cfg := c.GetConfig()
+		cfgsection, ok := cfg.Sections["client"]
+		if !ok {
+			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
+		}
+		if dsn, err = cfgsection.FormDSN(""); err != nil {
+			level.Error(logger).Log("msg", "Failed to form dsn from section [client]", "err", err)
+		}
+
+		collect := r.URL.Query()["collect[]"]
+
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
@@ -207,24 +171,11 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 				r = r.WithContext(ctx)
 			}
 		}
-		level.Debug(logger).Log("msg", "collect[] params", "params", strings.Join(params, ","))
 
-		// Check if we have some "collect[]" query parameters.
-		if len(params) > 0 {
-			filters := make(map[string]bool)
-			for _, param := range params {
-				filters[param] = true
-			}
-
-			filteredScrapers = nil
-			for _, scraper := range scrapers {
-				if filters[scraper.Name()] {
-					filteredScrapers = append(filteredScrapers, scraper)
-				}
-			}
-		}
+		filteredScrapers := filterScrapers(scrapers, collect)
 
 		registry := prometheus.NewRegistry()
+
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
 
 		gatherers := prometheus.Gatherers{
@@ -276,13 +227,10 @@ func main() {
 	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", version.BuildContext())
 
-	dsn = os.Getenv("DATA_SOURCE_NAME")
-	if len(dsn) == 0 {
-		var err error
-		if dsn, err = parseMycnf(*configMycnf); err != nil {
-			level.Info(logger).Log("msg", "Error parsing my.cnf", "file", *configMycnf, "err", err)
-			os.Exit(1)
-		}
+	var err error
+	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
+		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
+		os.Exit(1)
 	}
 
 	// Register only scrapers enabled by flag.
@@ -298,6 +246,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
+	http.HandleFunc("/probe", handleProbe(collector.NewMetrics(), enabledScrapers, logger))
 
 	level.Info(logger).Log("msg", "Listening on address", "address", *listenAddress)
 	srv := &http.Server{Addr: *listenAddress}

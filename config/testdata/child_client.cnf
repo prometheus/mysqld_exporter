@@ -1,0 +1,5 @@
+[client]
+user = root
+password = abc
+[client.server1]
+user = root

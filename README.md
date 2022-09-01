@@ -30,15 +30,50 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 ### Running
 
-Running using an environment variable:
-
-    export DATA_SOURCE_NAME='user:password@(hostname:3306)/'
-    ./mysqld_exporter <flags>
+#####  Single exporter mode
 
 Running using ~/.my.cnf:
 
     ./mysqld_exporter <flags>
 
+#####  Multi-target support
+
+This exporter supports the multi-target pattern. This allows running a single instance of this exporter for multiple MySQL targets.
+
+To use the multi-target functionality, send an http request to the endpoint /probe?target=foo:5432 where target is set to the DSN of the MySQL instance to scrape metrics from.
+
+To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
+ 
+Sample config file for multiple configurations
+
+        [client]
+        user = foo
+        password = foo123
+        [client.servers]
+        user = bar
+        password = bar123
+
+On the prometheus side you can set a scrape config as follows
+
+        - job_name: mysql # To get metrics about the mysql exporter’s targets
+          params:
+            # Not required. Will match value to child in config file. Default value is `client`.
+            auth_module: client.servers
+          static_configs:
+            - targets:
+              # All mysql hostnames to monitor.
+              - server1:3306
+              - server2:3306
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              # The mysqld_exporter host:port
+              replacement: localhost:9104
+
+#####  Flag format
 Example format for flags for version > 0.10.0:
 
     --collect.auto_increment.columns
@@ -102,6 +137,8 @@ collect.heartbeat.utc                                        | 5.1           | U
 ### General Flags
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
+mysqld.address                             | Hostname and port used for connecting to MySQL server, format: `host:port`. (default: `locahost:3306`)
+mysqld.username                            | Username to be used for connecting to MySQL Server
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
@@ -112,6 +149,15 @@ web.listen-address                         | Address to listen on for web interf
 web.telemetry-path                         | Path under which to expose metrics.
 version                                    | Print the version information.
 
+### Environment Variables
+Name                                       | Description
+-------------------------------------------|--------------------------------------------------------------------------------------------------
+MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting to MySQL Server
+
+### Configuration precedence
+
+If you have configured cli with both `mysqld` flags and a valid configuration file, the options in the configuration file will override the flags for `client` section.
+
 ## TLS and basic authentication
 
 The MySQLd Exporter supports TLS and basic authentication.
@@ -119,12 +165,6 @@ The MySQLd Exporter supports TLS and basic authentication.
 To use TLS and/or basic authentication, you need to pass a configuration file
 using the `--web.config.file` parameter. The format of the file is described
 [in the exporter-toolkit repository](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md).
-
-### Setting the MySQL server's data source name
-
-The MySQL server's [data source name](http://en.wikipedia.org/wiki/Data_source_name)
-must be set via the `DATA_SOURCE_NAME` environment variable.
-The format of this variable is described at https://github.com/go-sql-driver/mysql#dsn-data-source-name.
 
 ## Customizing Configuration for a SSL Connection
 
@@ -141,8 +181,6 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
-Customizing the SSL configuration is only supported in the mysql cnf file and is not supported if you set the mysql server's data source name in the environment variable DATA_SOURCE_NAME.
-
 
 ## Using Docker
 
@@ -157,9 +195,8 @@ docker pull prom/mysqld-exporter
 docker run -d \
   -p 9104:9104 \
   --network my-mysql-network  \
-  -e DATA_SOURCE_NAME="user:password@(hostname:3306)/" \
   prom/mysqld-exporter
-```
+  --config.my-cnf=<path_to_cnf>
 
 ## heartbeat
 

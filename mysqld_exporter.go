@@ -225,7 +225,7 @@ func main() {
 `)
 
 	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", version.BuildContext())
+	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	var err error
 	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {

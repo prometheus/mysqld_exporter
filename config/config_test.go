@@ -149,12 +149,12 @@ func TestFormDSN(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {
 			cfg := c.GetConfig()
-			section, _ := cfg.Sections["client"]
+			section := cfg.Sections["client"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -162,11 +162,86 @@ func TestFormDSN(t *testing.T) {
 		})
 		convey.Convey("Target specific with explicit port", func() {
 			cfg := c.GetConfig()
-			section, _ := cfg.Sections["client.server1"]
+			section := cfg.Sections["client.server1"]
 			if dsn, err = section.FormDSN("server1:5000"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
 		})
+	})
+}
+
+func TestFormDSNWithSslSkipVerify(t *testing.T) {
+	var (
+		c = MySqlConfigHandler{
+			Config: &Config{},
+		}
+		err error
+		dsn string
+	)
+
+	convey.Convey("Host exporter dsn with tls skip verify", t, func() {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+		convey.Convey("Default Client", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/?tls=skip-verify")
+		})
+		convey.Convey("Target specific with explicit port", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client.server1"]
+			if dsn, err = section.FormDSN("server1:5000"); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/?tls=skip-verify")
+		})
+	})
+}
+
+func TestFormDSNWithCustomTls(t *testing.T) {
+	var (
+		c = MySqlConfigHandler{
+			Config: &Config{},
+		}
+		err error
+		dsn string
+	)
+
+	convey.Convey("Host exporter dsn with custom tls", t, func() {
+		if err := c.ReloadConfig("testdata/client_custom_tls.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+		convey.Convey("Target tls enabled", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_true"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server2:3306)/?tls=true")
+		})
+
+		convey.Convey("Target tls preferred", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_preferred"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=preferred")
+		})
+
+		convey.Convey("Target tls skip-verify", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_skip_verify"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=skip-verify")
+		})
+
 	})
 }

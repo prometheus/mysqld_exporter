@@ -69,6 +69,7 @@ type MySqlConfig struct {
 	SslCert               string `ini:"ssl-cert"`
 	SslKey                string `ini:"ssl-key"`
 	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"`
+	Tls                   string `ini:"tls"`
 }
 
 type MySqlConfigHandler struct {
@@ -131,6 +132,8 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		mysqlcfg := &MySqlConfig{
 			TlsInsecureSkipVerify: tlsInsecureSkipVerify,
 		}
+
+		// FIXME: this error check seems orphaned
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to load config", "section", sectionName, "err", err)
 			continue
@@ -190,12 +193,24 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/", user, password, host, port)
 	}
 
+	// TODO: determine the precedence of the settings below
+	//
+	// if the config struct has a ca cert path,
+	// register it with the mysql driver
 	if m.SslCa != "" {
 		if err := m.CustomizeTLS(); err != nil {
 			err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
 			return dsn, err
 		}
 		dsn = fmt.Sprintf("%s?tls=custom", dsn)
+		// otherwise, we should still skip verification,
+		// if the user wants it
+	} else if m.TlsInsecureSkipVerify {
+		dsn = fmt.Sprintf("%s?tls=skip-verify", dsn)
+		// or the user has something completely else in mind,
+		// which we should allow as well, i.e. enabling tls
+	} else if len(m.Tls) > 0 {
+		dsn = fmt.Sprintf("%s?tls=%s", dsn, m.Tls)
 	}
 
 	return dsn, nil

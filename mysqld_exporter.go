@@ -62,7 +62,7 @@ var (
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
-	c = config.MySqlConfigHandler{
+	c            = config.MySqlConfigHandler{
 		Config: &config.Config{},
 	}
 )

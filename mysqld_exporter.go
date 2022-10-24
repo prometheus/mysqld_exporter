@@ -19,7 +19,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -294,7 +293,7 @@ func parseMycnf(config interface{}, logger log.Logger) (string, error) {
 func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 	var tlsCfg tls.Config
 	caBundle := x509.NewCertPool()
-	pemCA, err := ioutil.ReadFile(filepath.Clean(sslCA))
+	pemCA, err := os.ReadFile(filepath.Clean(sslCA))
 	if err != nil {
 		return err
 	}
@@ -312,11 +311,11 @@ func customizeTLS(sslCA string, sslCert string, sslKey string) error {
 		}
 		certPairs = append(certPairs, keypair)
 		tlsCfg.Certificates = certPairs
-		tlsCfg.InsecureSkipVerify = *mysqlSSLSkipVerify || *tlsInsecureSkipVerify
 	} else {
 		return fmt.Errorf("missing certificates. Cannot specify only SSL CA file")
 	}
 
+	tlsCfg.InsecureSkipVerify = *mysqlSSLSkipVerify || *tlsInsecureSkipVerify
 	return mysql.RegisterTLSConfig("custom", &tlsCfg)
 }
 

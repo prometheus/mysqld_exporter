@@ -151,6 +151,10 @@ func deriveThreadState(command string, state string) string {
 	if strings.Contains(normState, "waiting for") && strings.Contains(normState, "lock") {
 		return "waiting for lock"
 	}
+	// this is for parallel replication state
+	if strings.Contains(normState, "waiting for an event from coordinator") {
+		return "waiting for an event from coordinator"
+	}
 	if normCmd == "sleep" && normState == "" {
 		return "idle"
 	}

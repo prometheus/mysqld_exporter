@@ -7,7 +7,7 @@ executors:
   # should also be updated.
   golang:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.19
 jobs:
   test:
     executor: golang
@@ -67,6 +67,8 @@ workflows:
                 - mariadb:10.5
                 - mariadb:10.6
                 - mariadb:10.7
+                - mariadb:10.8
+                - mariadb:10.9
       - prometheus/build:
           name: build
           parallelism: 3

@@ -197,6 +197,7 @@ docker run -d \
   --network my-mysql-network  \
   prom/mysqld-exporter
   --config.my-cnf=<path_to_cnf>
+```
 
 ## heartbeat
 

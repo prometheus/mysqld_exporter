@@ -10,7 +10,8 @@ groups:
 - name: GaleraAlerts
   rules:
   - alert: MySQLGaleraNotReady
-    expr: mysql_global_status_wsrep_ready != 1
+    # check mysql_galera_status_info is present to avoid false positives with non-galera setups.
+    expr: mysql_global_status_wsrep_ready != 1 and on (job, instance) mysql_galera_status_info
     for: 5m
     labels:
       severity: warning

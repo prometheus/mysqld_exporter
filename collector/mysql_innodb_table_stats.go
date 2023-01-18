@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2023 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -41,15 +41,15 @@ var (
 // Metric descriptors.
 var (
 	nRowsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_n_rows"),
+		prometheus.BuildFQName(namespace, innodb, "innodb_table_stats_n_rows"),
 		"Number of rows in the table.",
 		tableStatLabelNames, nil)
 	clusteredIndexSizeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_clustered_index_size"),
+		prometheus.BuildFQName(namespace, innodb, "innodb_table_stats_clustered_index_size"),
 		"The size of the primary index, in pages.",
 		tableStatLabelNames, nil)
 	sumOfOtherIndexSizesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "innodb_table_stats_sum_of_other_index_sizes"),
+		prometheus.BuildFQName(namespace, innodb, "innodb_table_stats_sum_of_other_index_sizes"),
 		"The total size of other (non-primary) indexes, in pages.",
 		tableStatLabelNames, nil)
 )

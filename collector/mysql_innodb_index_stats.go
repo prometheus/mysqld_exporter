@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2023 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -41,7 +41,7 @@ var (
 // Metric descriptors.
 var (
 	indexStatsValueDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "innodb_index_stats_stat_value"),
+		prometheus.BuildFQName(namespace, innodb, "innodb_index_stats_stat_value"),
 		"Size of the InnoDB index in bytes.",
 		indexStatLabelNames, nil)
 )

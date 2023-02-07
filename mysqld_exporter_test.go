@@ -227,7 +227,9 @@ func testLandingPage(t *testing.T, data bin) {
 		data.path,
 		"--web.listen-address", fmt.Sprintf(":%d", data.port),
 	)
-	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=127.0.0.1:3306")
+	cmd.Env = append(os.Environ(), "DATA_SOURCE_NAME=tcp:(127.0.0.1:3306)/")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -245,8 +247,16 @@ func testLandingPage(t *testing.T, data bin) {
 	expected := `<html>
 <head><title>MySQLd exporter</title></head>
 <body>
-<h1>MySQLd exporter</h1>
-<p><a href='/metrics'>Metrics</a></p>
+<h1>MySQL 3-in-1 exporter</h1>
+<ul>
+	<li><a href="/metrics-hr">high-res metrics</a></li>
+	<li><a href="/metrics-mr">medium-res metrics</a></li>
+	<li><a href="/metrics-lr">low-res metrics</a></li>
+</ul>
+<h1>MySQL exporter</h1>
+<ul>
+	<li><a href="/metrics">all metrics</a></li>
+</ul>
 </body>
 </html>
 `

@@ -1,0 +1,14 @@
+# see CONTRIBUTING.md
+---
+version: '3'
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql/mysql-server:8.0.32}
+    container_name: mysqld_exporter_db
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_ROOT_HOST=%
+      - MYSQL_ROOT_PASSWORD=
+      - INIT_ROCKSDB=1
+    ports:
+      - "3306:3306"

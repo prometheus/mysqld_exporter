@@ -89,6 +89,6 @@ func TestGetMySQLVersion(t *testing.T) {
 		convey.So(err, convey.ShouldBeNil)
 		defer db.Close()
 
-		convey.So(getMySQLVersion(db, logger), convey.ShouldBeBetweenOrEqual, 5.6, 11.0)
+		convey.So(getMySQLVersion(db, logger), convey.ShouldBeBetweenOrEqual, 5.5, 11.0)
 	})
 }

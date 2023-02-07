@@ -31,8 +31,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
-	"github.com/percona/mysqld_exporter/collector"
-	pcl "github.com/percona/mysqld_exporter/percona/perconacollector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -42,6 +40,9 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/ini.v1"
+
+	"github.com/percona/mysqld_exporter/collector"
+	pcl "github.com/percona/mysqld_exporter/percona/perconacollector"
 )
 
 var (
@@ -158,6 +159,7 @@ var scrapers = map[collector.Scraper]bool{
 	pcl.ScrapeGlobalStatus{}:                              false,
 	collector.ScrapeGlobalStatus{}:                        false,
 	collector.ScrapeGlobalVariables{}:                     false,
+	collector.ScrapePlugins{}:                             false,
 	collector.ScrapeSlaveStatus{}:                         false,
 	pcl.ScrapeProcesslist{}:                               false,
 	collector.ScrapeProcesslist{}:                         false,
@@ -224,6 +226,7 @@ var scrapersMr = map[collector.Scraper]struct{}{
 // TODO Remove
 var scrapersLr = map[collector.Scraper]struct{}{
 	collector.ScrapeGlobalVariables{}:             {},
+	collector.ScrapePlugins{}:                     {},
 	collector.ScrapeTableSchema{}:                 {},
 	collector.ScrapeAutoIncrementColumns{}:        {},
 	collector.ScrapeBinlogSize{}:                  {},

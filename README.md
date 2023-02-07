@@ -59,6 +59,7 @@ collect.engine_innodb_status                                 | 5.1           | C
 collect.engine_tokudb_status                                 | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                        | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
 collect.global_variables                                     | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)
+collect.plugins                                              | 5.1           | Collect from SHOW PLUGINS
 collect.info_schema.clientstats                              | 5.5           | If running with userstat=1, set to true to collect client statistics.
 collect.info_schema.innodb_metrics                           | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.info_schema.innodb_tablespaces                       | 5.7           | Collect metrics from information_schema.innodb_sys_tablespaces.

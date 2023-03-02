@@ -243,9 +243,7 @@ func Test_filterScrapers(t *testing.T) {
 				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
 				[]string{collector.ScrapeGlobalVariables{}.Name()},
 			},
-			[]collector.Scraper{
-				collector.ScrapeGlobalStatus{},
-			}},
+			[]collector.Scraper{collector.ScrapeGlobalStatus{}}},
 		{"respect_params",
 			args{
 				[]collector.Scraper{

@@ -16,6 +16,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/mysqld_exporter/collector"
 	"io"
 	"net"
 	"net/http"
@@ -217,4 +218,52 @@ func getBody(urlToGet string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func Test_filterScrapers(t *testing.T) {
+	type args struct {
+		scrapers      []collector.Scraper
+		collectParams []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []collector.Scraper
+	}{
+		{"args_appears_in_collector",
+			args{
+				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
+				[]string{collector.ScrapeGlobalStatus{}.Name()},
+			},
+			[]collector.Scraper{
+				collector.ScrapeGlobalStatus{},
+			}},
+		{"args_absent_in_collector",
+			args{
+				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
+				[]string{collector.ScrapeGlobalVariables{}.Name()},
+			},
+			[]collector.Scraper{
+				collector.ScrapeGlobalStatus{},
+			}},
+		{"respect_params",
+			args{
+				[]collector.Scraper{
+					collector.ScrapeGlobalStatus{},
+					collector.ScrapeGlobalVariables{},
+				},
+				[]string{collector.ScrapeGlobalStatus{}.Name()},
+			},
+			[]collector.Scraper{
+				collector.ScrapeGlobalStatus{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := filterScrapers(tt.args.scrapers, tt.args.collectParams); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("filterScrapers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

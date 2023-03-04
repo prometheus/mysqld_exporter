@@ -106,7 +106,7 @@ var scrapers = map[collector.Scraper]bool{
 }
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
-	filteredScrapers := scrapers
+	var filteredScrapers []collector.Scraper
 
 	// Check if we have some "collect[]" query parameters.
 	if len(collectParams) > 0 {
@@ -120,6 +120,9 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 				filteredScrapers = append(filteredScrapers, scraper)
 			}
 		}
+	}
+	if len(filteredScrapers) == 0 {
+		return scrapers
 	}
 	return filteredScrapers
 }

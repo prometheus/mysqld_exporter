@@ -53,7 +53,7 @@ var (
 	)
 )
 
-// ScrapeBinlogSize colects from `SHOW BINARY LOGS`.
+// ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
 type ScrapeBinlogSize struct{}
 
 // Name of the Scraper. Should be unique.

@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Metric name parts.

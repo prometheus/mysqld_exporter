@@ -26,7 +26,7 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 ### Build
 
-    make
+    make build
 
 ### Running
 

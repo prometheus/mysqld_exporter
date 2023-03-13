@@ -19,11 +19,11 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapePerfMemoryEvents(t *testing.T) {

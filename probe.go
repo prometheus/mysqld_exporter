@@ -26,9 +26,6 @@ import (
 
 func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var dsn, authModule string
-		var err error
-
 		ctx := r.Context()
 		params := r.URL.Query()
 		target := params.Get("target")
@@ -38,37 +35,29 @@ func handleProbe(metrics collector.Metrics, scrapers []collector.Scraper, logger
 		}
 		collectParams := r.URL.Query()["collect[]"]
 
-		if authModule = params.Get("auth_module"); authModule == "" {
+		authModule := params.Get("auth_module")
+		if authModule == "" {
 			authModule = "client"
 		}
 
 		cfg := c.GetConfig()
 		cfgsection, ok := cfg.Sections[authModule]
 		if !ok {
-			level.Error(logger).Log("msg", fmt.Sprintf("Failed to parse section [%s] from config file", authModule), "err", err)
-			http.Error(w, fmt.Sprintf("Error parsing config section [%s]", authModule), http.StatusBadRequest)
+			level.Error(logger).Log("msg", fmt.Sprintf("Could not find section [%s] from config file", authModule))
+			http.Error(w, fmt.Sprintf("Could not find config section [%s]", authModule), http.StatusBadRequest)
+			return
 		}
-		if dsn, err = cfgsection.FormDSN(target); err != nil {
+		dsn, err := cfgsection.FormDSN(target)
+		if err != nil {
 			level.Error(logger).Log("msg", fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
 			http.Error(w, fmt.Sprintf("Error forming dsn from config section [%s]", authModule), http.StatusBadRequest)
+			return
 		}
-
-		probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_success",
-			Help: "Displays whether or not the probe was a success",
-		})
 
 		filteredScrapers := filterScrapers(scrapers, collectParams)
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(probeSuccessGauge)
 		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
-
-		if err != nil {
-			probeSuccessGauge.Set(1)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

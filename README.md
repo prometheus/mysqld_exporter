@@ -58,7 +58,7 @@ On the prometheus side you can set a scrape config as follows
         - job_name: mysql # To get metrics about the mysql exporter’s targets
           params:
             # Not required. Will match value to child in config file. Default value is `client`.
-            auth_module: client.servers
+            auth_module: [client.servers]
           static_configs:
             - targets:
               # All mysql hostnames to monitor.

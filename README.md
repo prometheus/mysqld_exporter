@@ -40,7 +40,7 @@ Running using ~/.my.cnf:
 
 This exporter supports the multi-target pattern. This allows running a single instance of this exporter for multiple MySQL targets.
 
-To use the multi-target functionality, send an http request to the endpoint /probe?target=foo:5432 where target is set to the DSN of the MySQL instance to scrape metrics from.
+To use the multi-target functionality, send an http request to the endpoint `/probe?target=foo:3306` where target is set to the DSN of the MySQL instance to scrape metrics from.
 
 To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
  
@@ -61,9 +61,10 @@ On the prometheus side you can set a scrape config as follows
             auth_module: [client.servers]
           static_configs:
             - targets:
-              # All mysql hostnames to monitor.
+              # All mysql hostnames or unix sockets to monitor.
               - server1:3306
               - server2:3306
+              - unix:///run/mysqld/mysqld.sock
           relabel_configs:
             - source_labels: [__address__]
               target_label: __param_target

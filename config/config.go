@@ -70,6 +70,7 @@ type MySqlConfig struct {
 	SslCert               string `ini:"ssl-cert"`
 	SslKey                string `ini:"ssl-key"`
 	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"`
+	Tls                   string `ini:"tls"`
 }
 
 type MySqlConfigHandler struct {
@@ -132,6 +133,8 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		mysqlcfg := &MySqlConfig{
 			TlsInsecureSkipVerify: tlsInsecureSkipVerify,
 		}
+
+		// FIXME: this error check seems orphaned
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to load config", "section", sectionName, "err", err)
 			continue
@@ -197,12 +200,17 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 		config.Addr = target
 	}
 
-	if m.SslCa != "" {
-		if err := m.CustomizeTLS(); err != nil {
-			err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
-			return "", err
+	if m.TlsInsecureSkipVerify {
+		config.TLSConfig = "skip-verify"
+	} else {
+		config.TLSConfig = m.Tls
+		if m.SslCa != "" {
+			if err := m.CustomizeTLS(); err != nil {
+				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
+				return "", err
+			}
+			config.TLSConfig = "custom"
 		}
-		config.TLSConfig = "custom"
 	}
 
 	return config.FormatDSN(), nil

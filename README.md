@@ -24,6 +24,8 @@ GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load. This is not supported on all MySQL/MariaDB versions; for example, MariaDB 10.1 (provided with Ubuntu 18.04) [does _not_ support this feature](https://mariadb.com/kb/en/library/create-user/#resource-limit-options).
 
+NOTE: For newer versions of mariadb/mysql you may also need to grant the ``SLAVE MONITOR`` access. Update your access rights, if you see the ``Error 1227: Access denied; you need (at least one of) the SUPER, SLAVE MONITOR privilege(s) for this operation`` message in the exporter logs.
+
 ### Build
 
     make build

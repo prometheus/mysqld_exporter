@@ -1,4 +1,4 @@
-// Copyright 2022 Eduardo J. Ortega U.
+// Copyright 2022 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -25,7 +25,6 @@ const sysUserSummaryQuery = `
 		user,
 		statements,
 		statement_latency,
-		statement_avg_latency,
 		table_scans,
 		file_ios,
 		file_io_latency,
@@ -40,23 +39,19 @@ const sysUserSummaryQuery = `
 
 var (
 	sysUserSummaryStatements = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "statements"),
+		prometheus.BuildFQName(namespace, sysSchema, "statements_total"),
 		" The total number of statements for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryStatementLatency = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, sysSchema, "statement_latency"),
 		"The total wait time of timed statements for the user",
 		[]string{"user"}, nil)
-	sysUserSummaryStatementAvgLatency = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "statement_avg_latency"),
-		"The average wait time per timed statement for the user",
-		[]string{"user"}, nil)
 	sysUserSummaryTableScans = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "table_scans"),
+		prometheus.BuildFQName(namespace, sysSchema, "table_scans_total"),
 		"The total number of table scans for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryFileIOs = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "file_ios"),
+		prometheus.BuildFQName(namespace, sysSchema, "file_ios_total"),
 		"The total number of file I/O events for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryFileIOLatency = prometheus.NewDesc(
@@ -68,11 +63,11 @@ var (
 		"The current number of connections for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryTotalConnections = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "total_connections"),
+		prometheus.BuildFQName(namespace, sysSchema, "connections_total"),
 		"The total number of connections for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryUniqueHosts = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "unique_hosts"),
+		prometheus.BuildFQName(namespace, sysSchema, "unique_hosts_total"),
 		"The number of distinct hosts from which connections for the user have originated",
 		[]string{"user"}, nil)
 	sysUserSummaryCurrentMemory = prometheus.NewDesc(
@@ -80,7 +75,7 @@ var (
 		"The current amount of allocated memory for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryTotalMemoryAllocated = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "total_memory_allocated"),
+		prometheus.BuildFQName(namespace, sysSchema, "memory_allocated_total"),
 		"The total amount of allocated memory for the user",
 		[]string{"user"}, nil)
 )
@@ -115,7 +110,6 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 		user                   string
 		statements             uint64
 		statement_latency      uint64
-		statement_avg_latency  float64
 		table_scans            uint64
 		file_ios               uint64
 		file_io_latency        uint64
@@ -131,7 +125,6 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 			&user,
 			&statements,
 			&statement_latency,
-			&statement_avg_latency,
 			&table_scans,
 			&file_ios,
 			&file_io_latency,
@@ -144,16 +137,16 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 		if err != nil {
 			return err
 		}
+
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryStatements, prometheus.CounterValue, float64(statements), user)
-		ch <- prometheus.MustNewConstMetric(sysUserSummaryStatementLatency, prometheus.CounterValue, float64(statement_latency), user)
-		ch <- prometheus.MustNewConstMetric(sysUserSummaryStatementAvgLatency, prometheus.GaugeValue, float64(statement_avg_latency), user)
+		ch <- prometheus.MustNewConstMetric(sysUserSummaryStatementLatency, prometheus.CounterValue, float64(statement_latency)/picoSeconds, user)
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryTableScans, prometheus.CounterValue, float64(table_scans), user)
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryFileIOs, prometheus.CounterValue, float64(file_ios), user)
-		ch <- prometheus.MustNewConstMetric(sysUserSummaryFileIOLatency, prometheus.CounterValue, float64(file_io_latency), user)
-		ch <- prometheus.MustNewConstMetric(sysUserSummaryCurrentConnections, prometheus.CounterValue, float64(current_connections), user)
+		ch <- prometheus.MustNewConstMetric(sysUserSummaryFileIOLatency, prometheus.CounterValue, float64(file_io_latency)/picoSeconds, user)
+		ch <- prometheus.MustNewConstMetric(sysUserSummaryCurrentConnections, prometheus.GaugeValue, float64(current_connections), user)
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryTotalConnections, prometheus.CounterValue, float64(total_connections), user)
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryUniqueHosts, prometheus.CounterValue, float64(unique_hosts), user)
-		ch <- prometheus.MustNewConstMetric(sysUserSummaryCurrentMemory, prometheus.CounterValue, float64(current_memory), user)
+		ch <- prometheus.MustNewConstMetric(sysUserSummaryCurrentMemory, prometheus.GaugeValue, float64(current_memory), user)
 		ch <- prometheus.MustNewConstMetric(sysUserSummaryTotalMemoryAllocated, prometheus.CounterValue, float64(total_memory_allocated), user)
 
 	}

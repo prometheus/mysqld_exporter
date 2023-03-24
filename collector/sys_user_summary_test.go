@@ -1,4 +1,4 @@
-// Copyright 2022 Eduardo J. Ortega U.
+// Copyright 2022 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -38,7 +38,6 @@ func TestScrapeSysUserSummary(t *testing.T) {
 		"user",
 		"statemets",
 		"statement_latency",
-		"statement_avg_latency",
 		"table_scans",
 		"file_ios",
 		"file_io_latency",
@@ -54,7 +53,6 @@ func TestScrapeSysUserSummary(t *testing.T) {
 			"user1",
 			"110",
 			"120",
-			"1.30",
 			"140",
 			"150",
 			"160",
@@ -68,7 +66,6 @@ func TestScrapeSysUserSummary(t *testing.T) {
 			"user2",
 			"210",
 			"220",
-			"2.30",
 			"240",
 			"250",
 			"260",
@@ -89,12 +86,17 @@ func TestScrapeSysUserSummary(t *testing.T) {
 				continue
 			}
 			metricType := dto.MetricType_COUNTER
-			if i == 3 {
+			// Current Connections and Current Memory are gauges
+			if i == 6 || i == 9 {
 				metricType = dto.MetricType_GAUGE
 			}
 			value, err := strconv.ParseFloat(metricsValue.(string), 64)
 			if err != nil {
 				t.Errorf("Failed to parse result value as float64: %+v", err)
+			}
+			// Statement latency & IO latency are latencies in picoseconds, convert them to seconds
+			if i == 2 || i == 5 {
+				value = value / picoSeconds
 			}
 			expectedMetrics = append(expectedMetrics, MetricResult{
 				labels:     labelMap{"user": user.(string)},

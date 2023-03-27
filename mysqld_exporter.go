@@ -103,6 +103,8 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeHeartbeat{}:                           false,
 	collector.ScrapeSlaveHosts{}:                          false,
 	collector.ScrapeReplicaHost{}:                         false,
+	collector.ScrapeMysqlIndexStat{}:                      false,
+	collector.ScrapeMysqlTableStat{}:                      false,
 }
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {

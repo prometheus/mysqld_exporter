@@ -55,7 +55,7 @@ var (
 		"The total number of file I/O events for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryFileIOLatency = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "file_io_latency"),
+		prometheus.BuildFQName(namespace, sysSchema, "file_io_seconds_total"),
 		"The total wait time of timed file I/O events for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryCurrentConnections = prometheus.NewDesc(

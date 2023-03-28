@@ -71,11 +71,11 @@ var (
 		"The number of distinct hosts from which connections for the user have originated",
 		[]string{"user"}, nil)
 	sysUserSummaryCurrentMemory = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "current_memory"),
+		prometheus.BuildFQName(namespace, sysSchema, "current_memory_bytes"),
 		"The current amount of allocated memory for the user",
 		[]string{"user"}, nil)
 	sysUserSummaryTotalMemoryAllocated = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, sysSchema, "memory_allocated_total"),
+		prometheus.BuildFQName(namespace, sysSchema, "memory_allocated_bytes_total"),
 		"The total amount of allocated memory for the user",
 		[]string{"user"}, nil)
 )

@@ -70,12 +70,6 @@ var (
 		nil,
 		nil,
 	)
-	mysqlScrapeFailed = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, exporter, "last_scrape_failed"),
-		"Whether the last scrape of metrics from MySQL resulted in an error (1 for error, 0 for success).",
-		nil,
-		nil,
-	)
 	mysqlScrapeCollectorSuccess = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_success"),
 		"mysqld_exporter: Whether a collector succeeded.",
@@ -127,7 +121,6 @@ func New(ctx context.Context, dsn string, scrapers []Scraper, logger log.Logger)
 // Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- mysqlUp
-	ch <- mysqlScrapeFailed
 	ch <- mysqlScrapeDurationSeconds
 	ch <- mysqlScrapeCollectorSuccess
 }
@@ -157,7 +150,6 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	if err := db.PingContext(ctx); err != nil {
 		level.Error(e.logger).Log("msg", "Error pinging mysqld", "err", err)
 		ch <- prometheus.MustNewConstMetric(mysqlUp, prometheus.GaugeValue, 0.0)
-		ch <- prometheus.MustNewConstMetric(mysqlScrapeFailed, prometheus.GaugeValue, 0.0)
 		return
 	}
 
@@ -166,7 +158,6 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(mysqlScrapeDurationSeconds, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
 	version := getMySQLVersion(db, e.logger)
-	lastScrapeError := 0.0
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
@@ -182,14 +173,12 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) {
 			collectorSuccess := 1.0
 			if err := scraper.Scrape(ctx, db, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
 				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
-				lastScrapeError = 1.0
 				collectorSuccess = 0.0
 			}
 			ch <- prometheus.MustNewConstMetric(mysqlScrapeCollectorSuccess, prometheus.GaugeValue, collectorSuccess, label)
 			ch <- prometheus.MustNewConstMetric(mysqlScrapeDurationSeconds, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), label)
 		}(scraper)
 	}
-	ch <- prometheus.MustNewConstMetric(mysqlScrapeFailed, prometheus.GaugeValue, lastScrapeError)
 }
 
 func getMySQLVersion(db *sql.DB, logger log.Logger) float64 {

@@ -36,7 +36,6 @@ func TestExporter(t *testing.T) {
 	exporter := New(
 		context.Background(),
 		dsn,
-		NewMetrics(),
 		[]Scraper{
 			ScrapeGlobalStatus{},
 		},

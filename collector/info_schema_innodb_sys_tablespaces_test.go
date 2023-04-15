@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/coreos/go-semver/semver"
 	"github.com/go-kit/log"
+	"github.com/hashicorp/go-version"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -99,7 +99,20 @@ func TestSemanticVersionCheck(t *testing.T) {
 	}
 
 	for _, testcase := range tests {
-		testresult := semver.New(testcase.serverversion).LessThan(*semver.New(testcase.versionthreshold))
+		var (
+			v1, errV1 = version.NewVersion(testcase.serverversion)
+			v2, errV2 = version.NewVersion(testcase.versionthreshold)
+		)
+
+		if (errV1) != nil {
+			t.Errorf("err: serverversion '%s' parsing failed", errV1)
+		}
+
+		if (errV2) != nil {
+			t.Errorf("err: versionthreshold '%s' parsing failed", errV2)
+		}
+
+		testresult := v1.LessThan(v2)
 		if testresult != testcase.err {
 			t.Errorf("err: semantic version check between '%s' and '%s' failed", testcase.serverversion, testcase.versionthreshold)
 			continue

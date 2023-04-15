@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/coreos/go-semver/semver"
 	"github.com/go-kit/log"
+	"github.com/hashicorp/go-version"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -103,10 +103,16 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 
 func SemanticVersionCheck(db *sql.DB, logger log.Logger) bool {
 	var (
-		mysqlVersionConnectedInstance = semver.New(getMySQLSemanticVersion(db, logger))
-		mariadbVersionThreshold       = semver.New("10.5.0")
+		mysqlVersionConnectedInstance, errV1 = version.NewVersion(getMySQLSemanticVersion(db, logger))
+		mariadbVersionThreshold, errV2       = version.NewVersion("10.5.0")
 	)
-	return mysqlVersionConnectedInstance.LessThan(*mariadbVersionThreshold)
+
+	// assume the older/lower version in case the version lookup has failed
+	if (errV1 != nil) || (errV2 != nil) {
+		return true
+	}
+
+	return mysqlVersionConnectedInstance.LessThan(mariadbVersionThreshold)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.

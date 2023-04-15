@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/coreos/go-semver/semver"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -71,5 +72,37 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestSemanticVersionCheck(t *testing.T) {
+	tests := []struct {
+		serverversion    string
+		versionthreshold string
+		err              bool
+	}{
+		{"5.5.68", "10.5.0", true},
+		{"5.7.42", "10.5.0", true},
+		{"8.0.32", "10.5.0", true},
+		{"10.0.38", "10.5.0", true},
+		{"10.1.48", "10.5.0", true},
+		{"10.2.44", "10.5.0", true},
+		{"10.3.38", "10.5.0", true},
+		{"10.4.28", "10.5.0", true},
+		{"10.5.18", "10.5.0", false},
+		{"10.6.12", "10.5.0", false},
+		{"10.7.8", "10.5.0", false},
+		{"10.8.7", "10.5.0", false},
+		{"10.9.5", "10.5.0", false},
+		{"10.10.3", "10.5.0", false},
+		{"10.11.2", "10.5.0", false},
+	}
+
+	for _, testcase := range tests {
+		testresult := semver.New(testcase.serverversion).LessThan(*semver.New(testcase.versionthreshold))
+		if testresult != testcase.err {
+			t.Errorf("err: semantic version check between '%s' and '%s' failed", testcase.serverversion, testcase.versionthreshold)
+			continue
+		}
 	}
 }

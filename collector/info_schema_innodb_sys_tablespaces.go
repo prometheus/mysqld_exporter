@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/coreos/go-semver/semver"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -32,6 +33,7 @@ const innodbTablespacesTablenameQuery = `
 	  WHERE table_name = 'INNODB_SYS_TABLESPACES'
 	    OR table_name = 'INNODB_TABLESPACES'
 	`
+
 const innodbTablespacesQuery = `
 	SELECT
 	    SPACE,
@@ -43,6 +45,21 @@ const innodbTablespacesQuery = `
 			  AND COLUMN_NAME = 'FILE_FORMAT' LIMIT 1), 'NONE') as FILE_FORMAT,
 	    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
 	    ifnull(SPACE_TYPE, 'NONE') as SPACE_TYPE,
+	    FILE_SIZE,
+	    ALLOCATED_SIZE
+	  FROM information_schema.` + "`%s`"
+
+// SPACE_TYPE has been removed in MariaDB 10.5 https://jira.mariadb.org/browse/MDEV-19940
+const innodbTablespacesQueryMariadb = `
+	SELECT
+	    SPACE,
+	    NAME,
+	    ifnull((SELECT column_name
+			FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = 'information_schema'
+			  AND TABLE_NAME = ` + "'%s'" + `
+			  AND COLUMN_NAME = 'FILE_FORMAT' LIMIT 1), 'NONE') as FILE_FORMAT,
+	    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
 	    FILE_SIZE,
 	    ALLOCATED_SIZE
 	  FROM information_schema.` + "`%s`"
@@ -84,10 +101,22 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 	return 5.7
 }
 
+func SemanticVersionCheck(db *sql.DB, logger log.Logger) bool {
+	var (
+		mysqlVersionConnectedInstance = semver.New(getMySQLSemanticVersion(db, logger))
+		mariadbVersionThreshold       = semver.New("10.5.0")
+	)
+	return mysqlVersionConnectedInstance.LessThan(*mariadbVersionThreshold)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	var tablespacesTablename string
-	var query string
+	var (
+		tablespacesTablename   string
+		query                  string
+		semanticVersionIsOlder bool = SemanticVersionCheck(db, logger)
+	)
+
 	err := db.QueryRowContext(ctx, innodbTablespacesTablenameQuery).Scan(&tablespacesTablename)
 	if err != nil {
 		return err
@@ -95,7 +124,11 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 
 	switch tablespacesTablename {
 	case "INNODB_SYS_TABLESPACES", "INNODB_TABLESPACES":
-		query = fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
+		if semanticVersionIsOlder {
+			query = fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
+		} else {
+			query = fmt.Sprintf(innodbTablespacesQueryMariadb, tablespacesTablename, tablespacesTablename)
+		}
 	default:
 		return errors.New("Couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema.")
 	}
@@ -117,15 +150,27 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 	)
 
 	for tablespacesRows.Next() {
-		err = tablespacesRows.Scan(
-			&tableSpace,
-			&tableName,
-			&fileFormat,
-			&rowFormat,
-			&spaceType,
-			&fileSize,
-			&allocatedSize,
-		)
+		var err error
+		if semanticVersionIsOlder {
+			err = tablespacesRows.Scan(
+				&tableSpace,
+				&tableName,
+				&fileFormat,
+				&rowFormat,
+				&spaceType,
+				&fileSize,
+				&allocatedSize,
+			)
+		} else {
+			err = tablespacesRows.Scan(
+				&tableSpace,
+				&tableName,
+				&fileFormat,
+				&rowFormat,
+				&fileSize,
+				&allocatedSize,
+			)
+		}
 		if err != nil {
 			return err
 		}

@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/coreos/go-semver v0.3.1
 	github.com/go-kit/log v0.2.1
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/go-cmp v0.5.9

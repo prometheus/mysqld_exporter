@@ -91,6 +91,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapePerfReplicationGroupMembers{}:         false,
 	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
 	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
+	collector.ScrapeSysUserSummary{}:                      false,
 	collector.ScrapeUserStat{}:                            false,
 	collector.ScrapeClientStat{}:                          false,
 	collector.ScrapeTableStat{}:                           false,
@@ -131,7 +132,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
@@ -175,7 +176,7 @@ func newHandler(metrics collector.Metrics, scrapers []collector.Scraper, logger 
 
 		registry := prometheus.NewRegistry()
 
-		registry.MustRegister(collector.New(ctx, dsn, metrics, filteredScrapers, logger))
+		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -229,7 +230,7 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(collector.NewMetrics(), enabledScrapers, logger)
+	handlerFunc := newHandler(enabledScrapers, logger)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
 		landingConfig := web.LandingConfig{
@@ -250,7 +251,7 @@ func main() {
 		}
 		http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/probe", handleProbe(collector.NewMetrics(), enabledScrapers, logger))
+	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
 
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {

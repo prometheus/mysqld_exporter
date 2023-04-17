@@ -9,6 +9,34 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.15.0-rc.0 / 2023-04-14
+
+BREAKING CHANGES:
+
+The exporter no longer supports the monolithic `DATA_SOURCE_NAME` environment variable.
+To configure connections to MySQL you can either use a `my.cnf` style config file or command line arguments.
+
+For example:
+
+    export MYSQLD_EXPORTER_PASSWORD=secret
+    mysqld_exporter --mysqld.address=localhost:3306 --mysqld.username=exporter
+
+We have also dropped some internal scrape metrics:
+* `mysql_exporter_scrapes_total`
+* `mysql_exporter_scrape_errors_total`
+* `mysql_last_scrape_failed`
+
+Changes:
+
+* [CHANGE] Allow `tlsCfg.InsecureSkipVerify` outside of mTLS #631
+* [CHANGE] Update to exporter-toolkit v0.8.1 #677
+* [CHANGE] Fix shared metrics between requests #722
+* [FEATURE] Add support for collecting metrics from `sys.user_summary` #628
+* [FEATURE] Support for multi-target mysqld probes #651
+* [FEATURE] Add MySQL TLS configurations #718
+* [ENHANCEMENT] Add UNIX domain socket support for multi-target scraping #707
+* [BUGFIX] Fix `infoSchemaInnodbMetricsEnabledColumnQuery` #687
+
 ## 0.14.0 / 2022-01-05
 
 BREAKING CHANGES:

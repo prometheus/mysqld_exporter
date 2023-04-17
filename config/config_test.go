@@ -168,6 +168,14 @@ func TestFormDSN(t *testing.T) {
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
 		})
+		convey.Convey("UNIX domain socket", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client.server1"]
+			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock"); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "test:foo@unix(/run/mysqld/mysqld.sock)/")
+		})
 	})
 }
 

@@ -31,8 +31,10 @@ const infoSchemaInnodbMetricsEnabledColumnQuery = `
 	SELECT
 	    column_name
 	  FROM information_schema.columns
-	  WHERE table_name = 'INNODB_METRICS'
+	  WHERE table_schema = 'information_schema'
+	    AND table_name = 'INNODB_METRICS'
 	    AND column_name IN ('status', 'enabled')
+	  LIMIT 1
 	`
 
 const infoSchemaInnodbMetricsQuery = `

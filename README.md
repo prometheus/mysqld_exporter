@@ -42,7 +42,7 @@ Running using ~/.my.cnf:
 
 This exporter supports the multi-target pattern. This allows running a single instance of this exporter for multiple MySQL targets.
 
-To use the multi-target functionality, send an http request to the endpoint /probe?target=foo:5432 where target is set to the DSN of the MySQL instance to scrape metrics from.
+To use the multi-target functionality, send an http request to the endpoint `/probe?target=foo:3306` where target is set to the DSN of the MySQL instance to scrape metrics from.
 
 To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
  
@@ -63,9 +63,10 @@ On the prometheus side you can set a scrape config as follows
             auth_module: [client.servers]
           static_configs:
             - targets:
-              # All mysql hostnames to monitor.
+              # All mysql hostnames or unix sockets to monitor.
               - server1:3306
               - server2:3306
+              - unix:///run/mysqld/mysqld.sock
           relabel_configs:
             - source_labels: [__address__]
               target_label: __param_target
@@ -96,6 +97,10 @@ collect.engine_innodb_status                                 | 5.1           | C
 collect.engine_tokudb_status                                 | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                        | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
 collect.global_variables                                     | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)
+collect.heartbeat                                            | 5.1           | Collect from [heartbeat](#heartbeat).
+collect.heartbeat.database                                   | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
+collect.heartbeat.table                                      | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
+collect.heartbeat.utc                                        | 5.1           | Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`). (default: false)
 collect.info_schema.clientstats                              | 5.5           | If running with userstat=1, set to true to collect client statistics.
 collect.info_schema.innodb_metrics                           | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.info_schema.innodb_tablespaces                       | 5.7           | Collect metrics from information_schema.innodb_sys_tablespaces.
@@ -130,10 +135,7 @@ collect.perf_schema.replication_group_member_stats           | 5.7           | C
 collect.perf_schema.replication_applier_status_by_worker     | 5.7           | Collect metrics from performance_schema.replication_applier_status_by_worker.
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
-collect.heartbeat                                            | 5.1           | Collect from [heartbeat](#heartbeat).
-collect.heartbeat.database                                   | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
-collect.heartbeat.table                                      | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)
-collect.heartbeat.utc                                        | 5.1           | Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`). (default: false)
+collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).
 
 
 ### General Flags

@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 
 	"github.com/go-kit/log"
@@ -103,24 +104,18 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 
 func SemanticVersionCheck(db *sql.DB, logger log.Logger) bool {
 	var (
-		mysqlVersionConnectedInstance, errV1 = version.NewVersion(getMySQLSemanticVersion(db, logger))
-		mariadbVersionThreshold, errV2       = version.NewVersion("10.5.0")
+		mysqlVersionConnectedInstance, _ = version.NewVersion(getMySQLSemanticVersion(db, logger))
+		mariadbVersionThreshold, _       = version.NewVersion("10.5.0")
 	)
 
-	// assume the older/lower version in case the version lookup has failed
-	if (errV1 != nil) || (errV2 != nil) {
-		return true
-	}
-
-	return mysqlVersionConnectedInstance.LessThan(mariadbVersionThreshold)
+	return mysqlVersionConnectedInstance.GreaterThanOrEqual(mariadbVersionThreshold)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	var (
-		tablespacesTablename   string
-		query                  string
-		semanticVersionIsOlder bool = SemanticVersionCheck(db, logger)
+		tablespacesTablename string
+		query                string
 	)
 
 	err := db.QueryRowContext(ctx, innodbTablespacesTablenameQuery).Scan(&tablespacesTablename)
@@ -128,12 +123,17 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 		return err
 	}
 
+	// skip DB version query if running inside go test
+	if flag.Lookup("test.v") == nil {
+		semanticVersionIsNewer = SemanticVersionCheck(db, logger)
+	}
+
 	switch tablespacesTablename {
 	case "INNODB_SYS_TABLESPACES", "INNODB_TABLESPACES":
-		if semanticVersionIsOlder {
-			query = fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
-		} else {
+		if semanticVersionIsNewer {
 			query = fmt.Sprintf(innodbTablespacesQueryMariadb, tablespacesTablename, tablespacesTablename)
+		} else {
+			query = fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
 		}
 	default:
 		return errors.New("Couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema.")
@@ -157,13 +157,12 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 
 	for tablespacesRows.Next() {
 		var err error
-		if semanticVersionIsOlder {
+		if semanticVersionIsNewer {
 			err = tablespacesRows.Scan(
 				&tableSpace,
 				&tableName,
 				&fileFormat,
 				&rowFormat,
-				&spaceType,
 				&fileSize,
 				&allocatedSize,
 			)
@@ -173,6 +172,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 				&tableName,
 				&fileFormat,
 				&rowFormat,
+				&spaceType,
 				&fileSize,
 				&allocatedSize,
 			)

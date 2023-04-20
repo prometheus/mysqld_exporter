@@ -16,6 +16,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -98,7 +99,7 @@ func (ScrapeSysUserSummary) Version() float64 {
 }
 
 // Scrape the information from sys.user_summary, creating a metric for each value of each row, labeled with the user
-func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 
 	userSummaryRows, err := db.QueryContext(ctx, sysUserSummaryQuery)
 	if err != nil {

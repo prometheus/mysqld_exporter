@@ -40,7 +40,7 @@ func TestScrapePerfIndexIOWaits(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfIndexIOWaits{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapePerfIndexIOWaits{}).Scrape(context.Background(), db, ch, log.NewNopLogger(), false); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

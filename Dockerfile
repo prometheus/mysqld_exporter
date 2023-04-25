@@ -1,12 +1,19 @@
-ARG ARCH="amd64"
-ARG OS="linux"
-FROM quay.io/prometheus/busybox-${OS}-${ARCH}:latest
+
+FROM alpine:3.17 as builder
 LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
 
-ARG ARCH="amd64"
-ARG OS="linux"
-COPY .build/${OS}-${ARCH}/mysqld_exporter /bin/mysqld_exporter
+WORKDIR /usr/src/mysqld_exporter
 
-EXPOSE      9104
-USER        nobody
-ENTRYPOINT  [ "/bin/mysqld_exporter" ]
+COPY . .
+
+RUN apk add --no-cache \
+    git make musl-dev go; \
+    go build -v
+
+
+FROM alpine:3.17 as app
+
+COPY --from=builder /usr/src/mysqld_exporter/mysqld_exporter /bin/mysqld_exporter
+EXPOSE 9104
+
+CMD  [ "/bin/mysqld_exporter" ]

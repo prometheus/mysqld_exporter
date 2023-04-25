@@ -136,17 +136,22 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
+		target := ""
+		q := r.URL.Query()
+		if q.Has("target") {
+			target = q.Get("target")
+		}
 
 		cfg := c.GetConfig()
 		cfgsection, ok := cfg.Sections["client"]
 		if !ok {
 			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
 		}
-		if dsn, err = cfgsection.FormDSN(""); err != nil {
+		if dsn, err = cfgsection.FormDSN(target); err != nil {
 			level.Error(logger).Log("msg", "Failed to form dsn from section [client]", "err", err)
 		}
 
-		collect := r.URL.Query()["collect[]"]
+		collect := q["collect[]"]
 
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()

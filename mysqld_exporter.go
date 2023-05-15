@@ -252,7 +252,10 @@ func main() {
 		http.Handle("/", landingPage)
 	}
 	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
-
+	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
+		c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger)
+		_, _ = w.Write([]byte(`ok`))
+	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)

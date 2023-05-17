@@ -26,7 +26,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	_ "github.com/go-sql-driver/mysql"
+	xmysql "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -170,7 +170,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
 			if err := scraper.Scrape(ctx, db, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
-				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "err", err)
+				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}
 			ch <- prometheus.MustNewConstMetric(mysqlScrapeCollectorSuccess, prometheus.GaugeValue, collectorSuccess, label)
@@ -178,6 +178,16 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 		}(scraper)
 	}
 	return 1.0
+}
+
+func (e *Exporter) getTargetFromDsn() string {
+	// Get target from DSN.
+	dsnConfig, err := xmysql.ParseDSN(e.dsn)
+	if err != nil {
+		level.Error(e.logger).Log("msg", "Error parsing DSN", "err", err)
+		return ""
+	}
+	return dsnConfig.Addr
 }
 
 func getMySQLVersion(db *sql.DB, logger log.Logger) float64 {

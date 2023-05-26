@@ -26,7 +26,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	xmysql "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -182,7 +182,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 
 func (e *Exporter) getTargetFromDsn() string {
 	// Get target from DSN.
-	dsnConfig, err := xmysql.ParseDSN(e.dsn)
+	dsnConfig, err := mysql.ParseDSN(e.dsn)
 	if err != nil {
 		level.Error(e.logger).Log("msg", "Error parsing DSN", "err", err)
 		return ""

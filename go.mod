@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.15.1
-	github.com/prometheus/client_model v0.3.0
+	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.42.0
 	github.com/prometheus/exporter-toolkit v0.9.1
 	github.com/smartystreets/goconvey v1.7.2

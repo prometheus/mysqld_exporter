@@ -26,6 +26,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// mysqlSubsystem used for metric names.
+const mysqlSubsystem = "mysql"
+
 const mysqlUserQuery = `
 		  SELECT
 		    user,
@@ -81,19 +84,19 @@ var (
 // Metric descriptors.
 var (
 	userMaxQuestionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_questions"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_questions"),
 		"The number of max_questions by user.",
 		labelNames, nil)
 	userMaxUpdatesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_updates"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_updates"),
 		"The number of max_updates by user.",
 		labelNames, nil)
 	userMaxConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_connections"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_connections"),
 		"The number of max_connections by user.",
 		labelNames, nil)
 	userMaxUserConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_user_connections"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_user_connections"),
 		"The number of max_user_connections by user.",
 		labelNames, nil)
 )
@@ -103,7 +106,7 @@ type ScrapeUser struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeUser) Name() string {
-	return mysql + ".user"
+	return mysqlSubsystem + ".user"
 }
 
 // Help describes the role of the Scraper.
@@ -229,7 +232,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 				if value, ok := parsePrivilege(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
 					ch <- prometheus.MustNewConstMetric(
 						prometheus.NewDesc(
-							prometheus.BuildFQName(namespace, mysql, strings.ToLower(col)),
+							prometheus.BuildFQName(namespace, mysqlSubsystem, strings.ToLower(col)),
 							col+" by user.",
 							labelNames,
 							nil,

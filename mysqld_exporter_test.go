@@ -141,12 +141,17 @@ func testLanding(t *testing.T, data bin) {
 header {
   background-color: #e6522c;
   color: #fff;
-  font-size: 2rem;
+  font-size: 1rem;
   padding: 1rem;
 }
 main {
   padding: 1rem;
 }
+label {
+  display: inline-block;
+  width: 0.5em;
+}
+
 </style>
   </head>
   <body>
@@ -163,6 +168,8 @@ main {
           
         </ul>
       </div>
+      
+      
     </main>
   </body>
 </html>

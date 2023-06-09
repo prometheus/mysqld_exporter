@@ -257,6 +257,7 @@ func main() {
 			level.Info(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "err", error)
 			return
 		}
+		_, _ = w.Write([]byte(`ok`))
 	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {

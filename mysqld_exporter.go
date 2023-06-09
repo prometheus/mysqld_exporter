@@ -253,8 +253,10 @@ func main() {
 	}
 	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
-		c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger)
-		_, _ = w.Write([]byte(`ok`))
+		if error := c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); error != nil {
+			level.Info(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "err", error)
+			return
+		}
 	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {

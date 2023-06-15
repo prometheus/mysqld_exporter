@@ -130,12 +130,14 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, log.NewNopLogger())
-		convey.So(
-			err,
-			convey.ShouldResemble,
-			fmt.Errorf("no configuration found"),
-		)
+		if err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+
+		cfg := c.GetConfig()
+		section := cfg.Sections["client"]
+		convey.So(section.User, convey.ShouldEqual, "abc")
+		convey.So(section.Password, convey.ShouldEqual, "")
 	})
 }
 

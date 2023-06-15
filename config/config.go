@@ -167,9 +167,6 @@ func (m MySqlConfig) validateConfig() error {
 	if m.User == "" {
 		return fmt.Errorf("no user specified in section or parent")
 	}
-	if m.Password == "" {
-		return fmt.Errorf("no password specified in section or parent")
-	}
 
 	return nil
 }

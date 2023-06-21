@@ -2,7 +2,7 @@
 
 BREAKING CHANGES:
 
-Don't prepend the `.my.cnf` file with the `HOME` environment.
+The default client configuration file is now `.my.cnf` in the process working directory. Use `--config.my-cnf="$HOME/.my.cnf"` to retain the previous default.
 
 Changes:
 

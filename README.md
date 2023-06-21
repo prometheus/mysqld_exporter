@@ -32,7 +32,7 @@ NOTE: It is recommended to set a max connection limit for the user to avoid over
 
 #####  Single exporter mode
 
-Running using ~/.my.cnf:
+Running using `.my.cnf` from the current directory:
 
     ./mysqld_exporter <flags>
 

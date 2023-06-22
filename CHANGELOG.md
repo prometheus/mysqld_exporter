@@ -2,7 +2,11 @@
 
 BREAKING CHANGES:
 
+The default client configuration file is now `.my.cnf` in the process working directory. Use `--config.my-cnf="$HOME/.my.cnf"` to retain the previous default.
+
 Changes:
+
+* [CHANGE] Don't use HOME env in the my-cnf config path. #745
 
 * [CHANGE]
 * [FEATURE]

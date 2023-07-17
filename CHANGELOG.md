@@ -9,6 +9,41 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.15.0 / 2023-06-16
+
+BREAKING CHANGES:
+
+The exporter no longer supports the monolithic `DATA_SOURCE_NAME` environment variable.
+To configure connections to MySQL you can either use a `my.cnf` style config file or command line arguments.
+
+For example:
+
+    export MYSQLD_EXPORTER_PASSWORD=secret
+    mysqld_exporter --mysqld.address=localhost:3306 --mysqld.username=exporter
+
+We have also dropped some internal scrape metrics:
+- `mysql_exporter_scrapes_total`
+- `mysql_exporter_scrape_errors_total`
+- `mysql_last_scrape_failed`
+
+The default client configuration file is now `.my.cnf` in the process working directory. Use `--config.my-cnf="$HOME/.my.cnf"` to retain the previous default.
+
+Changes:
+
+* [CHANGE] Allow `tlsCfg.InsecureSkipVerify` outside of mTLS #631
+* [CHANGE] Update to exporter-toolkit v0.8.1 #677
+* [CHANGE] Fix shared metrics between requests #722
+* [CHANGE] Allow empty passwords #742
+* [CHANGE] Don't use HOME env in the my-cnf config path. #745
+* [FEATURE] Add support for collecting metrics from `sys.user_summary` #628
+* [FEATURE] Support for multi-target mysqld probes #651
+* [FEATURE] Add MySQL TLS configurations #718
+* [FEATURE] Add config reload via /-/reload #734
+* [ENHANCEMENT] Add UNIX domain socket support for multi-target scraping #707
+* [ENHANCEMENT] Use `STRAIGHT_JOIN` in infoSchemaAutoIncrementQuery #726
+* [BUGFIX] Fix `infoSchemaInnodbMetricsEnabledColumnQuery` #687
+* [BUGFIX] Allow empty passwords #742
+
 ## 0.14.0 / 2022-01-05
 
 BREAKING CHANGES:

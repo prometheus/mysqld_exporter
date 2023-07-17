@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/go-kit/log"
@@ -166,9 +167,6 @@ func (m MySqlConfig) validateConfig() error {
 	if m.User == "" {
 		return fmt.Errorf("no user specified in section or parent")
 	}
-	if m.Password == "" {
-		return fmt.Errorf("no password specified in section or parent")
-	}
 
 	return nil
 }
@@ -193,6 +191,9 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 			config.Net = "unix"
 			config.Addr = m.Socket
 		}
+	} else if prefix := "unix://"; strings.HasPrefix(target, prefix) {
+		config.Net = "unix"
+		config.Addr = target[len(prefix):]
 	} else {
 		if _, _, err = net.SplitHostPort(target); err != nil {
 			return "", fmt.Errorf("failed to parse target: %s", err)

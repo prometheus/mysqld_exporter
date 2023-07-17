@@ -17,7 +17,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"time"
 
@@ -48,7 +47,7 @@ var (
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
-	).Default(path.Join(os.Getenv("HOME"), ".my.cnf")).String()
+	).Default(".my.cnf").String()
 	mysqldAddress = kingpin.Flag(
 		"mysqld.address",
 		"Address to use for connecting to MySQL",
@@ -136,17 +135,22 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
+		target := ""
+		q := r.URL.Query()
+		if q.Has("target") {
+			target = q.Get("target")
+		}
 
 		cfg := c.GetConfig()
 		cfgsection, ok := cfg.Sections["client"]
 		if !ok {
 			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
 		}
-		if dsn, err = cfgsection.FormDSN(""); err != nil {
+		if dsn, err = cfgsection.FormDSN(target); err != nil {
 			level.Error(logger).Log("msg", "Failed to form dsn from section [client]", "err", err)
 		}
 
-		collect := r.URL.Query()["collect[]"]
+		collect := q["collect[]"]
 
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
@@ -252,7 +256,13 @@ func main() {
 		http.Handle("/", landingPage)
 	}
 	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
-
+	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
+		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
+			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "error", err)
+			return
+		}
+		_, _ = w.Write([]byte(`ok`))
+	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)

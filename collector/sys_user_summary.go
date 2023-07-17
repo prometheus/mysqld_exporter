@@ -110,10 +110,10 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 	var (
 		user                   string
 		statements             uint64
-		statement_latency      uint64
+		statement_latency      float64
 		table_scans            uint64
 		file_ios               uint64
-		file_io_latency        uint64
+		file_io_latency        float64
 		current_connections    uint64
 		total_connections      uint64
 		unique_hosts           uint64

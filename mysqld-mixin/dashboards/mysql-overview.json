@@ -4028,9 +4028,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "grafanacloud-k3d-prom",
-          "value": "grafanacloud-k3d-prom"
+          "selected": true,
+          "text": "prometheus",
+          "value": "prometheus"
         },
         "hide": 0,
         "includeAll": false,
@@ -4039,6 +4039,7 @@
         "name": "datasource",
         "options": [],
         "query": "prometheus",
+        "queryValue": "",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -4078,25 +4079,25 @@
       {
         "allValue": ".+",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": [
-            "static:mysql.sample-apps.svc.cluster.local:3306"
+            "All"
           ],
           "value": [
-            "static:mysql.sample-apps.svc.cluster.local:3306"
+            "$__all"
           ]
         },
         "datasource": {
           "uid": "$datasource"
         },
-        "definition": "label_values(mysql_up, instance)",
+        "definition": "label_values(mysql_up{job=~\"$job\"},instance)",
         "hide": 0,
         "includeAll": true,
         "label": "instance",
         "multi": true,
         "name": "instance",
         "options": [],
-        "query": "label_values(mysql_up, instance)",
+        "query": "label_values(mysql_up{job=~\"$job\"},instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

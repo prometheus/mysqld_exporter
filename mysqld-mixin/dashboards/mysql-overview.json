@@ -20,7 +20,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 11323,
   "graphTooltip": 1,
-  "id": 6,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1974,7 +1974,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "Bps"
         },
         "overrides": []
       },
@@ -2120,7 +2120,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": [
           {
@@ -3037,7 +3037,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -4029,8 +4029,8 @@
       {
         "current": {
           "selected": false,
-          "text": "prometheus",
-          "value": "prometheus"
+          "text": "grafanacloud-k3d-prom",
+          "value": "grafanacloud-k3d-prom"
         },
         "hide": 0,
         "includeAll": false,
@@ -4078,11 +4078,12 @@
       {
         "allValue": ".+",
         "current": {
-          "selected": true,
-          "tags": [],
-          "text": "All",
+          "selected": false,
+          "text": [
+            "static:mysql.sample-apps.svc.cluster.local:3306"
+          ],
           "value": [
-            "$__all"
+            "static:mysql.sample-apps.svc.cluster.local:3306"
           ]
         },
         "datasource": {
@@ -4145,6 +4146,6 @@
   "timezone": "",
   "title": "MySQL",
   "uid": "549c2bf8936f7767ea6ac47c47b00f2a",
-  "version": 5,
+  "version": 10,
   "weekStart": ""
 }

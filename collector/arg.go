@@ -30,6 +30,7 @@ type Arg interface {
 
 type ArgDefinition interface {
 	Name() string
+	Help() string
 	DefaultValue() interface{}
 	Type() ArgType
 }

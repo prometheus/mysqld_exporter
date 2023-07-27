@@ -56,20 +56,6 @@ var (
 // ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
 type ScrapeBinlogSize struct{}
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeBinlogSize) ArgDefinitions() []ArgDefinition {
-	return nil
-}
-
-// Configure modifies the runtime behavior of the scraper via accepted args.
-func (s *ScrapeBinlogSize) Configure(args ...Arg) error {
-	if len(args) > 0 {
-		return noArgsAllowedError(s.Name())
-	}
-	return nil
-}
-
 // Name of the Scraper. Should be unique.
 func (*ScrapeBinlogSize) Name() string {
 	return "binlog_size"

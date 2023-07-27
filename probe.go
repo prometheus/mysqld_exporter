@@ -22,9 +22,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
-func handleProbe(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func handleProbe(scrapers []collector.Scraper, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -40,8 +41,8 @@ func handleProbe(scrapers []collector.Scraper, logger log.Logger) http.HandlerFu
 			authModule = "client"
 		}
 
-		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Mycnf[authModule]
+		mycnf := mycnfFn()
+		cfgsection, ok := mycnf[authModule]
 		if !ok {
 			level.Error(logger).Log("msg", fmt.Sprintf("Could not find section [%s] from config file", authModule))
 			http.Error(w, fmt.Sprintf("Could not find config section [%s]", authModule), http.StatusBadRequest)

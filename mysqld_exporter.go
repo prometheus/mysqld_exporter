@@ -44,6 +44,10 @@ var (
 		"timeout-offset",
 		"Offset to subtract from timeout in seconds.",
 	).Default("0.25").Float64()
+	configPath = kingpin.Flag(
+		"config",
+		"Path to YAML file containing configuration.",
+	).String()
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
@@ -61,13 +65,7 @@ var (
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
-	c            = config.ConfigHandler{
-		Config: &config.Config{},
-	}
 )
-
-// scrapers lists all possible collection methods and if they should be enabled by default.
-var scrapers = collector.All()
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
 	var filteredScrapers []collector.Scraper
@@ -93,9 +91,10 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
+
 }
 
-func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func newHandler(scrapers []collector.Scraper, configFn func() *config.Config, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
@@ -105,8 +104,8 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 			target = q.Get("target")
 		}
 
-		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Mycnf["client"]
+		mycnf := mycnfFn()
+		cfgsection, ok := mycnf["client"]
 		if !ok {
 			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
 		}
@@ -157,22 +156,6 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 }
 
 func main() {
-	// Generate ON/OFF flags for all scrapers.
-	scraperFlags := map[collector.Scraper]*bool{}
-	for scraper, enabledByDefault := range scrapers {
-		defaultOn := "false"
-		if enabledByDefault {
-			defaultOn = "true"
-		}
-
-		f := kingpin.Flag(
-			"collect."+scraper.Name(),
-			scraper.Help(),
-		).Default(defaultOn).Bool()
-
-		scraperFlags[scraper] = f
-	}
-
 	// Parse flags.
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
@@ -184,21 +167,61 @@ func main() {
 	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
-	var err error
-	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
+	// Get a list of all scrapers
+	scrapers := []collector.Scraper{}
+	for scraper := range collector.All() {
+		scrapers = append(scrapers, scraper)
+	}
+
+	// Set up config reloaders.
+	configReloader := config.NewConfigReloader(func() (*config.Config, error) {
+		newConfig := &config.Config{}
+
+		configFromFlags, err := collector.ConfigFromFlags()
+		if err != nil {
+			return nil, err
+		}
+
+		var configFromFile *config.Config
+		if *configPath != "" {
+			configFromFile, err = collector.ConfigFromFile(*configPath)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		newConfig.Merge(collector.ConfigFromDefaults())
+		newConfig.Merge(configFromFlags)
+		newConfig.Merge(configFromFile)
+
+		return newConfig, nil
+	})
+	if err := configReloader.Reload(); err != nil {
+		level.Info(logger).Log("msg", "Error parsing host config", "file", *configPath, "err", err)
+		os.Exit(1)
+	}
+
+	mycnfReloader := config.NewMycnfReloader(&config.MycnfReloaderOpts{
+		MycnfPath:                    *configMycnf,
+		DefaultMysqldAddress:         *mysqldAddress,
+		DefaultMysqldUser:            *mysqldUser,
+		DefaultTlsInsecureSkipVerify: *tlsInsecureSkipVerify,
+		Logger:                       logger,
+	})
+	if err := mycnfReloader.Reload(); err != nil {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
 		os.Exit(1)
 	}
 
-	// Register only scrapers enabled by flag.
-	enabledScrapers := []collector.Scraper{}
-	for scraper, enabled := range scraperFlags {
-		if *enabled {
-			level.Info(logger).Log("msg", "Scraper enabled", "scraper", scraper.Name())
-			enabledScrapers = append(enabledScrapers, scraper)
+	// Report which scrapers are enabled.
+	config := configReloader.Config()
+	for _, collector := range config.Collectors {
+		if collector.Enabled != nil && *collector.Enabled {
+			level.Info(logger).Log("msg", "Scraper enabled", "scraper", collector.Name)
 		}
 	}
-	handlerFunc := newHandler(enabledScrapers, logger)
+
+	handlerFunc := newHandler(scrapers, configReloader.Config, mycnfReloader.Mycnf, logger)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
 		landingConfig := web.LandingConfig{
@@ -219,12 +242,23 @@ func main() {
 		}
 		http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
+	http.HandleFunc("/probe", handleProbe(scrapers, mycnfReloader.Mycnf, logger))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
-		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
+		// Reload configuration.
+		if err := configReloader.Reload(); err != nil {
+			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configPath, "error", err)
+			return
+		}
+
+		// Configure registered collectors with latest configuration.
+		//collector.Configure(configReloader.Config())
+
+		// Reload mycnf file.
+		if err := mycnfReloader.Reload(); err != nil {
 			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "error", err)
 			return
 		}
+
 		_, _ = w.Write([]byte(`ok`))
 	})
 	srv := &http.Server{}

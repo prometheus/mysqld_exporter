@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -84,6 +85,8 @@ var (
 //
 // );
 type ScrapeHeartbeat struct {
+	sync.RWMutex
+
 	database string
 	table    string
 	utc      bool
@@ -112,6 +115,8 @@ func (*ScrapeHeartbeat) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapeHeartbeat) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
 	fmt.Printf("# args = %d, arg[0] = %v\n", len(args), args[0])
 	for _, arg := range args {
 		switch arg.Name() {
@@ -151,6 +156,9 @@ func nowExpr(utc bool) string {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	query := fmt.Sprintf(heartbeatQuery, nowExpr(s.utc), s.database, s.table)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {

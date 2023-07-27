@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -84,6 +85,8 @@ var (
 
 // ScrapeTableSchema collects from `information_schema.tables`.
 type ScrapeTableSchema struct {
+	sync.RWMutex
+
 	databases string
 }
 
@@ -110,6 +113,9 @@ func (*ScrapeTableSchema) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapeTableSchema) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
+
 	for _, arg := range args {
 		switch arg.Name() {
 		case tableSchemaDatabases:
@@ -127,6 +133,9 @@ func (s *ScrapeTableSchema) Configure(args ...Arg) error {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	var dbList []string
 	if s.databases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)

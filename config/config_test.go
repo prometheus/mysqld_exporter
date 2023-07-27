@@ -23,26 +23,30 @@ import (
 	"github.com/smartystreets/goconvey/convey"
 )
 
-func TestValidateConfig(t *testing.T) {
+func TestMycnfValidateConfig(t *testing.T) {
 	convey.Convey("Working config validation", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "testdata/client.cnf",
+		})
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 
 		convey.Convey("Valid configuration", func() {
-			cfg := c.GetConfig()
-			convey.So(cfg.Mycnf, convey.ShouldContainKey, "client")
-			convey.So(cfg.Mycnf, convey.ShouldContainKey, "client.server1")
+			mycnf := c.Mycnf()
+			convey.So(mycnf, convey.ShouldContainKey, "client")
+			convey.So(mycnf, convey.ShouldContainKey, "client.server1")
 
-			section, ok := cfg.Mycnf["client"]
+			section, ok := mycnf["client"]
 			convey.So(ok, convey.ShouldBeTrue)
 			convey.So(section.User, convey.ShouldEqual, "root")
 			convey.So(section.Password, convey.ShouldEqual, "abc")
 
-			childSection, ok := cfg.Mycnf["client.server1"]
+			childSection, ok := mycnf["client.server1"]
 			convey.So(ok, convey.ShouldBeTrue)
 			convey.So(childSection.User, convey.ShouldEqual, "test")
 			convey.So(childSection.Password, convey.ShouldEqual, "foo")
@@ -50,35 +54,43 @@ func TestValidateConfig(t *testing.T) {
 		})
 
 		convey.Convey("False on non-existent section", func() {
-			cfg := c.GetConfig()
-			_, ok := cfg.Mycnf["fakeclient"]
+			mycnf := c.Mycnf()
+			_, ok := mycnf["fakeclient"]
 			convey.So(ok, convey.ShouldBeFalse)
 		})
 	})
 
 	convey.Convey("Inherit from parent section", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
-		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: true,
+			MycnfPath:                    "testdata/child_client.cnf",
+			Logger:                       log.NewNopLogger(),
+		})
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
-		cfg := c.GetConfig()
-		section, _ := cfg.Mycnf["client.server1"]
+		mycnf := c.Mycnf()
+		section, _ := mycnf["client.server1"]
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
 	convey.Convey("Environment variable / CLI flags", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "testhost:5000",
+			DefaultMysqldUser:            "testuser",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "",
+		})
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("", "testhost:5000", "testuser", true, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 
-		cfg := c.GetConfig()
-		section := cfg.Mycnf["client"]
+		mycnf := c.Mycnf()
+		section := mycnf["client"]
 		convey.So(section.Host, convey.ShouldEqual, "testhost")
 		convey.So(section.Port, convey.ShouldEqual, 5000)
 		convey.So(section.User, convey.ShouldEqual, "testuser")
@@ -86,11 +98,15 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Environment variable / CLI flags error without port", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "testhost",
+			DefaultMysqldUser:            "testuser",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "",
+		})
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger())
+		err := c.Reload()
 		convey.So(
 			err,
 			convey.ShouldBeError,
@@ -98,26 +114,34 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Config file precedence over environment variables", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "fakeuser",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "testdata/client.cnf",
+		})
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "fakeuser", true, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 
-		cfg := c.GetConfig()
-		section := cfg.Mycnf["client"]
+		mycnf := c.Mycnf()
+		section := mycnf["client"]
 		convey.So(section.User, convey.ShouldEqual, "root")
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
 	convey.Convey("Client without user", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "testdata/missing_user.cnf",
+		})
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost:3306", "", true, log.NewNopLogger())
+		err := c.Reload()
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -126,16 +150,20 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Client without password", t, func() {
-		c := ConfigHandler{
-			Config: &Config{},
-		}
+		c := NewMycnfReloader(&MycnfReloaderOpts{
+			MycnfPath:                    "testdata/missing_password.cnf",
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: true,
+			Logger:                       log.NewNopLogger(),
+		})
 		os.Clearenv()
-		if err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 
-		cfg := c.GetConfig()
-		section := cfg.Mycnf["client"]
+		mycnf := c.Mycnf()
+		section := mycnf["client"]
 		convey.So(section.User, convey.ShouldEqual, "abc")
 		convey.So(section.Password, convey.ShouldEqual, "")
 	})
@@ -143,36 +171,40 @@ func TestValidateConfig(t *testing.T) {
 
 func TestFormDSN(t *testing.T) {
 	var (
-		c = ConfigHandler{
-			Config: &Config{},
-		}
+		c = NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: false,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "testdata/client.cnf",
+		})
 		err error
 		dsn string
 	)
 
 	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client"]
+			mycnf := c.Mycnf()
+			section := mycnf["client"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/")
 		})
 		convey.Convey("Target specific with explicit port", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client.server1"]
+			mycnf := c.Mycnf()
+			section := mycnf["client.server1"]
 			if dsn, err = section.FormDSN("server1:5000"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
 		})
 		convey.Convey("UNIX domain socket", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client.server1"]
+			mycnf := c.Mycnf()
+			section := mycnf["client.server1"]
 			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock"); err != nil {
 				t.Error(err)
 			}
@@ -183,28 +215,32 @@ func TestFormDSN(t *testing.T) {
 
 func TestFormDSNWithSslSkipVerify(t *testing.T) {
 	var (
-		c = ConfigHandler{
-			Config: &Config{},
-		}
+		c = NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: true,
+			MycnfPath:                    "testdata/client.cnf",
+			Logger:                       log.NewNopLogger(),
+		})
 		err error
 		dsn string
 	)
 
 	convey.Convey("Host exporter dsn with tls skip verify", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client"]
+			mycnf := c.Mycnf()
+			section := mycnf["client"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/?tls=skip-verify")
 		})
 		convey.Convey("Target specific with explicit port", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client.server1"]
+			mycnf := c.Mycnf()
+			section := mycnf["client.server1"]
 			if dsn, err = section.FormDSN("server1:5000"); err != nil {
 				t.Error(err)
 			}
@@ -215,20 +251,24 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 
 func TestFormDSNWithCustomTls(t *testing.T) {
 	var (
-		c = ConfigHandler{
-			Config: &Config{},
-		}
+		c = NewMycnfReloader(&MycnfReloaderOpts{
+			DefaultMysqldAddress:         "localhost:3306",
+			DefaultMysqldUser:            "",
+			DefaultTlsInsecureSkipVerify: false,
+			Logger:                       log.NewNopLogger(),
+			MycnfPath:                    "testdata/client_custom_tls.cnf",
+		})
 		err error
 		dsn string
 	)
 
 	convey.Convey("Host exporter dsn with custom tls", t, func() {
-		if err := c.ReloadConfig("testdata/client_custom_tls.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
+		if err := c.Reload(); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Target tls enabled", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client_tls_true"]
+			mycnf := c.Mycnf()
+			section := mycnf["client_tls_true"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -236,8 +276,8 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		})
 
 		convey.Convey("Target tls preferred", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client_tls_preferred"]
+			mycnf := c.Mycnf()
+			section := mycnf["client_tls_preferred"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -245,8 +285,8 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		})
 
 		convey.Convey("Target tls skip-verify", func() {
-			cfg := c.GetConfig()
-			section := cfg.Mycnf["client_tls_skip_verify"]
+			mycnf := c.Mycnf()
+			section := mycnf["client_tls_skip_verify"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}

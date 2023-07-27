@@ -14,77 +14,17 @@
 package config
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"net"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-
-	"github.com/go-sql-driver/mysql"
-	"github.com/prometheus/client_golang/prometheus"
-
-	"gopkg.in/ini.v1"
-)
-
-var (
-	configReloadSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "mysqld_exporter",
-		Name:      "config_last_reload_successful",
-		Help:      "Mysqld exporter config loaded successfully.",
-	})
-
-	configReloadSeconds = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "mysqld_exporter",
-		Name:      "config_last_reload_success_timestamp_seconds",
-		Help:      "Timestamp of the last successful configuration reload.",
-	})
-
-	cfg *ini.File
-
-	opts = ini.LoadOptions{
-		// Do not error on nonexistent file to allow empty string as filename input
-		Loose: true,
-		// MySQL ini file can have boolean keys.
-		AllowBooleanKeys: true,
-	}
-
-	err error
 )
 
 type Config struct {
-	Collectors []Collector `yaml:"collect"`
-	Mycnf      map[string]MycnfSection
-}
-
-type MycnfSection struct {
-	User                  string `ini:"user"`
-	Password              string `ini:"password"`
-	Host                  string `ini:"host"`
-	Port                  int    `ini:"port"`
-	Socket                string `ini:"socket"`
-	SslCa                 string `ini:"ssl-ca"`
-	SslCert               string `ini:"ssl-cert"`
-	SslKey                string `ini:"ssl-key"`
-	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"`
-	Tls                   string `ini:"tls"`
-}
-
-type ConfigHandler struct {
-	sync.RWMutex
-	TlsInsecureSkipVerify bool
-	Config                *Config
+	Collectors []*Collector `yaml:"collect"`
 }
 
 type Collector struct {
-	Name    string         `yaml:"name"`
-	Enabled bool           `yaml:"enabled"`
-	Args    []CollectorArg `yaml:"args"`
+	Name    string          `yaml:"name"`
+	Enabled *bool           `yaml:"enabled"`
+	Args    []*CollectorArg `yaml:"args"`
 }
 
 type CollectorArg struct {
@@ -92,166 +32,147 @@ type CollectorArg struct {
 	Value interface{} `yaml:"value"`
 }
 
-func (ch *ConfigHandler) GetConfig() *Config {
-	ch.RLock()
-	defer ch.RUnlock()
-	return ch.Config
+// Clone returns a deep copy of c without modifying c.
+func (c *Config) Clone() *Config {
+	clone := &Config{}
+	if c.Collectors == nil {
+		return clone
+	}
+	clone.Collectors = make([]*Collector, len(c.Collectors))
+	for i, collector := range c.Collectors {
+		clone.Collectors[i] = collector.clone()
+	}
+	return clone
 }
 
-func (ch *ConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
-	var host, port string
-	defer func() {
-		if err != nil {
-			configReloadSuccess.Set(0)
-		} else {
-			configReloadSuccess.Set(1)
-			configReloadSeconds.SetToCurrentTime()
-		}
-	}()
-
-	if cfg, err = ini.LoadSources(
-		opts,
-		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
-		filename,
-	); err != nil {
-		return fmt.Errorf("failed to load %s: %w", filename, err)
+// Merge combines oc with c. Elements in oc take precedence over c. A new
+// No modifications are made to oc.
+func (c *Config) Merge(oc *Config) {
+	if oc == nil {
+		return
 	}
 
-	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
-		return fmt.Errorf("failed to parse address: %w", err)
+	// Organize oc collectors by name.
+	ocCollectors := make(map[string]*Collector, len(oc.Collectors))
+	for _, collector := range oc.Collectors {
+		ocCollectors[collector.Name] = collector
 	}
 
-	if clientSection := cfg.Section("client"); clientSection != nil {
-		if cfgHost := clientSection.Key("host"); cfgHost.String() == "" {
-			cfgHost.SetValue(host)
-		}
-		if cfgPort := clientSection.Key("port"); cfgPort.String() == "" {
-			cfgPort.SetValue(port)
-		}
-		if cfgUser := clientSection.Key("user"); cfgUser.String() == "" {
-			cfgUser.SetValue(mysqldUser)
-		}
-	}
-
-	cfg.ValueMapper = os.ExpandEnv
-	config := &Config{}
-	m := make(map[string]MycnfSection)
-	for _, sec := range cfg.Sections() {
-		sectionName := sec.Name()
-
-		if sectionName == "DEFAULT" {
+	// Range over c collectors, merging in matching oc collectors.
+	for _, collector := range c.Collectors {
+		ocCollector, ok := ocCollectors[collector.Name]
+		if !ok {
 			continue
 		}
-
-		mysqlcfg := &MycnfSection{
-			TlsInsecureSkipVerify: tlsInsecureSkipVerify,
-		}
-
-		// FIXME: this error check seems orphaned
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to load config", "section", sectionName, "err", err)
-			continue
-		}
-
-		err = sec.StrictMapTo(mysqlcfg)
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to parse config", "section", sectionName, "err", err)
-			continue
-		}
-		if err := mysqlcfg.validateConfig(); err != nil {
-			level.Error(logger).Log("msg", "failed to validate config", "section", sectionName, "err", err)
-			continue
-		}
-
-		m[sectionName] = *mysqlcfg
+		collector.merge(ocCollector)
 	}
-	config.Mycnf = m
-	if len(config.Mycnf) == 0 {
-		return fmt.Errorf("no configuration found")
+}
+
+// Validate validates elements of c.
+func (c *Config) Validate() error {
+	var uniq map[string]bool
+	if len(c.Collectors) > 0 {
+		uniq = make(map[string]bool, len(c.Collectors))
 	}
-	ch.Lock()
-	ch.Config = config
-	ch.Unlock()
+	for _, collector := range c.Collectors {
+		if _, ok := uniq[collector.Name]; ok {
+			return fmt.Errorf("duplicate collectors named %s", collector.Name)
+		}
+		if err := collector.validate(); err != nil {
+			return fmt.Errorf("collector %s is invalid: %w", collector.Name, err)
+		}
+	}
 	return nil
 }
 
-func (m MycnfSection) validateConfig() error {
-	if m.User == "" {
-		return fmt.Errorf("no user specified in section or parent")
+// clone returns a deep copy of c without modifying c.
+func (c *Collector) clone() *Collector {
+	clone := &Collector{}
+	clone.Name = c.Name
+	clone.Enabled = c.Enabled
+	if c.Args == nil {
+		return clone
+	}
+	clone.Args = make([]*CollectorArg, len(c.Args))
+	for i, arg := range c.Args {
+		clone.Args[i] = arg.clone()
+	}
+	return clone
+}
+
+// merge combines oc with c. Elements in oc take precedence over c. A new
+// No modifications are made to oc.
+func (c *Collector) merge(oc *Collector) {
+	if oc == nil {
+		return
 	}
 
+	c.Name = oc.Name
+	if oc.Enabled != nil {
+		*c.Enabled = *oc.Enabled
+	}
+
+	// Organize oc args by name.
+	ocArgs := make(map[string]*CollectorArg, len(oc.Args))
+	for _, arg := range oc.Args {
+		ocArgs[arg.Name] = arg
+	}
+
+	// Range over c collectors, merging in matching oc collectors.
+	for _, arg := range c.Args {
+		ocArg, ok := ocArgs[arg.Name]
+		if !ok {
+			continue
+		}
+		arg.merge(ocArg)
+	}
+}
+
+// validate validates elements of c.
+func (c *Collector) validate() error {
+	var uniq map[string]bool
+	if len(c.Args) > 0 {
+		uniq = make(map[string]bool, len(c.Args))
+	}
+	for _, arg := range c.Args {
+		if _, ok := uniq[arg.Name]; ok {
+			return fmt.Errorf("duplicate args named %s", arg.Name)
+		}
+		if err := arg.validate(); err != nil {
+			return fmt.Errorf("arg %s is invalid: %w", arg.Name, err)
+		}
+	}
 	return nil
 }
 
-func (m MycnfSection) FormDSN(target string) (string, error) {
-	config := mysql.NewConfig()
-	config.User = m.User
-	config.Passwd = m.Password
-	config.Net = "tcp"
-	if target == "" {
-		if m.Socket == "" {
-			host := "127.0.0.1"
-			if m.Host != "" {
-				host = m.Host
-			}
-			port := "3306"
-			if m.Port != 0 {
-				port = strconv.Itoa(m.Port)
-			}
-			config.Addr = net.JoinHostPort(host, port)
-		} else {
-			config.Net = "unix"
-			config.Addr = m.Socket
-		}
-	} else if prefix := "unix://"; strings.HasPrefix(target, prefix) {
-		config.Net = "unix"
-		config.Addr = target[len(prefix):]
-	} else {
-		if _, _, err = net.SplitHostPort(target); err != nil {
-			return "", fmt.Errorf("failed to parse target: %s", err)
-		}
-		config.Addr = target
-	}
-
-	if m.TlsInsecureSkipVerify {
-		config.TLSConfig = "skip-verify"
-	} else {
-		config.TLSConfig = m.Tls
-		if m.SslCa != "" {
-			if err := m.CustomizeTLS(); err != nil {
-				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
-				return "", err
-			}
-			config.TLSConfig = "custom"
-		}
-	}
-
-	return config.FormatDSN(), nil
+// clone returns a deep copy of c without modifying c.
+func (c *CollectorArg) clone() *CollectorArg {
+	clone := &CollectorArg{}
+	clone.Name = c.Name
+	clone.Value = c.Value
+	return clone
 }
 
-func (m MycnfSection) CustomizeTLS() error {
-	var tlsCfg tls.Config
-	caBundle := x509.NewCertPool()
-	pemCA, err := os.ReadFile(m.SslCa)
-	if err != nil {
-		return err
+// merge combines oc with c. Elements in oc take precedence over c. A new
+// No modifications are made to oc.
+func (c *CollectorArg) merge(oc *CollectorArg) {
+	if oc == nil {
+		return
 	}
-	if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
-		tlsCfg.RootCAs = caBundle
-	} else {
-		return fmt.Errorf("failed parse pem-encoded CA certificates from %s", m.SslCa)
+
+	c.Name = oc.Name
+	c.Value = oc.Value
+}
+
+// validate validates elements of c.
+func (c *CollectorArg) validate() error {
+	switch typ := c.Value.(type) {
+	case bool:
+	case int:
+	case string:
+		return nil
+	default:
+		fmt.Errorf("invalid type for arg %s: %v", c.Name, typ)
 	}
-	if m.SslCert != "" && m.SslKey != "" {
-		certPairs := make([]tls.Certificate, 0, 1)
-		keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
-		if err != nil {
-			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
-				m.SslCert, m.SslKey, err)
-		}
-		certPairs = append(certPairs, keypair)
-		tlsCfg.Certificates = certPairs
-	}
-	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
-	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil
 }

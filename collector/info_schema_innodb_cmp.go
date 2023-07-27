@@ -76,20 +76,6 @@ func (*ScrapeInnodbCmp) Version() float64 {
 	return 5.5
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeInnodbCmp) ArgDefinitions() []ArgDefinition {
-	return nil
-}
-
-// Configure modifies the runtime behavior of the scraper via accepted args.
-func (s *ScrapeInnodbCmp) Configure(args ...Arg) error {
-	if len(args) > 0 {
-		return noArgsAllowedError(s.Name())
-	}
-	return nil
-}
-
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (*ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	informationSchemaInnodbCmpRows, err := db.QueryContext(ctx, innodbCmpQuery)

@@ -20,6 +20,8 @@ var (
 	enabledByScraper map[Scraper]bool   = make(map[Scraper]bool)
 )
 
+// All returns a map of all registered scrapers and whether or not they are
+// enabled by default.
 func All() map[Scraper]bool {
 	cp := make(map[Scraper]bool)
 	for s, e := range enabledByScraper {
@@ -37,8 +39,10 @@ func Lookup(name string) (Scraper, bool, error) {
 }
 
 func mustRegisterWithDefaults(s Scraper, enabled bool) {
-	if err := s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
-		panic(fmt.Sprintf("bug: %v", err))
+	if cfg, ok := s.(Configurable); ok {
+		if err := cfg.Configure(defaultArgs(cfg.ArgDefinitions())...); err != nil {
+			panic(fmt.Sprintf("bug: %v", err))
+		}
 	}
 	if err := register(s, enabled); err != nil {
 		panic(fmt.Sprintf("bug: %v", err))

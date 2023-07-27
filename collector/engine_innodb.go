@@ -51,20 +51,6 @@ func (*ScrapeEngineInnodbStatus) Version() float64 {
 	return 5.1
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeEngineInnodbStatus) ArgDefinitions() []ArgDefinition {
-	return nil
-}
-
-// Configure modifies the runtime behavior of the scraper via accepted args.
-func (s *ScrapeEngineInnodbStatus) Configure(args ...Arg) error {
-	if len(args) > 0 {
-		return noArgsAllowedError(s.Name())
-	}
-	return nil
-}
-
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (*ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	rows, err := db.QueryContext(ctx, engineInnodbStatusQuery)

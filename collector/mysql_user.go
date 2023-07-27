@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -106,6 +107,8 @@ var (
 
 // ScrapeUser collects from `information_schema.processlist`.
 type ScrapeUser struct {
+	sync.RWMutex
+
 	privileges bool
 }
 
@@ -132,6 +135,9 @@ func (*ScrapeUser) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapeUser) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
+
 	for _, arg := range args {
 		switch arg.Name() {
 		case userPrivileges:
@@ -149,6 +155,9 @@ func (s *ScrapeUser) Configure(args ...Arg) error {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	var (
 		userRows *sql.Rows
 		err      error

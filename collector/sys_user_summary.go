@@ -98,20 +98,6 @@ func (*ScrapeSysUserSummary) Version() float64 {
 	return 5.7
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeSysUserSummary) ArgDefinitions() []ArgDefinition {
-	return nil
-}
-
-// Configure modifies the runtime behavior of the scraper via accepted args.
-func (s *ScrapeSysUserSummary) Configure(args ...Arg) error {
-	if len(args) > 0 {
-		return noArgsAllowedError(s.Name())
-	}
-	return nil
-}
-
 // Scrape the information from sys.user_summary, creating a metric for each value of each row, labeled with the user
 func (*ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	userSummaryRows, err := db.QueryContext(ctx, sysUserSummaryQuery)

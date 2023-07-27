@@ -71,20 +71,6 @@ func (*ScrapeSchemaStat) Version() float64 {
 	return 5.1
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeSchemaStat) ArgDefinitions() []ArgDefinition {
-	return nil
-}
-
-// Configure modifies the runtime behavior of the scraper via accepted args.
-func (s *ScrapeSchemaStat) Configure(args ...Arg) error {
-	if len(args) > 0 {
-		return noArgsAllowedError(s.Name())
-	}
-	return nil
-}
-
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (*ScrapeSchemaStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var varName, varVal string

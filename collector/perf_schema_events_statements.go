@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -159,6 +160,8 @@ var (
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
 type ScrapePerfEventsStatements struct {
+	sync.RWMutex
+
 	digestTextLimit int
 	limit           int
 	timeLimit       int
@@ -187,6 +190,9 @@ func (*ScrapePerfEventsStatements) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapePerfEventsStatements) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
+
 	for _, arg := range args {
 		v, ok := arg.Value().(int)
 		if !ok {
@@ -208,6 +214,9 @@ func (s *ScrapePerfEventsStatements) Configure(args ...Arg) error {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		s.digestTextLimit,

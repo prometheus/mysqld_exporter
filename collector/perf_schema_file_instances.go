@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -68,6 +69,8 @@ var (
 
 // ScrapePerfFileInstances collects from `performance_schema.file_summary_by_instance`.
 type ScrapePerfFileInstances struct {
+	sync.RWMutex
+
 	filter       string
 	removePrefix string
 }
@@ -95,6 +98,9 @@ func (*ScrapePerfFileInstances) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapePerfFileInstances) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
+
 	for _, arg := range args {
 		v, ok := arg.Value().(string)
 		if !ok {
@@ -114,6 +120,9 @@ func (s *ScrapePerfFileInstances) Configure(args ...Arg) error {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	// Timers here are returned in picoseconds.
 	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, s.filter)
 	if err != nil {

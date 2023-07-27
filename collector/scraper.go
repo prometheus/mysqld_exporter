@@ -24,13 +24,6 @@ import (
 
 // Scraper is minimal interface that let's you add new prometheus metrics to mysqld_exporter.
 type Scraper interface {
-	// ArgDefinitions describes the names, types, and default values of any
-	// arguments accepted by the Scraper.
-	ArgDefinitions() []ArgDefinition
-
-	// Configure the Scraper.
-	Configure(...Arg) error
-
 	// Name of the Scraper. Should be unique.
 	Name() string
 
@@ -43,4 +36,15 @@ type Scraper interface {
 
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
 	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error
+}
+
+// Configurable is an optional interface that Scrapers can implement to
+// advertise and accept configuration.
+type Configurable interface {
+	// ArgDefinitions describes the names, types, and default values of any
+	// arguments accepted by the Scraper.
+	ArgDefinitions() []ArgDefinition
+
+	// Configure the Scraper.
+	Configure(...Arg) error
 }

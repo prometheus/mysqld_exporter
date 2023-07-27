@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -66,6 +67,8 @@ var (
 
 // ScrapePerfMemoryEvents collects from `performance_schema.memory_summary_global_by_event_name`.
 type ScrapePerfMemoryEvents struct {
+	sync.RWMutex
+
 	removePrefix string
 }
 
@@ -92,6 +95,9 @@ func (*ScrapePerfMemoryEvents) ArgDefinitions() []ArgDefinition {
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
 func (s *ScrapePerfMemoryEvents) Configure(args ...Arg) error {
+	s.Lock()
+	defer s.Unlock()
+
 	for _, arg := range args {
 		switch arg.Name() {
 		case performanceSchemaMemoryEventsRemovePrefix:
@@ -109,6 +115,9 @@ func (s *ScrapePerfMemoryEvents) Configure(args ...Arg) error {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	s.RLock()
+	defer s.RUnlock()
+
 	perfSchemaMemoryEventsRows, err := db.QueryContext(ctx, perfMemoryEventsQuery)
 	if err != nil {
 		return err

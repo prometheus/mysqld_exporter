@@ -123,22 +123,36 @@ var (
 type ScrapeGlobalVariables struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeGlobalVariables) Name() string {
+func (*ScrapeGlobalVariables) Name() string {
 	return globalVariables
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeGlobalVariables) Help() string {
+func (*ScrapeGlobalVariables) Help() string {
 	return "Collect from SHOW GLOBAL VARIABLES"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeGlobalVariables) Version() float64 {
+func (*ScrapeGlobalVariables) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (s *ScrapeGlobalVariables) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeGlobalVariables) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeGlobalVariables) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	globalVariablesRows, err := db.QueryContext(ctx, globalVariablesQuery)
 	if err != nil {
 		return err
@@ -251,4 +265,8 @@ func validPrometheusName(s string) string {
 }
 
 // check interface
-var _ Scraper = ScrapeGlobalVariables{}
+var scrapeGlobalVariables Scraper = &ScrapeGlobalVariables{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeGlobalVariables)
+}

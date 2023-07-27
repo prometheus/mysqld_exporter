@@ -49,22 +49,36 @@ var (
 type ScrapePerfIndexIOWaits struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfIndexIOWaits) Name() string {
+func (*ScrapePerfIndexIOWaits) Name() string {
 	return "perf_schema.indexiowaits"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfIndexIOWaits) Help() string {
+func (*ScrapePerfIndexIOWaits) Help() string {
 	return "Collect metrics from performance_schema.table_io_waits_summary_by_index_usage"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfIndexIOWaits) Version() float64 {
+func (*ScrapePerfIndexIOWaits) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfIndexIOWaits) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfIndexIOWaits) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfSchemaIndexWaitsRows, err := db.QueryContext(ctx, perfIndexIOWaitsQuery)
 	if err != nil {
 		return err
@@ -128,4 +142,8 @@ func (ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 }
 
 // check interface
-var _ Scraper = ScrapePerfIndexIOWaits{}
+var scrapePerfIndexIOWaits Scraper = &ScrapePerfIndexIOWaits{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfIndexIOWaits)
+}

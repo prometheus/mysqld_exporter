@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -34,17 +33,23 @@ const perfFileInstancesQuery = `
 	     where FILE_NAME REGEXP ?
 	`
 
-// Tunable flags.
+// Arg definitions.
 var (
-	performanceSchemaFileInstancesFilter = kingpin.Flag(
-		"collect.perf_schema.file_instances.filter",
-		"RegEx file_name filter for performance_schema.file_summary_by_instance",
-	).Default(".*").String()
+	performanceSchemaFileInstancesFilter       = "filter"
+	performanceSchemaFileInstancesRemovePrefix = "remove_prefix"
 
-	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.file_instances.remove_prefix",
-		"Remove path prefix in performance_schema.file_summary_by_instance",
-	).Default("/var/lib/mysql/").String()
+	performanceSchemaFileInstancesArgDefinitions = []ArgDefinition{
+		&stringArgDefinition{
+			name:         performanceSchemaFileInstancesFilter,
+			help:         "RegEx file_name filter for performance_schema.file_summary_by_instance",
+			defaultValue: ".*",
+		},
+		&stringArgDefinition{
+			name:         performanceSchemaFileInstancesRemovePrefix,
+			help:         "Remove path prefix in performance_schema.file_summary_by_instance",
+			defaultValue: "/var/lib/mysql/",
+		},
+	}
 )
 
 // Metric descriptors.
@@ -62,27 +67,55 @@ var (
 )
 
 // ScrapePerfFileInstances collects from `performance_schema.file_summary_by_instance`.
-type ScrapePerfFileInstances struct{}
+type ScrapePerfFileInstances struct {
+	filter       string
+	removePrefix string
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfFileInstances) Name() string {
+func (*ScrapePerfFileInstances) Name() string {
 	return "perf_schema.file_instances"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfFileInstances) Help() string {
+func (*ScrapePerfFileInstances) Help() string {
 	return "Collect metrics from performance_schema.file_summary_by_instance"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfFileInstances) Version() float64 {
+func (*ScrapePerfFileInstances) Version() float64 {
 	return 5.5
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfFileInstances) ArgDefinitions() []ArgDefinition {
+	return performanceSchemaFileInstancesArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfFileInstances) Configure(args ...Arg) error {
+	for _, arg := range args {
+		v, ok := arg.Value().(string)
+		if !ok {
+			return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+		}
+		switch arg.Name() {
+		case performanceSchemaFileInstancesFilter:
+			s.filter = v
+		case performanceSchemaFileInstancesRemovePrefix:
+			s.removePrefix = v
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	// Timers here are returned in picoseconds.
-	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
+	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, s.filter)
 	if err != nil {
 		return err
 	}
@@ -103,7 +136,7 @@ func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 			return err
 		}
 
-		fileName = strings.TrimPrefix(fileName, *performanceSchemaFileInstancesRemovePrefix)
+		fileName = strings.TrimPrefix(fileName, s.removePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countRead),
 			fileName, eventName, "read",
@@ -126,4 +159,8 @@ func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 }
 
 // check interface
-var _ Scraper = ScrapePerfFileInstances{}
+var scrapePerfFileInstances Scraper = &ScrapePerfFileInstances{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfFileInstances)
+}

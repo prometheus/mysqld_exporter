@@ -79,22 +79,36 @@ var (
 type ScrapePerfTableLockWaits struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfTableLockWaits) Name() string {
+func (*ScrapePerfTableLockWaits) Name() string {
 	return "perf_schema.tablelocks"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfTableLockWaits) Help() string {
+func (*ScrapePerfTableLockWaits) Help() string {
 	return "Collect metrics from performance_schema.table_lock_waits_summary_by_table"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfTableLockWaits) Version() float64 {
+func (*ScrapePerfTableLockWaits) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfTableLockWaits) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfTableLockWaits) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfTableLockWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfTableLockWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfSchemaTableLockWaitsRows, err := db.QueryContext(ctx, perfTableLockWaitsQuery)
 	if err != nil {
 		return err
@@ -238,4 +252,8 @@ func (ScrapePerfTableLockWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<
 }
 
 // check interface
-var _ Scraper = ScrapePerfTableLockWaits{}
+var scrapePerfTableLockWaits Scraper = &ScrapePerfTableLockWaits{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfTableLockWaits)
+}

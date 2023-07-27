@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -71,18 +70,27 @@ const perfEventsStatementsQuery = `
 
 // Tunable flags.
 var (
-	perfEventsStatementsLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.limit",
-		"Limit the number of events statements digests by response time",
-	).Default("250").Int()
-	perfEventsStatementsTimeLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.timelimit",
-		"Limit how old the 'last_seen' events statements can be, in seconds",
-	).Default("86400").Int()
-	perfEventsStatementsDigestTextLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.digest_text_limit",
-		"Maximum length of the normalized statement text",
-	).Default("120").Int()
+	perfEventsStatementsLimit           = "limit"
+	perfEventsStatementsTimeLimit       = "timelimit"
+	perfEventsStatementsDigestTextLimit = "digest_text_limit"
+
+	perfEventsStatementsArgDefinitions = []ArgDefinition{
+		&intArgDefinition{
+			name:         perfEventsStatementsLimit,
+			help:         "Limit the number of events statements digests by response time",
+			defaultValue: 250,
+		},
+		&intArgDefinition{
+			name:         perfEventsStatementsTimeLimit,
+			help:         "Limit how old the 'last_seen' events statements can be, in seconds",
+			defaultValue: 86400,
+		},
+		&intArgDefinition{
+			name:         perfEventsStatementsDigestTextLimit,
+			help:         "Maximum length of the normalized statement text",
+			defaultValue: 120,
+		},
+	}
 )
 
 // Metric descriptors.
@@ -150,30 +158,61 @@ var (
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
-type ScrapePerfEventsStatements struct{}
+type ScrapePerfEventsStatements struct {
+	digestTextLimit int
+	limit           int
+	timeLimit       int
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfEventsStatements) Name() string {
+func (*ScrapePerfEventsStatements) Name() string {
 	return "perf_schema.eventsstatements"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfEventsStatements) Help() string {
+func (*ScrapePerfEventsStatements) Help() string {
 	return "Collect metrics from performance_schema.events_statements_summary_by_digest"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfEventsStatements) Version() float64 {
+func (*ScrapePerfEventsStatements) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfEventsStatements) ArgDefinitions() []ArgDefinition {
+	return perfEventsStatementsArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfEventsStatements) Configure(args ...Arg) error {
+	for _, arg := range args {
+		v, ok := arg.Value().(int)
+		if !ok {
+			return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+		}
+		switch arg.Name() {
+		case perfEventsStatementsLimit:
+			s.limit = v
+		case perfEventsStatementsTimeLimit:
+			s.timeLimit = v
+		case perfEventsStatementsDigestTextLimit:
+			s.digestTextLimit = v
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
-		*perfEventsStatementsDigestTextLimit,
-		*perfEventsStatementsTimeLimit,
-		*perfEventsStatementsLimit,
+		s.digestTextLimit,
+		s.timeLimit,
+		s.limit,
 	)
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)
@@ -249,4 +288,8 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 }
 
 // check interface
-var _ Scraper = ScrapePerfEventsStatements{}
+var scrapePerfEventsStatements Scraper = &ScrapePerfEventsStatements{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfEventsStatements)
+}

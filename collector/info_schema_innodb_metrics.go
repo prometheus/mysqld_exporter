@@ -78,22 +78,36 @@ var (
 type ScrapeInnodbMetrics struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeInnodbMetrics) Name() string {
+func (*ScrapeInnodbMetrics) Name() string {
 	return informationSchema + ".innodb_metrics"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeInnodbMetrics) Help() string {
+func (*ScrapeInnodbMetrics) Help() string {
 	return "Collect metrics from information_schema.innodb_metrics"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeInnodbMetrics) Version() float64 {
+func (*ScrapeInnodbMetrics) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeInnodbMetrics) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeInnodbMetrics) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var enabledColumnName string
 	var query string
 
@@ -200,4 +214,8 @@ func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 }
 
 // check interface
-var _ Scraper = ScrapeInnodbMetrics{}
+var scrapeInnodbMetrics Scraper = &ScrapeInnodbMetrics{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeInnodbMetrics)
+}

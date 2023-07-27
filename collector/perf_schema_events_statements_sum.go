@@ -162,22 +162,36 @@ var (
 type ScrapePerfEventsStatementsSum struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfEventsStatementsSum) Name() string {
+func (*ScrapePerfEventsStatementsSum) Name() string {
 	return "perf_schema.eventsstatementssum"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfEventsStatementsSum) Help() string {
+func (*ScrapePerfEventsStatementsSum) Help() string {
 	return "Collect metrics of grand sums from performance_schema.events_statements_summary_by_digest"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfEventsStatementsSum) Version() float64 {
+func (*ScrapePerfEventsStatementsSum) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfEventsStatementsSum) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfEventsStatementsSum) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	// Timers here are returned in picoseconds.
 	perfEventsStatementsSumRows, err := db.QueryContext(ctx, perfEventsStatementsSumQuery)
 	if err != nil {
@@ -273,4 +287,8 @@ func (ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch 
 }
 
 // check interface
-var _ Scraper = ScrapePerfEventsStatementsSum{}
+var scrapePerfEventsStatementsSum Scraper = &ScrapePerfEventsStatementsSum{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfEventsStatementsSum)
+}

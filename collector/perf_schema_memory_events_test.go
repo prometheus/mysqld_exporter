@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -27,11 +26,6 @@ import (
 )
 
 func TestScrapePerfMemoryEvents(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -54,7 +48,11 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfMemoryEvents{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		s := &ScrapePerfMemoryEvents{}
+		if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+			panic(fmt.Sprintf("failed to configure scraper defaults: %s", err))
+		}
+		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

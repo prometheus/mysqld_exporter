@@ -84,23 +84,36 @@ var (
 type ScrapeSysUserSummary struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeSysUserSummary) Name() string {
+func (*ScrapeSysUserSummary) Name() string {
 	return sysSchema + ".user_summary"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeSysUserSummary) Help() string {
+func (*ScrapeSysUserSummary) Help() string {
 	return "Collect per user metrics from sys.x$user_summary. See https://dev.mysql.com/doc/refman/5.7/en/sys-user-summary.html for details"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeSysUserSummary) Version() float64 {
+func (*ScrapeSysUserSummary) Version() float64 {
 	return 5.7
 }
 
-// Scrape the information from sys.user_summary, creating a metric for each value of each row, labeled with the user
-func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeSysUserSummary) ArgDefinitions() []ArgDefinition {
+	return nil
+}
 
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeSysUserSummary) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
+// Scrape the information from sys.user_summary, creating a metric for each value of each row, labeled with the user
+func (*ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	userSummaryRows, err := db.QueryContext(ctx, sysUserSummaryQuery)
 	if err != nil {
 		return err
@@ -154,4 +167,8 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 	return nil
 }
 
-var _ Scraper = ScrapeSysUserSummary{}
+var scrapeSysUserSummary Scraper = &ScrapeSysUserSummary{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeSysUserSummary)
+}

@@ -64,22 +64,36 @@ var (
 type ScrapePerfReplicationGroupMemberStats struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfReplicationGroupMemberStats) Name() string {
+func (*ScrapePerfReplicationGroupMemberStats) Name() string {
 	return performanceSchema + ".replication_group_member_stats"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfReplicationGroupMemberStats) Help() string {
+func (*ScrapePerfReplicationGroupMemberStats) Help() string {
 	return "Collect metrics from performance_schema.replication_group_member_stats"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfReplicationGroupMemberStats) Version() float64 {
+func (*ScrapePerfReplicationGroupMemberStats) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfReplicationGroupMemberStats) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfReplicationGroupMemberStats) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfReplicationGroupMemberStats) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfReplicationGroupMemberStats) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	rows, err := db.QueryContext(ctx, perfReplicationGroupMemberStatsQuery)
 	if err != nil {
 		return err
@@ -115,4 +129,8 @@ func (ScrapePerfReplicationGroupMemberStats) Scrape(ctx context.Context, db *sql
 }
 
 // check interface
-var _ Scraper = ScrapePerfReplicationGroupMemberStats{}
+var scrapePerfReplicationGroupMemberStats Scraper = &ScrapePerfReplicationGroupMemberStats{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfReplicationGroupMemberStats)
+}

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -51,12 +50,17 @@ const (
 		`
 )
 
-// Tunable flags.
+// Arg definitions.
 var (
-	tableSchemaDatabases = kingpin.Flag(
-		"collect.info_schema.tables.databases",
-		"The list of databases to collect table stats for, or '*' for all",
-	).Default("*").String()
+	tableSchemaDatabases = "databases"
+
+	tableSchemaArgDefinitions = []ArgDefinition{
+		&stringArgDefinition{
+			name:         "databases",
+			help:         "The list of databases to collect table stats for, or '*' for all",
+			defaultValue: "*",
+		},
+	}
 )
 
 // Metric descriptors.
@@ -79,27 +83,52 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-type ScrapeTableSchema struct{}
+type ScrapeTableSchema struct {
+	databases string
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeTableSchema) Name() string {
+func (*ScrapeTableSchema) Name() string {
 	return informationSchema + ".tables"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeTableSchema) Help() string {
+func (*ScrapeTableSchema) Help() string {
 	return "Collect metrics from information_schema.tables"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeTableSchema) Version() float64 {
+func (*ScrapeTableSchema) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeTableSchema) ArgDefinitions() []ArgDefinition {
+	return tableSchemaArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeTableSchema) Configure(args ...Arg) error {
+	for _, arg := range args {
+		switch arg.Name() {
+		case tableSchemaDatabases:
+			databases, ok := arg.Value().(string)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.databases = databases
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var dbList []string
-	if *tableSchemaDatabases == "*" {
+	if s.databases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)
 		if err != nil {
 			return err
@@ -117,7 +146,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 			dbList = append(dbList, database)
 		}
 	} else {
-		dbList = strings.Split(*tableSchemaDatabases, ",")
+		dbList = strings.Split(s.databases, ",")
 	}
 
 	for _, database := range dbList {
@@ -185,4 +214,8 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 }
 
 // check interface
-var _ Scraper = ScrapeTableSchema{}
+var scrapeTableSchema Scraper = &ScrapeTableSchema{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeTableSchema)
+}

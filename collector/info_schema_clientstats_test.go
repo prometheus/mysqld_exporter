@@ -41,7 +41,8 @@ func TestScrapeClientStat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeClientStat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		s := &ScrapeClientStat{}
+		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

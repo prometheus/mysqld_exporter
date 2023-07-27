@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -27,14 +26,6 @@ import (
 )
 
 func TestScrapeProcesslist(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{
-		"--collect.info_schema.processlist.processes_by_user",
-		"--collect.info_schema.processlist.processes_by_host",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -56,7 +47,11 @@ func TestScrapeProcesslist(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeProcesslist{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		s := &ScrapeProcesslist{}
+		if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+			t.Errorf("error configuring scraper defaults: %s", err)
+		}
+		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

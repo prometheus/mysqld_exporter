@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -27,11 +26,6 @@ import (
 )
 
 func TestScrapePerfFileInstances(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{"--collect.perf_schema.file_instances.filter", ""})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -48,7 +42,18 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		s := &ScrapePerfFileInstances{}
+		if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+			panic(fmt.Sprintf("error configuring scraper defaults: %s", err))
+		}
+		if err = s.Configure(&arg{
+			name:    performanceSchemaFileInstancesFilter,
+			argType: StringArgType,
+			value:   "",
+		}); err != nil {
+			panic(fmt.Sprintf("error configuring scraper args: %s", err))
+		}
+		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

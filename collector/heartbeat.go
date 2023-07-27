@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -36,19 +35,29 @@ const (
 	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
 )
 
+// Arg definitions.
 var (
-	collectHeartbeatDatabase = kingpin.Flag(
-		"collect.heartbeat.database",
-		"Database from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatTable = kingpin.Flag(
-		"collect.heartbeat.table",
-		"Table from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatUtc = kingpin.Flag(
-		"collect.heartbeat.utc",
-		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
-	).Bool()
+	heartbeatDatabase = "database"
+	heartbeatTable    = "table"
+	heartbeatUtc      = "utc"
+
+	heartbeatArgDefinitions = []ArgDefinition{
+		&stringArgDefinition{
+			name:         heartbeatDatabase,
+			help:         "Database from where to collect heartbeat data",
+			defaultValue: "heartbeat",
+		},
+		&stringArgDefinition{
+			name:         heartbeatTable,
+			help:         "Database from where to collect heartbeat data",
+			defaultValue: "heartbeat",
+		},
+		&boolArgDefinition{
+			name:         heartbeatUtc,
+			help:         "Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
+			defaultValue: false,
+		},
+	}
 )
 
 // Metric descriptors.
@@ -74,34 +83,75 @@ var (
 //	server_id             int unsigned NOT NULL PRIMARY KEY,
 //
 // );
-type ScrapeHeartbeat struct{}
+type ScrapeHeartbeat struct {
+	database string
+	table    string
+	utc      bool
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeHeartbeat) Name() string {
+func (*ScrapeHeartbeat) Name() string {
 	return "heartbeat"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeHeartbeat) Help() string {
+func (*ScrapeHeartbeat) Help() string {
 	return "Collect from heartbeat"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeHeartbeat) Version() float64 {
+func (*ScrapeHeartbeat) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeHeartbeat) ArgDefinitions() []ArgDefinition {
+	return heartbeatArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeHeartbeat) Configure(args ...Arg) error {
+	fmt.Printf("# args = %d, arg[0] = %v\n", len(args), args[0])
+	for _, arg := range args {
+		switch arg.Name() {
+		case heartbeatDatabase:
+			database, ok := arg.Value().(string)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			fmt.Printf("setting database to %s\n", database)
+			s.database = database
+		case heartbeatTable:
+			table, ok := arg.Value().(string)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.table = table
+		case heartbeatUtc:
+			utc, ok := arg.Value().(bool)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.utc = utc
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // nowExpr returns a current timestamp expression.
-func nowExpr() string {
-	if *collectHeartbeatUtc {
+func nowExpr(utc bool) string {
+	if utc {
 		return "UTC_TIMESTAMP(6)"
 	}
 	return "NOW(6)"
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
+func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+	query := fmt.Sprintf(heartbeatQuery, nowExpr(s.utc), s.database, s.table)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
@@ -148,4 +198,8 @@ func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 }
 
 // check interface
-var _ Scraper = ScrapeHeartbeat{}
+var scrapeHeartbeat Scraper = &ScrapeHeartbeat{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeHeartbeat)
+}

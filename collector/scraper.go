@@ -24,6 +24,13 @@ import (
 
 // Scraper is minimal interface that let's you add new prometheus metrics to mysqld_exporter.
 type Scraper interface {
+	// ArgDefinitions describes the names, types, and default values of any
+	// arguments accepted by the Scraper.
+	ArgDefinitions() []ArgDefinition
+
+	// Configure the Scraper.
+	Configure(...Arg) error
+
 	// Name of the Scraper. Should be unique.
 	Name() string
 

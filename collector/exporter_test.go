@@ -37,7 +37,7 @@ func TestExporter(t *testing.T) {
 		context.Background(),
 		dsn,
 		[]Scraper{
-			ScrapeGlobalStatus{},
+			&ScrapeGlobalStatus{},
 		},
 		log.NewNopLogger(),
 	)

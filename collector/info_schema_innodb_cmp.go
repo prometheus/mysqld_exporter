@@ -62,22 +62,36 @@ var (
 type ScrapeInnodbCmp struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeInnodbCmp) Name() string {
+func (*ScrapeInnodbCmp) Name() string {
 	return informationSchema + ".innodb_cmp"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeInnodbCmp) Help() string {
+func (*ScrapeInnodbCmp) Help() string {
 	return "Collect metrics from information_schema.innodb_cmp"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeInnodbCmp) Version() float64 {
+func (*ScrapeInnodbCmp) Version() float64 {
 	return 5.5
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeInnodbCmp) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeInnodbCmp) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	informationSchemaInnodbCmpRows, err := db.QueryContext(ctx, innodbCmpQuery)
 	if err != nil {
 		return err
@@ -107,4 +121,8 @@ func (ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 }
 
 // check interface
-var _ Scraper = ScrapeInnodbCmp{}
+var scrapeInnodbCmp Scraper = &ScrapeInnodbCmp{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeInnodbCmp)
+}

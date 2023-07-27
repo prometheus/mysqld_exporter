@@ -35,22 +35,37 @@ const (
 type ScrapeEngineTokudbStatus struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeEngineTokudbStatus) Name() string {
+func (*ScrapeEngineTokudbStatus) Name() string {
 	return "engine_tokudb_status"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeEngineTokudbStatus) Help() string {
+func (*ScrapeEngineTokudbStatus) Help() string {
 	return "Collect from SHOW ENGINE TOKUDB STATUS"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeEngineTokudbStatus) Version() float64 {
+func (*ScrapeEngineTokudbStatus) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeEngineTokudbStatus) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeEngineTokudbStatus) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeEngineTokudbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeEngineTokudbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	tokudbRows, err := db.QueryContext(ctx, engineTokudbStatusQuery)
 	if err != nil {
 		return err
@@ -95,4 +110,8 @@ func sanitizeTokudbMetric(metricName string) string {
 }
 
 // check interface
-var _ Scraper = ScrapeEngineTokudbStatus{}
+var scrapeEngineTokudbStatus Scraper = &ScrapeEngineTokudbStatus{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeEngineTokudbStatus)
+}

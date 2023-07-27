@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -33,12 +32,17 @@ const perfMemoryEventsQuery = `
 		where COUNT_ALLOC > 0;
 `
 
-// Tunable flags.
+// Arg definitions.
 var (
-	performanceSchemaMemoryEventsRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.memory_events.remove_prefix",
-		"Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
-	).Default("memory/").String()
+	performanceSchemaMemoryEventsRemovePrefix = "remove_prefix"
+
+	performanceSchemaMemoryEventsArgDefinitions = []ArgDefinition{
+		&stringArgDefinition{
+			name:         performanceSchemaMemoryEventsRemovePrefix,
+			help:         "Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
+			defaultValue: "memory/",
+		},
+	}
 )
 
 // Metric descriptors.
@@ -61,25 +65,50 @@ var (
 )
 
 // ScrapePerfMemoryEvents collects from `performance_schema.memory_summary_global_by_event_name`.
-type ScrapePerfMemoryEvents struct{}
+type ScrapePerfMemoryEvents struct {
+	removePrefix string
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfMemoryEvents) Name() string {
+func (*ScrapePerfMemoryEvents) Name() string {
 	return "perf_schema.memory_events"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfMemoryEvents) Help() string {
+func (*ScrapePerfMemoryEvents) Help() string {
 	return "Collect metrics from performance_schema.memory_summary_global_by_event_name"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfMemoryEvents) Version() float64 {
+func (*ScrapePerfMemoryEvents) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfMemoryEvents) ArgDefinitions() []ArgDefinition {
+	return performanceSchemaMemoryEventsArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfMemoryEvents) Configure(args ...Arg) error {
+	for _, arg := range args {
+		switch arg.Name() {
+		case performanceSchemaMemoryEventsRemovePrefix:
+			removePrefix, ok := arg.Value().(string)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.removePrefix = removePrefix
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfSchemaMemoryEventsRows, err := db.QueryContext(ctx, perfMemoryEventsQuery)
 	if err != nil {
 		return err
@@ -100,7 +129,7 @@ func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 			return err
 		}
 
-		eventName := strings.TrimPrefix(eventName, *performanceSchemaMemoryEventsRemovePrefix)
+		eventName := strings.TrimPrefix(eventName, s.removePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaMemoryBytesAllocDesc, prometheus.CounterValue, float64(bytesAlloc), eventName,
 		)
@@ -115,4 +144,8 @@ func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- 
 }
 
 // check interface
-var _ Scraper = ScrapePerfMemoryEvents{}
+var scrapePerfMemoryEvents Scraper = &ScrapePerfMemoryEvents{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfMemoryEvents)
+}

@@ -70,22 +70,36 @@ var (
 type ScrapeInfoSchemaInnodbTablespaces struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeInfoSchemaInnodbTablespaces) Name() string {
+func (*ScrapeInfoSchemaInnodbTablespaces) Name() string {
 	return informationSchema + ".innodb_tablespaces"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeInfoSchemaInnodbTablespaces) Help() string {
+func (*ScrapeInfoSchemaInnodbTablespaces) Help() string {
 	return "Collect metrics from information_schema.innodb_sys_tablespaces"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
+func (*ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeInfoSchemaInnodbTablespaces) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeInfoSchemaInnodbTablespaces) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var tablespacesTablename string
 	var query string
 	err := db.QueryRowContext(ctx, innodbTablespacesTablenameQuery).Scan(&tablespacesTablename)
@@ -147,4 +161,8 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 }
 
 // check interface
-var _ Scraper = ScrapeInfoSchemaInnodbTablespaces{}
+var scrapeInfoSchemaInnodbTablespaces Scraper = &ScrapeInfoSchemaInnodbTablespaces{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeInfoSchemaInnodbTablespaces)
+}

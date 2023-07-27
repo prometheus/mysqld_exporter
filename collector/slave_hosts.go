@@ -47,22 +47,36 @@ var (
 type ScrapeSlaveHosts struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeSlaveHosts) Name() string {
+func (*ScrapeSlaveHosts) Name() string {
 	return slavehosts
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeSlaveHosts) Help() string {
+func (*ScrapeSlaveHosts) Help() string {
 	return "Scrape information from 'SHOW SLAVE HOSTS'"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeSlaveHosts) Version() float64 {
+func (*ScrapeSlaveHosts) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeSlaveHosts) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeSlaveHosts) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	slaveHostsRows, err := db.QueryContext(ctx, slaveHostsQuery)
 	if err != nil {
 		return err
@@ -135,4 +149,8 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 }
 
 // check interface
-var _ Scraper = ScrapeSlaveHosts{}
+var scrapeSlaveHosts Scraper = &ScrapeSlaveHosts{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeSlaveHosts)
+}

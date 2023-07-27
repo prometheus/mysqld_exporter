@@ -155,7 +155,8 @@ END OF INNODB MONITOR OUTPUT
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeEngineInnodbStatus{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		s := &ScrapeEngineInnodbStatus{}
+		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -86,22 +86,36 @@ var (
 type ScrapePerfReplicationApplierStatsByWorker struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfReplicationApplierStatsByWorker) Name() string {
+func (*ScrapePerfReplicationApplierStatsByWorker) Name() string {
 	return performanceSchema + ".replication_applier_status_by_worker"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfReplicationApplierStatsByWorker) Help() string {
+func (*ScrapePerfReplicationApplierStatsByWorker) Help() string {
 	return "Collect metrics from performance_schema.replication_applier_status_by_worker"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfReplicationApplierStatsByWorker) Version() float64 {
+func (*ScrapePerfReplicationApplierStatsByWorker) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfReplicationApplierStatsByWorker) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfReplicationApplierStatsByWorker) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfReplicationApplierStatsByWorkerRows, err := db.QueryContext(ctx, perfReplicationApplierStatsByWorkerQuery)
 	if err != nil {
 		return err
@@ -234,4 +248,8 @@ func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db 
 }
 
 // check interface
-var _ Scraper = ScrapePerfReplicationApplierStatsByWorker{}
+var scrapePerfReplicationApplierStatsByWorker Scraper = &ScrapePerfReplicationApplierStatsByWorker{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfReplicationApplierStatsByWorker)
+}

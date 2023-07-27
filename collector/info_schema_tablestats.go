@@ -57,22 +57,36 @@ var (
 type ScrapeTableStat struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeTableStat) Name() string {
+func (*ScrapeTableStat) Name() string {
 	return "info_schema.tablestats"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeTableStat) Help() string {
+func (*ScrapeTableStat) Help() string {
 	return "If running with userstat=1, set to true to collect table statistics"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeTableStat) Version() float64 {
+func (*ScrapeTableStat) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeTableStat) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeTableStat) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var varName, varVal string
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
@@ -126,4 +140,8 @@ func (ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 }
 
 // check interface
-var _ Scraper = ScrapeTableStat{}
+var scrapeTableStat Scraper = &ScrapeTableStat{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeTableStat)
+}

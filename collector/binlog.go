@@ -56,23 +56,37 @@ var (
 // ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
 type ScrapeBinlogSize struct{}
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeBinlogSize) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeBinlogSize) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Name of the Scraper. Should be unique.
-func (ScrapeBinlogSize) Name() string {
+func (*ScrapeBinlogSize) Name() string {
 	return "binlog_size"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeBinlogSize) Help() string {
+func (*ScrapeBinlogSize) Help() string {
 	return "Collect the current size of all registered binlog files"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeBinlogSize) Version() float64 {
+func (*ScrapeBinlogSize) Version() float64 {
 	return 5.1
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var logBin uint8
 	err := db.QueryRowContext(ctx, logbinQuery).Scan(&logBin)
 	if err != nil {
@@ -139,4 +153,8 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 }
 
 // check interface
-var _ Scraper = ScrapeBinlogSize{}
+var scrapeBinlogSize Scraper = &ScrapeBinlogSize{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeBinlogSize)
+}

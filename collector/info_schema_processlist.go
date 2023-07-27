@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -42,20 +41,29 @@ const infoSchemaProcesslistQuery = `
 		  GROUP BY user, SUBSTRING_INDEX(host, ':', 1), command, state
 	`
 
-// Tunable flags.
+// Arg definitions.
 var (
-	processlistMinTime = kingpin.Flag(
-		"collect.info_schema.processlist.min_time",
-		"Minimum time a thread must be in each state to be counted",
-	).Default("0").Int()
-	processesByUserFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_user",
-		"Enable collecting the number of processes by user",
-	).Default("true").Bool()
-	processesByHostFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_host",
-		"Enable collecting the number of processes by host",
-	).Default("true").Bool()
+	processlistMinTime = "min_time"
+	processesByUser    = "processes_by_user"
+	processesByHost    = "processes_by_host"
+
+	processlistArgDefinitions = []ArgDefinition{
+		&intArgDefinition{
+			name:         processlistMinTime,
+			help:         "Minimum time a thread must be in each state to be counted",
+			defaultValue: 0,
+		},
+		&boolArgDefinition{
+			name:         processesByUser,
+			help:         "Enable collecting the number of processes by user",
+			defaultValue: true,
+		},
+		&boolArgDefinition{
+			name:         processesByHost,
+			help:         "Enable collecting the number of processes by host",
+			defaultValue: true,
+		},
+	}
 )
 
 // Metric descriptors.
@@ -79,28 +87,67 @@ var (
 )
 
 // ScrapeProcesslist collects from `information_schema.processlist`.
-type ScrapeProcesslist struct{}
+type ScrapeProcesslist struct {
+	minTime         int
+	processesByUser bool
+	processesByHost bool
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeProcesslist) Name() string {
+func (*ScrapeProcesslist) Name() string {
 	return informationSchema + ".processlist"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeProcesslist) Help() string {
+func (*ScrapeProcesslist) Help() string {
 	return "Collect current thread state counts from the information_schema.processlist"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeProcesslist) Version() float64 {
+func (*ScrapeProcesslist) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeProcesslist) ArgDefinitions() []ArgDefinition {
+	return processlistArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeProcesslist) Configure(args ...Arg) error {
+	for _, arg := range args {
+		switch arg.Name() {
+		case processlistMinTime:
+			minTime, ok := arg.Value().(int)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.minTime = minTime
+		case processesByUser:
+			processesByUser, ok := arg.Value().(bool)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.processesByUser = processesByUser
+		case processesByHost:
+			processesByHost, ok := arg.Value().(bool)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.processesByHost = processesByHost
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
-		*processlistMinTime,
+		s.minTime,
 	)
 	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
@@ -162,12 +209,12 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		}
 	}
 
-	if *processesByHostFlag {
+	if s.processesByHost {
 		for _, host := range sortedMapKeys(stateHostCounts) {
 			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(stateHostCounts[host]), host)
 		}
 	}
-	if *processesByUserFlag {
+	if s.processesByUser {
 		for _, user := range sortedMapKeys(stateUserCounts) {
 			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(stateUserCounts[user]), user)
 		}
@@ -208,4 +255,8 @@ func sanitizeState(state string) string {
 }
 
 // check interface
-var _ Scraper = ScrapeProcesslist{}
+var scrapeProcesslist Scraper = &ScrapeProcesslist{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeProcesslist)
+}

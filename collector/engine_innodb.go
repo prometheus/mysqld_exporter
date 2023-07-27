@@ -37,22 +37,36 @@ const (
 type ScrapeEngineInnodbStatus struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeEngineInnodbStatus) Name() string {
+func (*ScrapeEngineInnodbStatus) Name() string {
 	return "engine_innodb_status"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeEngineInnodbStatus) Help() string {
+func (*ScrapeEngineInnodbStatus) Help() string {
 	return "Collect from SHOW ENGINE INNODB STATUS"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeEngineInnodbStatus) Version() float64 {
+func (*ScrapeEngineInnodbStatus) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeEngineInnodbStatus) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeEngineInnodbStatus) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	rows, err := db.QueryContext(ctx, engineInnodbStatusQuery)
 	if err != nil {
 		return err
@@ -100,4 +114,8 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<
 }
 
 // check interface
-var _ Scraper = ScrapeEngineInnodbStatus{}
+var scrapeEngineInnodbStatus Scraper = &ScrapeEngineInnodbStatus{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeEngineInnodbStatus)
+}

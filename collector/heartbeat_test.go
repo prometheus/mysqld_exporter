@@ -16,10 +16,10 @@ package collector
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -27,25 +27,45 @@ import (
 )
 
 type ScrapeHeartbeatTestCase struct {
-	Args    []string
+	Args    []Arg
 	Columns []string
 	Query   string
 }
 
 var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 	{
-		[]string{
-			"--collect.heartbeat.database", "heartbeat-test",
-			"--collect.heartbeat.table", "heartbeat-test",
+		[]Arg{
+			&arg{
+				name:    heartbeatDatabase,
+				argType: StringArgType,
+				value:   "heartbeat-test",
+			},
+			&arg{
+				name:    heartbeatTable,
+				argType: StringArgType,
+				value:   "heartbeat-test",
+			},
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
 		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`",
 	},
 	{
-		[]string{
-			"--collect.heartbeat.database", "heartbeat-test",
-			"--collect.heartbeat.table", "heartbeat-test",
-			"--collect.heartbeat.utc",
+		[]Arg{
+			&arg{
+				name:    heartbeatDatabase,
+				argType: StringArgType,
+				value:   "heartbeat-test",
+			},
+			&arg{
+				name:    heartbeatTable,
+				argType: StringArgType,
+				value:   "heartbeat-test",
+			},
+			&arg{
+				name:    heartbeatUtc,
+				argType: BoolArgType,
+				value:   true,
+			},
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},
 		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)), server_id from `heartbeat-test`.`heartbeat-test`",
@@ -54,12 +74,11 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 
 func TestScrapeHeartbeat(t *testing.T) {
 	for _, tt := range ScrapeHeartbeatTestCases {
-		t.Run(fmt.Sprint(tt.Args), func(t *testing.T) {
-			_, err := kingpin.CommandLine.Parse(tt.Args)
-			if err != nil {
-				t.Fatal(err)
-			}
-
+		keys := []string{}
+		for _, arg := range tt.Args {
+			keys = append(keys, fmt.Sprintf("%s=%v", arg.Name(), arg.Value()))
+		}
+		t.Run(strings.Join(keys, ","), func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatalf("error opening a stub database connection: %s", err)
@@ -72,7 +91,14 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			ch := make(chan prometheus.Metric)
 			go func() {
-				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+				s := ScrapeHeartbeat{}
+				if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+					t.Errorf("error configuring scraper defaults: %s", err)
+				}
+				if err = s.Configure(tt.Args...); err != nil {
+					t.Errorf("error configuring scraper args: %s", err)
+				}
+				if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 					t.Errorf("error calling function on test: %s", err)
 				}
 				close(ch)

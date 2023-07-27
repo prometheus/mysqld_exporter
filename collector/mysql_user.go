@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -71,10 +70,14 @@ const mysqlUserQuery = `
 
 // Tunable flags.
 var (
-	userPrivilegesFlag = kingpin.Flag(
-		"collect.mysql.user.privileges",
-		"Enable collecting user privileges from mysql.user",
-	).Default("false").Bool()
+	userPrivileges     = "privileges"
+	userArgDefinitions = []ArgDefinition{
+		&boolArgDefinition{
+			name:         userPrivileges,
+			help:         "Enable collecting user privileges from mysql.user",
+			defaultValue: false,
+		},
+	}
 )
 
 var (
@@ -102,25 +105,50 @@ var (
 )
 
 // ScrapeUser collects from `information_schema.processlist`.
-type ScrapeUser struct{}
+type ScrapeUser struct {
+	privileges bool
+}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeUser) Name() string {
+func (*ScrapeUser) Name() string {
 	return mysqlSubsystem + ".user"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeUser) Help() string {
+func (*ScrapeUser) Help() string {
 	return "Collect data from mysql.user"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeUser) Version() float64 {
+func (*ScrapeUser) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeUser) ArgDefinitions() []ArgDefinition {
+	return userArgDefinitions
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeUser) Configure(args ...Arg) error {
+	for _, arg := range args {
+		switch arg.Name() {
+		case userPrivileges:
+			privileges, ok := arg.Value().(bool)
+			if !ok {
+				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
+			}
+			s.privileges = privileges
+		default:
+			return unknownArgError(s.Name(), arg.Name())
+		}
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var (
 		userRows *sql.Rows
 		err      error
@@ -213,7 +241,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 			return err
 		}
 
-		if *userPrivilegesFlag {
+		if s.privileges {
 			userCols, err := userRows.Columns()
 			if err != nil {
 				return err
@@ -252,4 +280,11 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 	}
 
 	return nil
+}
+
+// check interface
+var scrapeUser Scraper = &ScrapeUser{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeUser)
 }

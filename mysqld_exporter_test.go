@@ -271,28 +271,28 @@ func Test_filterScrapers(t *testing.T) {
 	}{
 		{"args_appears_in_collector",
 			args{
-				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
-				[]string{collector.ScrapeGlobalStatus{}.Name()},
+				[]collector.Scraper{&collector.ScrapeGlobalStatus{}},
+				[]string{(&collector.ScrapeGlobalStatus{}).Name()},
 			},
 			[]collector.Scraper{
-				collector.ScrapeGlobalStatus{},
+				&collector.ScrapeGlobalStatus{},
 			}},
 		{"args_absent_in_collector",
 			args{
-				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
-				[]string{collector.ScrapeGlobalVariables{}.Name()},
+				[]collector.Scraper{&collector.ScrapeGlobalStatus{}},
+				[]string{(&collector.ScrapeGlobalVariables{}).Name()},
 			},
-			[]collector.Scraper{collector.ScrapeGlobalStatus{}}},
+			[]collector.Scraper{&collector.ScrapeGlobalStatus{}}},
 		{"respect_params",
 			args{
 				[]collector.Scraper{
-					collector.ScrapeGlobalStatus{},
-					collector.ScrapeGlobalVariables{},
+					&collector.ScrapeGlobalStatus{},
+					&collector.ScrapeGlobalVariables{},
 				},
-				[]string{collector.ScrapeGlobalStatus{}.Name()},
+				[]string{(&collector.ScrapeGlobalStatus{}).Name()},
 			},
 			[]collector.Scraper{
-				collector.ScrapeGlobalStatus{},
+				&collector.ScrapeGlobalStatus{},
 			},
 		},
 	}

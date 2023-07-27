@@ -55,22 +55,36 @@ var (
 type ScrapePerfFileEvents struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfFileEvents) Name() string {
+func (*ScrapePerfFileEvents) Name() string {
 	return "perf_schema.file_events"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfFileEvents) Help() string {
+func (*ScrapePerfFileEvents) Help() string {
 	return "Collect metrics from performance_schema.file_summary_by_event_name"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfFileEvents) Version() float64 {
+func (*ScrapePerfFileEvents) Version() float64 {
 	return 5.6
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfFileEvents) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfFileEvents) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	// Timers here are returned in picoseconds.
 	perfSchemaFileEventsRows, err := db.QueryContext(ctx, perfFileEventsQuery)
 	if err != nil {
@@ -130,4 +144,8 @@ func (ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 }
 
 // check interface
-var _ Scraper = ScrapePerfFileEvents{}
+var scrapePerfFileEvents Scraper = &ScrapePerfFileEvents{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfFileEvents)
+}

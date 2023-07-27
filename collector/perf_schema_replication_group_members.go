@@ -16,9 +16,10 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"strings"
+
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"strings"
 )
 
 const perfReplicationGroupMembersQuery = `
@@ -29,22 +30,36 @@ const perfReplicationGroupMembersQuery = `
 type ScrapePerfReplicationGroupMembers struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapePerfReplicationGroupMembers) Name() string {
+func (*ScrapePerfReplicationGroupMembers) Name() string {
 	return performanceSchema + ".replication_group_members"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapePerfReplicationGroupMembers) Help() string {
+func (*ScrapePerfReplicationGroupMembers) Help() string {
 	return "Collect metrics from performance_schema.replication_group_members"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapePerfReplicationGroupMembers) Version() float64 {
+func (*ScrapePerfReplicationGroupMembers) Version() float64 {
 	return 5.7
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapePerfReplicationGroupMembers) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapePerfReplicationGroupMembers) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfReplicationGroupMembersRows, err := db.QueryContext(ctx, perfReplicationGroupMembersQuery)
 	if err != nil {
 		return err
@@ -89,4 +104,8 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB,
 }
 
 // check interface
-var _ Scraper = ScrapePerfReplicationGroupMembers{}
+var scrapePerfReplicationGroupMembers Scraper = &ScrapePerfReplicationGroupMembers{}
+
+func init() {
+	mustRegisterWithDefaults(scrapePerfReplicationGroupMembers)
+}

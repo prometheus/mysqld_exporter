@@ -84,22 +84,36 @@ var (
 type ScrapeGlobalStatus struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeGlobalStatus) Name() string {
+func (*ScrapeGlobalStatus) Name() string {
 	return globalStatus
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeGlobalStatus) Help() string {
+func (*ScrapeGlobalStatus) Help() string {
 	return "Collect from SHOW GLOBAL STATUS"
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeGlobalStatus) Version() float64 {
+func (*ScrapeGlobalStatus) Version() float64 {
 	return 5.1
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeGlobalStatus) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeGlobalStatus) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	globalStatusRows, err := db.QueryContext(ctx, globalStatusQuery)
 	if err != nil {
 		return err
@@ -226,4 +240,8 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 }
 
 // check interface
-var _ Scraper = ScrapeGlobalStatus{}
+var scrapeGlobalStatus Scraper = &ScrapeGlobalStatus{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeGlobalStatus)
+}

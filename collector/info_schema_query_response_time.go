@@ -104,22 +104,36 @@ func processQueryResponseTimeTable(ctx context.Context, db *sql.DB, ch chan<- pr
 type ScrapeQueryResponseTime struct{}
 
 // Name of the Scraper. Should be unique.
-func (ScrapeQueryResponseTime) Name() string {
+func (*ScrapeQueryResponseTime) Name() string {
 	return "info_schema.query_response_time"
 }
 
 // Help describes the role of the Scraper.
-func (ScrapeQueryResponseTime) Help() string {
+func (*ScrapeQueryResponseTime) Help() string {
 	return "Collect query response time distribution if query_response_time_stats is ON."
 }
 
 // Version of MySQL from which scraper is available.
-func (ScrapeQueryResponseTime) Version() float64 {
+func (*ScrapeQueryResponseTime) Version() float64 {
 	return 5.5
 }
 
+// ArgDefinitions describe the names, types, and default values of
+// configuration arguments accepted by the scraper.
+func (*ScrapeQueryResponseTime) ArgDefinitions() []ArgDefinition {
+	return nil
+}
+
+// Configure modifies the runtime behavior of the scraper via accepted args.
+func (s *ScrapeQueryResponseTime) Configure(args ...Arg) error {
+	if len(args) > 0 {
+		return noArgsAllowedError(s.Name())
+	}
+	return nil
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (*ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var queryStats uint8
 	err := db.QueryRowContext(ctx, queryResponseCheckQuery).Scan(&queryStats)
 	if err != nil {
@@ -143,4 +157,8 @@ func (ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 }
 
 // check interface
-var _ Scraper = ScrapeQueryResponseTime{}
+var scrapeQueryResponseTime Scraper = &ScrapeQueryResponseTime{}
+
+func init() {
+	mustRegisterWithDefaults(scrapeQueryResponseTime)
+}

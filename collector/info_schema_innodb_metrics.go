@@ -217,5 +217,5 @@ func (*ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var scrapeInnodbMetrics Scraper = &ScrapeInnodbMetrics{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeInnodbMetrics)
+	mustRegisterWithDefaults(scrapeInnodbMetrics, false)
 }

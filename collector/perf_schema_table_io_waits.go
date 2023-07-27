@@ -139,5 +139,5 @@ func (*ScrapePerfTableIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 var scrapePerfTableIOWaits Scraper = &ScrapePerfTableIOWaits{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfTableIOWaits)
+	mustRegisterWithDefaults(scrapePerfTableIOWaits, false)
 }

@@ -58,10 +58,11 @@ var (
 )
 
 type Config struct {
-	Sections map[string]MySqlConfig
+	Collectors []Collector `yaml:"collect"`
+	Mycnf      map[string]MycnfSection
 }
 
-type MySqlConfig struct {
+type MycnfSection struct {
 	User                  string `ini:"user"`
 	Password              string `ini:"password"`
 	Host                  string `ini:"host"`
@@ -74,19 +75,30 @@ type MySqlConfig struct {
 	Tls                   string `ini:"tls"`
 }
 
-type MySqlConfigHandler struct {
+type ConfigHandler struct {
 	sync.RWMutex
 	TlsInsecureSkipVerify bool
 	Config                *Config
 }
 
-func (ch *MySqlConfigHandler) GetConfig() *Config {
+type Collector struct {
+	Name    string         `yaml:"name"`
+	Enabled bool           `yaml:"enabled"`
+	Args    []CollectorArg `yaml:"args"`
+}
+
+type CollectorArg struct {
+	Name  string      `yaml:"name"`
+	Value interface{} `yaml:"value"`
+}
+
+func (ch *ConfigHandler) GetConfig() *Config {
 	ch.RLock()
 	defer ch.RUnlock()
 	return ch.Config
 }
 
-func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
+func (ch *ConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
 	var host, port string
 	defer func() {
 		if err != nil {
@@ -123,7 +135,7 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 
 	cfg.ValueMapper = os.ExpandEnv
 	config := &Config{}
-	m := make(map[string]MySqlConfig)
+	m := make(map[string]MycnfSection)
 	for _, sec := range cfg.Sections() {
 		sectionName := sec.Name()
 
@@ -131,7 +143,7 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 			continue
 		}
 
-		mysqlcfg := &MySqlConfig{
+		mysqlcfg := &MycnfSection{
 			TlsInsecureSkipVerify: tlsInsecureSkipVerify,
 		}
 
@@ -153,8 +165,8 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 
 		m[sectionName] = *mysqlcfg
 	}
-	config.Sections = m
-	if len(config.Sections) == 0 {
+	config.Mycnf = m
+	if len(config.Mycnf) == 0 {
 		return fmt.Errorf("no configuration found")
 	}
 	ch.Lock()
@@ -163,7 +175,7 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 	return nil
 }
 
-func (m MySqlConfig) validateConfig() error {
+func (m MycnfSection) validateConfig() error {
 	if m.User == "" {
 		return fmt.Errorf("no user specified in section or parent")
 	}
@@ -171,7 +183,7 @@ func (m MySqlConfig) validateConfig() error {
 	return nil
 }
 
-func (m MySqlConfig) FormDSN(target string) (string, error) {
+func (m MycnfSection) FormDSN(target string) (string, error) {
 	config := mysql.NewConfig()
 	config.User = m.User
 	config.Passwd = m.Password
@@ -217,7 +229,7 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 	return config.FormatDSN(), nil
 }
 
-func (m MySqlConfig) CustomizeTLS() error {
+func (m MycnfSection) CustomizeTLS() error {
 	var tlsCfg tls.Config
 	caBundle := x509.NewCertPool()
 	pemCA, err := os.ReadFile(m.SslCa)

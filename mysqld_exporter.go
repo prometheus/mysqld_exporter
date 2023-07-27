@@ -61,49 +61,13 @@ var (
 		"Ignore certificate and server verification when using a tls connection.",
 	).Bool()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
-	c            = config.MySqlConfigHandler{
+	c            = config.ConfigHandler{
 		Config: &config.Config{},
 	}
 )
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
-var scrapers = map[collector.Scraper]bool{
-	collector.ScrapeGlobalStatus{}:                        true,
-	collector.ScrapeGlobalVariables{}:                     true,
-	collector.ScrapeSlaveStatus{}:                         true,
-	collector.ScrapeProcesslist{}:                         false,
-	collector.ScrapeUser{}:                                false,
-	collector.ScrapeTableSchema{}:                         false,
-	collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
-	collector.ScrapeInnodbMetrics{}:                       false,
-	collector.ScrapeAutoIncrementColumns{}:                false,
-	collector.ScrapeBinlogSize{}:                          false,
-	collector.ScrapePerfTableIOWaits{}:                    false,
-	collector.ScrapePerfIndexIOWaits{}:                    false,
-	collector.ScrapePerfTableLockWaits{}:                  false,
-	collector.ScrapePerfEventsStatements{}:                false,
-	collector.ScrapePerfEventsStatementsSum{}:             false,
-	collector.ScrapePerfEventsWaits{}:                     false,
-	collector.ScrapePerfFileEvents{}:                      false,
-	collector.ScrapePerfFileInstances{}:                   false,
-	collector.ScrapePerfMemoryEvents{}:                    false,
-	collector.ScrapePerfReplicationGroupMembers{}:         false,
-	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
-	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
-	collector.ScrapeSysUserSummary{}:                      false,
-	collector.ScrapeUserStat{}:                            false,
-	collector.ScrapeClientStat{}:                          false,
-	collector.ScrapeTableStat{}:                           false,
-	collector.ScrapeSchemaStat{}:                          false,
-	collector.ScrapeInnodbCmp{}:                           true,
-	collector.ScrapeInnodbCmpMem{}:                        true,
-	collector.ScrapeQueryResponseTime{}:                   true,
-	collector.ScrapeEngineTokudbStatus{}:                  false,
-	collector.ScrapeEngineInnodbStatus{}:                  false,
-	collector.ScrapeHeartbeat{}:                           false,
-	collector.ScrapeSlaveHosts{}:                          false,
-	collector.ScrapeReplicaHost{}:                         false,
-}
+var scrapers = collector.All()
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
 	var filteredScrapers []collector.Scraper
@@ -142,7 +106,7 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 		}
 
 		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Sections["client"]
+		cfgsection, ok := cfg.Mycnf["client"]
 		if !ok {
 			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
 		}

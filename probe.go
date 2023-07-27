@@ -41,7 +41,7 @@ func handleProbe(scrapers []collector.Scraper, logger log.Logger) http.HandlerFu
 		}
 
 		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Sections[authModule]
+		cfgsection, ok := cfg.Mycnf[authModule]
 		if !ok {
 			level.Error(logger).Log("msg", fmt.Sprintf("Could not find section [%s] from config file", authModule))
 			http.Error(w, fmt.Sprintf("Could not find config section [%s]", authModule), http.StatusBadRequest)

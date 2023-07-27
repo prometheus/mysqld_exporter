@@ -145,5 +145,5 @@ func (*ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 var scrapePerfIndexIOWaits Scraper = &ScrapePerfIndexIOWaits{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfIndexIOWaits)
+	mustRegisterWithDefaults(scrapePerfIndexIOWaits, false)
 }

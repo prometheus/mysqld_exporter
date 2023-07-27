@@ -143,5 +143,5 @@ func (*ScrapeSchemaStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var scrapeSchemaStat Scraper = &ScrapeSchemaStat{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeSchemaStat)
+	mustRegisterWithDefaults(scrapeSchemaStat, false)
 }

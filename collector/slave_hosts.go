@@ -152,5 +152,5 @@ func (*ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var scrapeSlaveHosts Scraper = &ScrapeSlaveHosts{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeSlaveHosts)
+	mustRegisterWithDefaults(scrapeSlaveHosts, false)
 }

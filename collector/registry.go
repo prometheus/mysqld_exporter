@@ -16,38 +16,40 @@ package collector
 import "fmt"
 
 var (
-	registry map[string]Scraper = make(map[string]Scraper)
+	scrapersByName   map[string]Scraper = make(map[string]Scraper)
+	enabledByScraper map[Scraper]bool   = make(map[Scraper]bool)
 )
 
-func All() []Scraper {
-	r := make([]Scraper, 0)
-	for _, s := range registry {
-		r = append(r, s)
+func All() map[Scraper]bool {
+	cp := make(map[Scraper]bool)
+	for s, e := range enabledByScraper {
+		cp[s] = e
 	}
-	return r
+	return cp
 }
 
-func Lookup(name string) (Scraper, error) {
-	s, ok := registry[name]
+func Lookup(name string) (Scraper, bool, error) {
+	s, ok := scrapersByName[name]
 	if !ok {
-		return nil, fmt.Errorf("scraper with name %s is not registered", name)
+		return nil, false, fmt.Errorf("scraper with name %s is not registered", name)
 	}
-	return s, nil
+	return s, enabledByScraper[s], nil
 }
 
-func mustRegisterWithDefaults(s Scraper) {
+func mustRegisterWithDefaults(s Scraper, enabled bool) {
 	if err := s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
 		panic(fmt.Sprintf("bug: %v", err))
 	}
-	if err := register(s); err != nil {
+	if err := register(s, enabled); err != nil {
 		panic(fmt.Sprintf("bug: %v", err))
 	}
 }
 
-func register(s Scraper) error {
-	if _, ok := registry[s.Name()]; ok {
+func register(s Scraper, enabled bool) error {
+	if _, ok := scrapersByName[s.Name()]; ok {
 		return fmt.Errorf("scraper with name %s is already registered", s.Name())
 	}
-	registry[s.Name()] = s
+	scrapersByName[s.Name()] = s
+	enabledByScraper[s] = enabled
 	return nil
 }

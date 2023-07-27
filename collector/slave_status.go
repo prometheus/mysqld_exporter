@@ -154,5 +154,5 @@ func (*ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var scrapeSlaveStatus Scraper = &ScrapeSlaveStatus{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeSlaveStatus)
+	mustRegisterWithDefaults(scrapeSlaveStatus, true)
 }

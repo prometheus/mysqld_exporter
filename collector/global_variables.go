@@ -268,5 +268,5 @@ func validPrometheusName(s string) string {
 var scrapeGlobalVariables Scraper = &ScrapeGlobalVariables{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeGlobalVariables)
+	mustRegisterWithDefaults(scrapeGlobalVariables, true)
 }

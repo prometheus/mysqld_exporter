@@ -118,5 +118,5 @@ func (*ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch ch
 var scrapeAutoIncrementColumns Scraper = &ScrapeAutoIncrementColumns{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeAutoIncrementColumns)
+	mustRegisterWithDefaults(scrapeAutoIncrementColumns, false)
 }

@@ -143,5 +143,5 @@ func (*ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 var scrapeTableStat Scraper = &ScrapeTableStat{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeTableStat)
+	mustRegisterWithDefaults(scrapeTableStat, false)
 }

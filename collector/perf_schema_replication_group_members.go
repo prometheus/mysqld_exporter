@@ -107,5 +107,5 @@ func (*ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB
 var scrapePerfReplicationGroupMembers Scraper = &ScrapePerfReplicationGroupMembers{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfReplicationGroupMembers)
+	mustRegisterWithDefaults(scrapePerfReplicationGroupMembers, false)
 }

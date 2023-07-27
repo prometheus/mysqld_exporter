@@ -286,5 +286,5 @@ func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheu
 var scrapeUser Scraper = &ScrapeUser{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeUser)
+	mustRegisterWithDefaults(scrapeUser, false)
 }

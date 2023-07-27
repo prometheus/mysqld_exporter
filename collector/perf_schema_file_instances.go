@@ -162,5 +162,5 @@ func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch cha
 var scrapePerfFileInstances Scraper = &ScrapePerfFileInstances{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfFileInstances)
+	mustRegisterWithDefaults(scrapePerfFileInstances, false)
 }

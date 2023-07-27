@@ -243,5 +243,5 @@ func (*ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 var scrapeGlobalStatus Scraper = &ScrapeGlobalStatus{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeGlobalStatus)
+	mustRegisterWithDefaults(scrapeGlobalStatus, true)
 }

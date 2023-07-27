@@ -25,7 +25,7 @@ import (
 
 func TestValidateConfig(t *testing.T) {
 	convey.Convey("Working config validation", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
@@ -34,15 +34,15 @@ func TestValidateConfig(t *testing.T) {
 
 		convey.Convey("Valid configuration", func() {
 			cfg := c.GetConfig()
-			convey.So(cfg.Sections, convey.ShouldContainKey, "client")
-			convey.So(cfg.Sections, convey.ShouldContainKey, "client.server1")
+			convey.So(cfg.Mycnf, convey.ShouldContainKey, "client")
+			convey.So(cfg.Mycnf, convey.ShouldContainKey, "client.server1")
 
-			section, ok := cfg.Sections["client"]
+			section, ok := cfg.Mycnf["client"]
 			convey.So(ok, convey.ShouldBeTrue)
 			convey.So(section.User, convey.ShouldEqual, "root")
 			convey.So(section.Password, convey.ShouldEqual, "abc")
 
-			childSection, ok := cfg.Sections["client.server1"]
+			childSection, ok := cfg.Mycnf["client.server1"]
 			convey.So(ok, convey.ShouldBeTrue)
 			convey.So(childSection.User, convey.ShouldEqual, "test")
 			convey.So(childSection.Password, convey.ShouldEqual, "foo")
@@ -51,25 +51,25 @@ func TestValidateConfig(t *testing.T) {
 
 		convey.Convey("False on non-existent section", func() {
 			cfg := c.GetConfig()
-			_, ok := cfg.Sections["fakeclient"]
+			_, ok := cfg.Mycnf["fakeclient"]
 			convey.So(ok, convey.ShouldBeFalse)
 		})
 	})
 
 	convey.Convey("Inherit from parent section", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		cfg := c.GetConfig()
-		section, _ := cfg.Sections["client.server1"]
+		section, _ := cfg.Mycnf["client.server1"]
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
 	convey.Convey("Environment variable / CLI flags", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
@@ -78,7 +78,7 @@ func TestValidateConfig(t *testing.T) {
 		}
 
 		cfg := c.GetConfig()
-		section := cfg.Sections["client"]
+		section := cfg.Mycnf["client"]
 		convey.So(section.Host, convey.ShouldEqual, "testhost")
 		convey.So(section.Port, convey.ShouldEqual, 5000)
 		convey.So(section.User, convey.ShouldEqual, "testuser")
@@ -86,7 +86,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Environment variable / CLI flags error without port", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
@@ -98,7 +98,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Config file precedence over environment variables", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
@@ -107,13 +107,13 @@ func TestValidateConfig(t *testing.T) {
 		}
 
 		cfg := c.GetConfig()
-		section := cfg.Sections["client"]
+		section := cfg.Mycnf["client"]
 		convey.So(section.User, convey.ShouldEqual, "root")
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 
 	convey.Convey("Client without user", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		os.Clearenv()
@@ -126,7 +126,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Client without password", t, func() {
-		c := MySqlConfigHandler{
+		c := ConfigHandler{
 			Config: &Config{},
 		}
 		os.Clearenv()
@@ -135,7 +135,7 @@ func TestValidateConfig(t *testing.T) {
 		}
 
 		cfg := c.GetConfig()
-		section := cfg.Sections["client"]
+		section := cfg.Mycnf["client"]
 		convey.So(section.User, convey.ShouldEqual, "abc")
 		convey.So(section.Password, convey.ShouldEqual, "")
 	})
@@ -143,7 +143,7 @@ func TestValidateConfig(t *testing.T) {
 
 func TestFormDSN(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
+		c = ConfigHandler{
 			Config: &Config{},
 		}
 		err error
@@ -156,7 +156,7 @@ func TestFormDSN(t *testing.T) {
 		}
 		convey.Convey("Default Client", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client"]
+			section := cfg.Mycnf["client"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -164,7 +164,7 @@ func TestFormDSN(t *testing.T) {
 		})
 		convey.Convey("Target specific with explicit port", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client.server1"]
+			section := cfg.Mycnf["client.server1"]
 			if dsn, err = section.FormDSN("server1:5000"); err != nil {
 				t.Error(err)
 			}
@@ -172,7 +172,7 @@ func TestFormDSN(t *testing.T) {
 		})
 		convey.Convey("UNIX domain socket", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client.server1"]
+			section := cfg.Mycnf["client.server1"]
 			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock"); err != nil {
 				t.Error(err)
 			}
@@ -183,7 +183,7 @@ func TestFormDSN(t *testing.T) {
 
 func TestFormDSNWithSslSkipVerify(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
+		c = ConfigHandler{
 			Config: &Config{},
 		}
 		err error
@@ -196,7 +196,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 		}
 		convey.Convey("Default Client", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client"]
+			section := cfg.Mycnf["client"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -204,7 +204,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 		})
 		convey.Convey("Target specific with explicit port", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client.server1"]
+			section := cfg.Mycnf["client.server1"]
 			if dsn, err = section.FormDSN("server1:5000"); err != nil {
 				t.Error(err)
 			}
@@ -215,7 +215,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 
 func TestFormDSNWithCustomTls(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
+		c = ConfigHandler{
 			Config: &Config{},
 		}
 		err error
@@ -228,7 +228,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		}
 		convey.Convey("Target tls enabled", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client_tls_true"]
+			section := cfg.Mycnf["client_tls_true"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -237,7 +237,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 
 		convey.Convey("Target tls preferred", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client_tls_preferred"]
+			section := cfg.Mycnf["client_tls_preferred"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}
@@ -246,7 +246,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 
 		convey.Convey("Target tls skip-verify", func() {
 			cfg := c.GetConfig()
-			section := cfg.Sections["client_tls_skip_verify"]
+			section := cfg.Mycnf["client_tls_skip_verify"]
 			if dsn, err = section.FormDSN(""); err != nil {
 				t.Error(err)
 			}

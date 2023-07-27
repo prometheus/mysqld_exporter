@@ -147,5 +147,5 @@ func (*ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 var scrapePerfFileEvents Scraper = &ScrapePerfFileEvents{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfFileEvents)
+	mustRegisterWithDefaults(scrapePerfFileEvents, false)
 }

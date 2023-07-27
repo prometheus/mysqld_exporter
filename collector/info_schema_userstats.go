@@ -233,5 +233,5 @@ func (*ScrapeUserStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 var scrapeUserStat Scraper = &ScrapeUserStat{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeUserStat)
+	mustRegisterWithDefaults(scrapeUserStat, false)
 }

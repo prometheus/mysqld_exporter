@@ -160,5 +160,5 @@ func (*ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<
 var scrapeQueryResponseTime Scraper = &ScrapeQueryResponseTime{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeQueryResponseTime)
+	mustRegisterWithDefaults(scrapeQueryResponseTime, false)
 }

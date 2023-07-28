@@ -45,6 +45,10 @@ type argDefinition struct {
 	defaultValue interface{}
 }
 
+func NewArg(name string, value interface{}) Arg {
+	return &arg{name, value}
+}
+
 func (a *arg) Name() string {
 	return a.name
 }

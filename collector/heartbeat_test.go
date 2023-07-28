@@ -36,14 +36,12 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 	{
 		[]Arg{
 			&arg{
-				name:    heartbeatDatabase,
-				argType: StringArgType,
-				value:   "heartbeat-test",
+				name:  heartbeatDatabase,
+				value: "heartbeat-test",
 			},
 			&arg{
-				name:    heartbeatTable,
-				argType: StringArgType,
-				value:   "heartbeat-test",
+				name:  heartbeatTable,
+				value: "heartbeat-test",
 			},
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
@@ -52,19 +50,16 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 	{
 		[]Arg{
 			&arg{
-				name:    heartbeatDatabase,
-				argType: StringArgType,
-				value:   "heartbeat-test",
+				name:  heartbeatDatabase,
+				value: "heartbeat-test",
 			},
 			&arg{
-				name:    heartbeatTable,
-				argType: StringArgType,
-				value:   "heartbeat-test",
+				name:  heartbeatTable,
+				value: "heartbeat-test",
 			},
 			&arg{
-				name:    heartbeatUtc,
-				argType: BoolArgType,
-				value:   true,
+				name:  heartbeatUtc,
+				value: true,
 			},
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},

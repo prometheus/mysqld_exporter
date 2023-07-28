@@ -47,9 +47,8 @@ func TestScrapePerfFileInstances(t *testing.T) {
 			panic(fmt.Sprintf("error configuring scraper defaults: %s", err))
 		}
 		if err = s.Configure(&arg{
-			name:    performanceSchemaFileInstancesFilter,
-			argType: StringArgType,
-			value:   "",
+			name:  performanceSchemaFileInstancesFilter,
+			value: "",
 		}); err != nil {
 			panic(fmt.Sprintf("error configuring scraper args: %s", err))
 		}

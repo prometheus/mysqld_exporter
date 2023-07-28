@@ -70,6 +70,16 @@ func LookupScraper(name string) (Scraper, bool) {
 	return se.scraper, true
 }
 
+func SetScraperEnabled(name string, enabled bool) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+
+	se, ok := scraperRegistry[name]
+	if ok {
+		se.enabled = enabled
+	}
+}
+
 func mustRegisterScraperWithDefaults(s Scraper, enabled bool) {
 	if cfg, ok := s.(Configurable); ok {
 		if err := cfg.Configure(defaultArgs(cfg.ArgDefinitions())...); err != nil {
@@ -91,14 +101,4 @@ func registerScraper(s Scraper, enabled bool) error {
 		scraper: s,
 	}
 	return nil
-}
-
-func setScraperEnabled(name string, enabled bool) {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-
-	se, ok := scraperRegistry[name]
-	if ok {
-		se.enabled = enabled
-	}
 }

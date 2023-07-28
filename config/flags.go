@@ -11,78 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package config
 
 import (
-	"fmt"
-	"os"
+	"errors"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/mysqld_exporter/collector"
-	"github.com/prometheus/mysqld_exporter/config"
-	"gopkg.in/yaml.v2"
 )
 
 var (
-	configFromDefaults *config.Config
-	configFromFlags    *config.Config
+	fromFlags *Config
 )
 
-func configFromFile(path string) (*config.Config, error) {
-	configFromFile := &config.Config{}
-
-	var bs []byte
-	var err error
-	if bs, err = os.ReadFile(path); err != nil {
-		return nil, fmt.Errorf("failed to load %s: %w", path, err)
+func FromFlags() (*Config, error) {
+	if fromFlags == nil {
+		return nil, errors.New("cannot use before cli flags have been parsed")
 	}
-
-	if err = yaml.Unmarshal(bs, configFromFile); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
-	}
-
-	if err = configFromFile.Validate(); err != nil {
-		return nil, fmt.Errorf("config is invalid %s: %w", path, err)
-	}
-
-	return configFromFile, err
-}
-
-func makeConfigFromDefaults() *config.Config {
-	defaultConfig := &config.Config{}
-
-	for _, s := range collector.AllScrapers() {
-		enabled := collector.IsScraperEnabled(s.Name())
-		c := &config.Collector{}
-
-		c.Name = s.Name()
-		c.Enabled = &enabled
-
-		defaultConfig.Collectors = append(defaultConfig.Collectors, c)
-
-		cfg, ok := s.(collector.Configurable)
-		if !ok {
-			continue
-		}
-
-		for _, argDef := range cfg.ArgDefinitions() {
-			name := s.Name() + "." + argDef.Name()
-
-			arg := &config.Arg{}
-			arg.Name = name
-			arg.Value = argDef.DefaultValue()
-
-			c.Args = append(c.Args, arg)
-		}
-	}
-
-	return defaultConfig
+	return fromFlags, nil
 }
 
 // makeConfigFromFlags returns a *config.Config populated by user-provided CLI flags.
 // The config is not populated untilt he flags are parsed.
-func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(*config.Config)) {
-	configFromFlags := &config.Config{}
+func makeFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(*Config)) {
+	configFromFlags := &Config{}
 
 	// Process scrapers.
 	for _, s := range collector.AllScrapers() {
@@ -97,7 +49,7 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 		cf.IsSetByUser(&enabledByUser)
 
 		// If so, add c to config.
-		c := &config.Collector{}
+		c := &Collector{}
 		cf.Action(func(*kingpin.ParseContext) error {
 			if !enabledByUser {
 				return nil
@@ -126,7 +78,7 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 			af.IsSetByUser(&setByUser)
 
 			// If so, add arg to collector.
-			arg := &config.Arg{}
+			arg := &Arg{}
 			af.Action(func(*kingpin.ParseContext) error {
 				if !setByUser {
 					return nil
@@ -154,8 +106,7 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 }
 
 func init() {
-	configFromDefaults = makeConfigFromDefaults()
-	makeConfigFromFlags(collector.AllScraperFlags(), func(config *config.Config) {
-		configFromFlags = config
+	makeFromFlags(collector.AllScraperFlags(), func(config *Config) {
+		fromFlags = config
 	})
 }

@@ -177,18 +177,23 @@ func main() {
 	configReloader := config.NewConfigReloader(func() (*config.Config, error) {
 		newConfig := &config.Config{}
 
-		var _configFromFile *config.Config
+		newConfig.Merge(config.FromDefaults())
+
+		configFromFlags, err := config.FromFlags()
+		if err != nil {
+			return nil, err
+		}
+		newConfig.Merge(configFromFlags)
+
+		var configFromFile *config.Config
 		if *configPath != "" {
 			var err error
-			_configFromFile, err = configFromFile(*configPath)
+			configFromFile, err = config.FromFile(*configPath)
 			if err != nil {
 				return nil, err
 			}
+			newConfig.Merge(configFromFile)
 		}
-
-		newConfig.Merge(configFromDefaults)
-		newConfig.Merge(configFromFlags)
-		newConfig.Merge(_configFromFile)
 
 		return newConfig, nil
 	})
@@ -196,6 +201,7 @@ func main() {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configPath, "err", err)
 		os.Exit(1)
 	}
+	config.Apply(configReloader.Config())
 
 	mycnfReloader := config.NewMycnfReloader(&config.MycnfReloaderOpts{
 		MycnfPath:                    *configMycnf,
@@ -210,8 +216,7 @@ func main() {
 	}
 
 	// Report which scrapers are enabled.
-	config := configReloader.Config()
-	for _, collector := range config.Collectors {
+	for _, collector := range configReloader.Config().Collectors {
 		if collector.Enabled != nil && *collector.Enabled {
 			level.Info(logger).Log("msg", "Scraper enabled", "scraper", collector.Name)
 		}
@@ -247,7 +252,7 @@ func main() {
 		}
 
 		// Configure registered collectors with latest configuration.
-		//collector.Configure(configReloader.Config())
+		config.Apply(configReloader.Config())
 
 		// Reload mycnf file.
 		if err := mycnfReloader.Reload(); err != nil {

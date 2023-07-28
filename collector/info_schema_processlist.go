@@ -267,5 +267,5 @@ func sanitizeState(state string) string {
 var scrapeProcesslist Scraper = &ScrapeProcesslist{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeProcesslist, false)
+	mustRegisterScraperWithDefaults(scrapeProcesslist, false)
 }

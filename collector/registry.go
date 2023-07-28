@@ -52,7 +52,7 @@ func IsScraperEnabled(name string) bool {
 	return se.enabled
 }
 
-func allFlags() map[string]*kingpin.FlagClause {
+func AllScraperFlags() map[string]*kingpin.FlagClause {
 	flags := make(map[string]*kingpin.FlagClause)
 	for _, s := range scraperRegistry {
 		for name, flag := range s.flags {
@@ -62,7 +62,7 @@ func allFlags() map[string]*kingpin.FlagClause {
 	return flags
 }
 
-func lookup(name string) (Scraper, bool) {
+func LookupScraper(name string) (Scraper, bool) {
 	se, ok := scraperRegistry[name]
 	if !ok {
 		return nil, false
@@ -70,18 +70,18 @@ func lookup(name string) (Scraper, bool) {
 	return se.scraper, true
 }
 
-func mustRegisterWithDefaults(s Scraper, enabled bool) {
+func mustRegisterScraperWithDefaults(s Scraper, enabled bool) {
 	if cfg, ok := s.(Configurable); ok {
 		if err := cfg.Configure(defaultArgs(cfg.ArgDefinitions())...); err != nil {
 			panic(fmt.Sprintf("bug: %v", err))
 		}
 	}
-	if err := register(s, enabled); err != nil {
+	if err := registerScraper(s, enabled); err != nil {
 		panic(fmt.Sprintf("bug: %v", err))
 	}
 }
 
-func register(s Scraper, enabled bool) error {
+func registerScraper(s Scraper, enabled bool) error {
 	if _, ok := scraperRegistry[s.Name()]; ok {
 		return fmt.Errorf("scraper with name %s is already registered", s.Name())
 	}
@@ -93,7 +93,7 @@ func register(s Scraper, enabled bool) error {
 	return nil
 }
 
-func setEnabled(name string, enabled bool) {
+func setScraperEnabled(name string, enabled bool) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 

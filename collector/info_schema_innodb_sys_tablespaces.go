@@ -150,5 +150,5 @@ func (*ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB
 var scrapeInfoSchemaInnodbTablespaces Scraper = &ScrapeInfoSchemaInnodbTablespaces{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeInfoSchemaInnodbTablespaces, false)
+	mustRegisterScraperWithDefaults(scrapeInfoSchemaInnodbTablespaces, false)
 }

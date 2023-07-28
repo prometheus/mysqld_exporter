@@ -276,5 +276,5 @@ func (*ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch
 var scrapePerfEventsStatementsSum Scraper = &ScrapePerfEventsStatementsSum{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfEventsStatementsSum, false)
+	mustRegisterScraperWithDefaults(scrapePerfEventsStatementsSum, false)
 }

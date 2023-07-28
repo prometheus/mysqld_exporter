@@ -241,5 +241,5 @@ func (*ScrapePerfTableLockWaits) Scrape(ctx context.Context, db *sql.DB, ch chan
 var scrapePerfTableLockWaits Scraper = &ScrapePerfTableLockWaits{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfTableLockWaits, false)
+	mustRegisterScraperWithDefaults(scrapePerfTableLockWaits, false)
 }

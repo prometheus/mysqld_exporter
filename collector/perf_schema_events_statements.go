@@ -300,5 +300,5 @@ func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch 
 var scrapePerfEventsStatements Scraper = &ScrapePerfEventsStatements{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfEventsStatements, false)
+	mustRegisterScraperWithDefaults(scrapePerfEventsStatements, false)
 }

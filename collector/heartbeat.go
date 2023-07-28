@@ -207,5 +207,5 @@ func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var scrapeHeartbeat Scraper = &ScrapeHeartbeat{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeHeartbeat, false)
+	mustRegisterScraperWithDefaults(scrapeHeartbeat, false)
 }

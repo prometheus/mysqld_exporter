@@ -156,5 +156,5 @@ func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan
 var scrapePerfMemoryEvents Scraper = &ScrapePerfMemoryEvents{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfMemoryEvents, false)
+	mustRegisterScraperWithDefaults(scrapePerfMemoryEvents, false)
 }

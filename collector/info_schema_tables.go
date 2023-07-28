@@ -226,5 +226,5 @@ func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var scrapeTableSchema Scraper = &ScrapeTableSchema{}
 
 func init() {
-	mustRegisterWithDefaults(scrapeTableSchema, false)
+	mustRegisterScraperWithDefaults(scrapeTableSchema, false)
 }

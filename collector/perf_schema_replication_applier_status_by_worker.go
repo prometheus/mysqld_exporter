@@ -237,5 +237,5 @@ func (*ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db
 var scrapePerfReplicationApplierStatsByWorker Scraper = &ScrapePerfReplicationApplierStatsByWorker{}
 
 func init() {
-	mustRegisterWithDefaults(scrapePerfReplicationApplierStatsByWorker, false)
+	mustRegisterScraperWithDefaults(scrapePerfReplicationApplierStatsByWorker, false)
 }

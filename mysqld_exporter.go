@@ -177,22 +177,18 @@ func main() {
 	configReloader := config.NewConfigReloader(func() (*config.Config, error) {
 		newConfig := &config.Config{}
 
-		configFromFlags, err := collector.ConfigFromFlags()
-		if err != nil {
-			return nil, err
-		}
-
-		var configFromFile *config.Config
+		var _configFromFile *config.Config
 		if *configPath != "" {
-			configFromFile, err = collector.ConfigFromFile(*configPath)
+			var err error
+			_configFromFile, err = configFromFile(*configPath)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		newConfig.Merge(collector.ConfigFromDefaults())
+		newConfig.Merge(configFromDefaults)
 		newConfig.Merge(configFromFlags)
-		newConfig.Merge(configFromFile)
+		newConfig.Merge(_configFromFile)
 
 		return newConfig, nil
 	})

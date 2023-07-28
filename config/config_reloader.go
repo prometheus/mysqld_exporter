@@ -16,6 +16,8 @@ package config
 import (
 	"fmt"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type ConfigReloader interface {
@@ -32,10 +34,17 @@ type configReloader struct {
 
 	config *Config
 	loader func() (*Config, error)
+
+	reloadSeconds prometheus.Gauge
+	reloadSuccess prometheus.Gauge
 }
 
 func NewConfigReloader(loader func() (*Config, error)) ConfigReloader {
-	return &configReloader{loader: loader}
+	return &configReloader{
+		loader:        loader,
+		reloadSeconds: configReloadSeconds.WithLabelValues("config"),
+		reloadSuccess: configReloadSuccess.WithLabelValues("config"),
+	}
 }
 
 func (r *configReloader) Config() *Config {
@@ -48,12 +57,22 @@ func (r *configReloader) Reload() (err error) {
 	r.Lock()
 	defer r.Unlock()
 
-	config, err := r.loader()
+	defer func() {
+		if err != nil {
+			r.reloadSuccess.Set(0)
+		} else {
+			r.reloadSuccess.Set(1)
+			r.reloadSeconds.SetToCurrentTime()
+		}
+	}()
+
+	var config *Config
+	config, err = r.loader()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %v", err)
 	}
 
-	if err := config.Validate(); err != nil {
+	if err = config.Validate(); err != nil {
 		return fmt.Errorf("failed to validate config: %v", err)
 	}
 

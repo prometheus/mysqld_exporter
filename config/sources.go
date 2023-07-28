@@ -15,20 +15,49 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/mysqld_exporter/collector"
 )
 
 var (
-	fromFlags *Config
+	fromFlags    *Config
+	fromRegistry *Config
 )
+
+func FromFile(path string) (*Config, error) {
+	configFromFile := &Config{}
+
+	var bs []byte
+	var err error
+	if bs, err = os.ReadFile(path); err != nil {
+		return nil, fmt.Errorf("failed to load %s: %w", path, err)
+	}
+
+	if err = yaml.Unmarshal(bs, configFromFile); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+	}
+
+	if err = configFromFile.Validate(); err != nil {
+		return nil, fmt.Errorf("config is invalid %s: %w", path, err)
+	}
+
+	return configFromFile, err
+}
 
 func FromFlags() (*Config, error) {
 	if fromFlags == nil {
 		return nil, errors.New("cannot use before cli flags have been parsed")
 	}
 	return fromFlags, nil
+}
+
+func FromRegistry() *Config {
+	return fromRegistry
 }
 
 // makeConfigFromFlags returns a *config.Config populated by user-provided CLI flags.
@@ -106,7 +135,37 @@ func makeFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(*Confi
 	})
 }
 
+func makeFromRegistry() *Config {
+	registryConfig := &Config{}
+
+	for _, s := range collector.AllScrapers() {
+		enabled := collector.IsScraperEnabled(s.Name())
+		c := &Collector{}
+
+		c.Name = s.Name()
+		c.Enabled = &enabled
+
+		registryConfig.Collectors = append(registryConfig.Collectors, c)
+
+		cfg, ok := s.(collector.Configurable)
+		if !ok {
+			continue
+		}
+
+		for _, argDef := range cfg.ArgDefinitions() {
+			arg := &Arg{}
+			arg.Name = argDef.Name()
+			arg.Value = argDef.DefaultValue()
+
+			c.Args = append(c.Args, arg)
+		}
+	}
+
+	return registryConfig
+}
+
 func init() {
+	fromRegistry = makeFromRegistry()
 	makeFromFlags(collector.AllScraperFlags(), func(config *Config) {
 		fromFlags = config
 	})

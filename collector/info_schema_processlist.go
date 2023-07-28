@@ -49,17 +49,17 @@ var (
 	processesByHost    = "processes_by_host"
 
 	processlistArgDefinitions = []ArgDefinition{
-		&intArgDefinition{
+		&argDefinition{
 			name:         processlistMinTime,
 			help:         "Minimum time a thread must be in each state to be counted",
 			defaultValue: 0,
 		},
-		&boolArgDefinition{
+		&argDefinition{
 			name:         processesByUser,
 			help:         "Enable collecting the number of processes by user",
 			defaultValue: true,
 		},
-		&boolArgDefinition{
+		&argDefinition{
 			name:         processesByHost,
 			help:         "Enable collecting the number of processes by host",
 			defaultValue: true,

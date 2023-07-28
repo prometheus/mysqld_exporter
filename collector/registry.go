@@ -13,29 +13,61 @@
 
 package collector
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
 
-var (
-	scrapersByName   map[string]Scraper = make(map[string]Scraper)
-	enabledByScraper map[Scraper]bool   = make(map[Scraper]bool)
+	"github.com/alecthomas/kingpin/v2"
 )
 
-// All returns a map of all registered scrapers and whether or not they are
-// enabled by default.
-func All() map[Scraper]bool {
-	cp := make(map[Scraper]bool)
-	for s, e := range enabledByScraper {
-		cp[s] = e
-	}
-	return cp
+type scraperEntry struct {
+	enabled bool
+	flags   map[string]*kingpin.FlagClause
+	scraper Scraper
 }
 
-func Lookup(name string) (Scraper, bool, error) {
-	s, ok := scrapersByName[name]
-	if !ok {
-		return nil, false, fmt.Errorf("scraper with name %s is not registered", name)
+var (
+	registryMu      sync.Mutex
+	scraperRegistry map[string]*scraperEntry = make(map[string]*scraperEntry)
+)
+
+// AllScrapers returns a list of all registered scrapers.
+func AllScrapers() []Scraper {
+	all := make([]Scraper, 0)
+	for _, se := range scraperRegistry {
+		all = append(all, se.scraper)
 	}
-	return s, enabledByScraper[s], nil
+
+	return all
+}
+
+func IsScraperEnabled(name string) bool {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+
+	se, ok := scraperRegistry[name]
+	if !ok {
+		return false
+	}
+	return se.enabled
+}
+
+func allFlags() map[string]*kingpin.FlagClause {
+	flags := make(map[string]*kingpin.FlagClause)
+	for _, s := range scraperRegistry {
+		for name, flag := range s.flags {
+			flags[name] = flag
+		}
+	}
+	return flags
+}
+
+func lookup(name string) (Scraper, bool) {
+	se, ok := scraperRegistry[name]
+	if !ok {
+		return nil, false
+	}
+	return se.scraper, true
 }
 
 func mustRegisterWithDefaults(s Scraper, enabled bool) {
@@ -50,10 +82,23 @@ func mustRegisterWithDefaults(s Scraper, enabled bool) {
 }
 
 func register(s Scraper, enabled bool) error {
-	if _, ok := scrapersByName[s.Name()]; ok {
+	if _, ok := scraperRegistry[s.Name()]; ok {
 		return fmt.Errorf("scraper with name %s is already registered", s.Name())
 	}
-	scrapersByName[s.Name()] = s
-	enabledByScraper[s] = enabled
+	scraperRegistry[s.Name()] = &scraperEntry{
+		enabled: enabled,
+		flags:   makeFlagsFromScraper(s, enabled),
+		scraper: s,
+	}
 	return nil
+}
+
+func setEnabled(name string, enabled bool) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+
+	se, ok := scraperRegistry[name]
+	if ok {
+		se.enabled = enabled
+	}
 }

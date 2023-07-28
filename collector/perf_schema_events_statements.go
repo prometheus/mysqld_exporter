@@ -76,17 +76,17 @@ var (
 	perfEventsStatementsDigestTextLimit = "digest_text_limit"
 
 	perfEventsStatementsArgDefinitions = []ArgDefinition{
-		&intArgDefinition{
+		&argDefinition{
 			name:         perfEventsStatementsLimit,
 			help:         "Limit the number of events statements digests by response time",
 			defaultValue: 250,
 		},
-		&intArgDefinition{
+		&argDefinition{
 			name:         perfEventsStatementsTimeLimit,
 			help:         "Limit how old the 'last_seen' events statements can be, in seconds",
 			defaultValue: 86400,
 		},
-		&intArgDefinition{
+		&argDefinition{
 			name:         perfEventsStatementsDigestTextLimit,
 			help:         "Maximum length of the normalized statement text",
 			defaultValue: 120,

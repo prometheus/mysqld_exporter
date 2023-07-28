@@ -22,12 +22,12 @@ type Config struct {
 }
 
 type Collector struct {
-	Name    string          `yaml:"name"`
-	Enabled *bool           `yaml:"enabled"`
-	Args    []*CollectorArg `yaml:"args"`
+	Name    string `yaml:"name"`
+	Enabled *bool  `yaml:"enabled"`
+	Args    []*Arg `yaml:"args"`
 }
 
-type CollectorArg struct {
+type Arg struct {
 	Name  string      `yaml:"name"`
 	Value interface{} `yaml:"value"`
 }
@@ -93,7 +93,7 @@ func (c *Collector) clone() *Collector {
 	if c.Args == nil {
 		return clone
 	}
-	clone.Args = make([]*CollectorArg, len(c.Args))
+	clone.Args = make([]*Arg, len(c.Args))
 	for i, arg := range c.Args {
 		clone.Args[i] = arg.clone()
 	}
@@ -113,7 +113,7 @@ func (c *Collector) merge(oc *Collector) {
 	}
 
 	// Organize oc args by name.
-	ocArgs := make(map[string]*CollectorArg, len(oc.Args))
+	ocArgs := make(map[string]*Arg, len(oc.Args))
 	for _, arg := range oc.Args {
 		ocArgs[arg.Name] = arg
 	}
@@ -146,8 +146,8 @@ func (c *Collector) validate() error {
 }
 
 // clone returns a deep copy of c without modifying c.
-func (c *CollectorArg) clone() *CollectorArg {
-	clone := &CollectorArg{}
+func (c *Arg) clone() *Arg {
+	clone := &Arg{}
 	clone.Name = c.Name
 	clone.Value = c.Value
 	return clone
@@ -155,7 +155,7 @@ func (c *CollectorArg) clone() *CollectorArg {
 
 // merge combines oc with c. Elements in oc take precedence over c. A new
 // No modifications are made to oc.
-func (c *CollectorArg) merge(oc *CollectorArg) {
+func (c *Arg) merge(oc *Arg) {
 	if oc == nil {
 		return
 	}
@@ -165,7 +165,7 @@ func (c *CollectorArg) merge(oc *CollectorArg) {
 }
 
 // validate validates elements of c.
-func (c *CollectorArg) validate() error {
+func (c *Arg) validate() error {
 	switch typ := c.Value.(type) {
 	case bool:
 	case int:

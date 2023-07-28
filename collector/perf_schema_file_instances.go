@@ -40,12 +40,12 @@ var (
 	performanceSchemaFileInstancesRemovePrefix = "remove_prefix"
 
 	performanceSchemaFileInstancesArgDefinitions = []ArgDefinition{
-		&stringArgDefinition{
+		&argDefinition{
 			name:         performanceSchemaFileInstancesFilter,
 			help:         "RegEx file_name filter for performance_schema.file_summary_by_instance",
 			defaultValue: ".*",
 		},
-		&stringArgDefinition{
+		&argDefinition{
 			name:         performanceSchemaFileInstancesRemovePrefix,
 			help:         "Remove path prefix in performance_schema.file_summary_by_instance",
 			defaultValue: "/var/lib/mysql/",

@@ -56,7 +56,7 @@ var (
 	tableSchemaDatabases = "databases"
 
 	tableSchemaArgDefinitions = []ArgDefinition{
-		&stringArgDefinition{
+		&argDefinition{
 			name:         "databases",
 			help:         "The list of databases to collect table stats for, or '*' for all",
 			defaultValue: "*",

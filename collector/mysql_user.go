@@ -73,7 +73,7 @@ const mysqlUserQuery = `
 var (
 	userPrivileges     = "privileges"
 	userArgDefinitions = []ArgDefinition{
-		&boolArgDefinition{
+		&argDefinition{
 			name:         userPrivileges,
 			help:         "Enable collecting user privileges from mysql.user",
 			defaultValue: false,

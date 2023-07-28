@@ -169,7 +169,7 @@ func main() {
 
 	// Get a list of all scrapers
 	scrapers := []collector.Scraper{}
-	for scraper := range collector.All() {
+	for _, scraper := range collector.AllScrapers() {
 		scrapers = append(scrapers, scraper)
 	}
 

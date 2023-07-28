@@ -38,7 +38,7 @@ var (
 	performanceSchemaMemoryEventsRemovePrefix = "remove_prefix"
 
 	performanceSchemaMemoryEventsArgDefinitions = []ArgDefinition{
-		&stringArgDefinition{
+		&argDefinition{
 			name:         performanceSchemaMemoryEventsRemovePrefix,
 			help:         "Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
 			defaultValue: "memory/",

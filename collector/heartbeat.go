@@ -43,17 +43,17 @@ var (
 	heartbeatUtc      = "utc"
 
 	heartbeatArgDefinitions = []ArgDefinition{
-		&stringArgDefinition{
+		&argDefinition{
 			name:         heartbeatDatabase,
 			help:         "Database from where to collect heartbeat data",
 			defaultValue: "heartbeat",
 		},
-		&stringArgDefinition{
+		&argDefinition{
 			name:         heartbeatTable,
 			help:         "Database from where to collect heartbeat data",
 			defaultValue: "heartbeat",
 		},
-		&boolArgDefinition{
+		&argDefinition{
 			name:         heartbeatUtc,
 			help:         "Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
 			defaultValue: false,
@@ -117,7 +117,6 @@ func (*ScrapeHeartbeat) ArgDefinitions() []ArgDefinition {
 func (s *ScrapeHeartbeat) Configure(args ...Arg) error {
 	s.Lock()
 	defer s.Unlock()
-	fmt.Printf("# args = %d, arg[0] = %v\n", len(args), args[0])
 	for _, arg := range args {
 		switch arg.Name() {
 		case heartbeatDatabase:
@@ -125,7 +124,6 @@ func (s *ScrapeHeartbeat) Configure(args ...Arg) error {
 			if !ok {
 				return wrongArgTypeError(s.Name(), arg.Name(), arg.Value())
 			}
-			fmt.Printf("setting database to %s\n", database)
 			s.database = database
 		case heartbeatTable:
 			table, ok := arg.Value().(string)

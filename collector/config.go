@@ -47,10 +47,50 @@ func ConfigFromFlags() (*config.Config, error) {
 	return configFromFlags, nil
 }
 
+func Configure(config *config.Config) error {
+	if config == nil {
+		return nil
+	}
+	for _, collector := range config.Collectors {
+		// Look up scraper associated with this collector.
+		scraper, ok := lookup(collector.Name)
+		if !ok {
+			return fmt.Errorf("no scraper found with name: %s", collector.Name)
+		}
+
+		// Disable or enable the scraper if requested.
+		if collector.Enabled != nil {
+			enabled := *collector.Enabled
+			setEnabled(scraper.Name(), enabled)
+		}
+
+		// Apply arguments if the scraper is configurable.
+		if len(collector.Args) == 0 {
+			continue
+		}
+		cfg, ok := scraper.(Configurable)
+		if !ok {
+			return fmt.Errorf("scraper %s is not configurable", scraper.Name())
+		}
+		args := make([]Arg, len(collector.Args))
+		for i := range collector.Args {
+			arg := &arg{}
+			arg.name = collector.Args[i].Name
+			arg.value = collector.Args[i].Value
+		}
+		if err := cfg.Configure(args...); err != nil {
+			return fmt.Errorf("failed to configure scraper %s: %w", scraper.Name(), err)
+		}
+	}
+
+	return nil
+}
+
 func makeConfigFromDefaults() *config.Config {
 	defaultConfig := &config.Config{}
 
-	for scraper, enabled := range All() {
+	for _, scraper := range AllScrapers() {
+		enabled := IsScraperEnabled(scraper.Name())
 		collector := &config.Collector{}
 
 		collector.Name = scraper.Name()
@@ -66,7 +106,7 @@ func makeConfigFromDefaults() *config.Config {
 		for _, argDef := range cfg.ArgDefinitions() {
 			name := scraper.Name() + "." + argDef.Name()
 
-			arg := &config.CollectorArg{}
+			arg := &config.Arg{}
 			arg.Name = name
 			arg.Value = argDef.DefaultValue()
 
@@ -83,7 +123,7 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 	configFromFlags := &config.Config{}
 
 	// Process scrapers.
-	for scraper := range All() {
+	for _, scraper := range AllScrapers() {
 		// Get scraper enablement flag.
 		cf, ok := flags["collect."+scraper.Name()]
 		if !ok {
@@ -124,18 +164,18 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 			af.IsSetByUser(&setByUser)
 
 			// If so, add arg to collector.
-			arg := &config.CollectorArg{}
+			arg := &config.Arg{}
 			af.Action(func(*kingpin.ParseContext) error {
 				if !setByUser {
 					return nil
 				}
 				var value interface{}
-				switch argDef.Type() {
-				case BoolArgType:
+				switch argDef.DefaultValue().(type) {
+				case bool:
 					value = af.Bool()
-				case IntArgType:
+				case int:
 					value = af.Int()
-				case StringArgType:
+				case string:
 					value = af.String()
 				}
 				arg.Value = value
@@ -151,43 +191,45 @@ func makeConfigFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(
 	})
 }
 
-func registerFlags() map[string]*kingpin.FlagClause {
+func makeFlagsFromScraper(s Scraper, enabled bool) map[string]*kingpin.FlagClause {
 	flags := make(map[string]*kingpin.FlagClause)
 
-	for scraper, enabled := range All() {
-		// Register collector enabled flag.
-		name := "collect." + scraper.Name()
-		flags[name] = kingpin.Flag(
-			name,
-			scraper.Help(),
-		).Default(strconv.FormatBool(enabled))
+	// Register collector enabled flag.
+	name := "collect." + s.Name()
+	help := s.Help()
+	if enabled {
+		help = fmt.Sprintf("%s (Enabled by default)", help)
+	}
+	ef := kingpin.Flag(name, help)
+	ef.Default(strconv.FormatBool(enabled)).Bool()
+	flags[name] = ef
 
-		// Register collector args flags.
-		cfg, ok := scraper.(Configurable)
-		if !ok {
-			continue
-		}
+	// Register collector args flags.
+	cfg, ok := s.(Configurable)
+	if !ok {
+		return flags
+	}
+	for _, argDef := range cfg.ArgDefinitions() {
+		name := s.Name() + "." + argDef.Name()
 
-		for _, argDef := range cfg.ArgDefinitions() {
-			name := scraper.Name() + "." + argDef.Name()
+		help := argDef.Help()
+		af := kingpin.Flag(name, help)
 
-			f := kingpin.Flag(
-				name,
-				argDef.Help(),
-			)
-
-			switch argDef.Type() {
-			case BoolArgType:
-				f.Default(strconv.FormatBool(argDef.DefaultValue().(bool)))
-			case IntArgType:
-				i := argDef.DefaultValue().(int)
-				f.Default(strconv.FormatInt(int64(i), 10))
-			case StringArgType:
-				f.Default(argDef.DefaultValue().(string))
+		switch argDef.DefaultValue().(type) {
+		case bool:
+			enabled := argDef.DefaultValue().(bool)
+			af.Default(strconv.FormatBool(enabled)).Bool()
+			if enabled {
+				af.Help(fmt.Sprintf("%s (Enabled by default)", help))
 			}
-
-			flags[name] = f
+		case int:
+			i := argDef.DefaultValue().(int)
+			af.Default(strconv.FormatInt(int64(i), 10)).Int()
+		case string:
+			af.Default(argDef.DefaultValue().(string)).String()
 		}
+
+		flags[name] = af
 	}
 
 	return flags
@@ -195,7 +237,7 @@ func registerFlags() map[string]*kingpin.FlagClause {
 
 func init() {
 	configFromDefaults = makeConfigFromDefaults()
-	makeConfigFromFlags(registerFlags(), func(config *config.Config) {
+	makeConfigFromFlags(allFlags(), func(config *config.Config) {
 		configFromFlags = config
 	})
 }

@@ -32,100 +32,45 @@ type ArgDefinition interface {
 	Name() string
 	Help() string
 	DefaultValue() interface{}
-	Type() ArgType
 }
 
 type arg struct {
-	name    string
-	argType ArgType
-	value   interface{}
+	name  string
+	value interface{}
 }
 
-type boolArgDefinition struct {
+type argDefinition struct {
 	name         string
 	help         string
-	defaultValue bool
-}
-
-type intArgDefinition struct {
-	name         string
-	help         string
-	defaultValue int
-}
-
-type stringArgDefinition struct {
-	name         string
-	help         string
-	defaultValue string
+	defaultValue interface{}
 }
 
 func (a *arg) Name() string {
 	return a.name
 }
 
-func (a *arg) Type() ArgType {
-	return a.argType
-}
-
 func (a *arg) Value() interface{} {
 	return a.value
 }
 
-func (bad *boolArgDefinition) Name() string {
-	return bad.name
+func (a *argDefinition) Name() string {
+	return a.name
 }
 
-func (bad *boolArgDefinition) Help() string {
-	return bad.help
+func (a *argDefinition) Help() string {
+	return a.help
 }
 
-func (bad *boolArgDefinition) Type() ArgType {
-	return BoolArgType
-}
-
-func (bad *boolArgDefinition) DefaultValue() interface{} {
-	return bad.defaultValue
-}
-
-func (iad *intArgDefinition) Name() string {
-	return iad.name
-}
-
-func (iad *intArgDefinition) Help() string {
-	return iad.help
-}
-
-func (iad *intArgDefinition) Type() ArgType {
-	return IntArgType
-}
-
-func (iad *intArgDefinition) DefaultValue() interface{} {
-	return iad.defaultValue
-}
-
-func (sad *stringArgDefinition) Name() string {
-	return sad.name
-}
-
-func (sad *stringArgDefinition) Help() string {
-	return sad.help
-}
-
-func (sad *stringArgDefinition) Type() ArgType {
-	return BoolArgType
-}
-
-func (sad *stringArgDefinition) DefaultValue() interface{} {
-	return sad.defaultValue
+func (a *argDefinition) DefaultValue() interface{} {
+	return a.defaultValue
 }
 
 func defaultArgs(argDefs []ArgDefinition) []Arg {
 	args := make([]Arg, len(argDefs))
 	for i, argDef := range argDefs {
 		args[i] = &arg{
-			name:    argDef.Name(),
-			argType: argDef.Type(),
-			value:   argDef.DefaultValue(),
+			name:  argDef.Name(),
+			value: argDef.DefaultValue(),
 		}
 	}
 	return args

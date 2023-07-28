@@ -292,6 +292,5 @@ func TestMycnfSectionFormDSNWithCustomTls(t *testing.T) {
 			}
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=skip-verify")
 		})
-
 	})
 }

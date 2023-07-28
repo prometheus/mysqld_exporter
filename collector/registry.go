@@ -41,6 +41,18 @@ func AllScrapers() []Scraper {
 	return all
 }
 
+// EnabledScrapers returns a list of all enabled scrapers.
+func EnabledScrapers() []Scraper {
+	enabled := make([]Scraper, 0)
+	for _, se := range scraperRegistry {
+		if se.enabled {
+			enabled = append(enabled, se.scraper)
+		}
+	}
+
+	return enabled
+}
+
 func IsScraperEnabled(name string) bool {
 	registryMu.Lock()
 	defer registryMu.Unlock()

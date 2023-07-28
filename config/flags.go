@@ -83,6 +83,7 @@ func makeFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(*Confi
 				if !setByUser {
 					return nil
 				}
+				arg.Name = argDef.Name()
 				var value interface{}
 				switch argDef.DefaultValue().(type) {
 				case bool:

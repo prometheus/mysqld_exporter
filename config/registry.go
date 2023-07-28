@@ -16,15 +16,15 @@ package config
 import "github.com/prometheus/mysqld_exporter/collector"
 
 var (
-	fromDefaults *Config
+	fromRegistry *Config
 )
 
-func FromDefaults() *Config {
-	return fromDefaults
+func FromRegistry() *Config {
+	return fromRegistry
 }
 
-func makeFromDefaults() *Config {
-	defaultConfig := &Config{}
+func makeFromRegistry() *Config {
+	registryConfig := &Config{}
 
 	for _, s := range collector.AllScrapers() {
 		enabled := collector.IsScraperEnabled(s.Name())
@@ -33,7 +33,7 @@ func makeFromDefaults() *Config {
 		c.Name = s.Name()
 		c.Enabled = &enabled
 
-		defaultConfig.Collectors = append(defaultConfig.Collectors, c)
+		registryConfig.Collectors = append(registryConfig.Collectors, c)
 
 		cfg, ok := s.(collector.Configurable)
 		if !ok {
@@ -41,19 +41,17 @@ func makeFromDefaults() *Config {
 		}
 
 		for _, argDef := range cfg.ArgDefinitions() {
-			name := s.Name() + "." + argDef.Name()
-
 			arg := &Arg{}
-			arg.Name = name
+			arg.Name = argDef.Name()
 			arg.Value = argDef.DefaultValue()
 
 			c.Args = append(c.Args, arg)
 		}
 	}
 
-	return defaultConfig
+	return registryConfig
 }
 
 func init() {
-	fromDefaults = makeFromDefaults()
+	fromRegistry = makeFromRegistry()
 }

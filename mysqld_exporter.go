@@ -30,6 +30,7 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
+	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/mysqld_exporter/collector"
 	"github.com/prometheus/mysqld_exporter/config"
@@ -94,7 +95,7 @@ func init() {
 
 }
 
-func newHandler(scrapers []collector.Scraper, configFn func() *config.Config, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
+func newHandler(scrapersFn func() []collector.Scraper, configFn func() *config.Config, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
@@ -139,7 +140,7 @@ func newHandler(scrapers []collector.Scraper, configFn func() *config.Config, my
 			}
 		}
 
-		filteredScrapers := filterScrapers(scrapers, collect)
+		filteredScrapers := filterScrapers(scrapersFn(), collect)
 
 		registry := prometheus.NewRegistry()
 
@@ -167,17 +168,10 @@ func main() {
 	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
-	// Get a list of all scrapers
-	scrapers := []collector.Scraper{}
-	for _, scraper := range collector.AllScrapers() {
-		scrapers = append(scrapers, scraper)
-	}
-
 	// Set up config reloaders.
+	configFromDefaults := config.FromRegistry()
 	configReloader := config.NewConfigReloader(func() (*config.Config, error) {
-		newConfig := &config.Config{}
-
-		newConfig.Merge(config.FromDefaults())
+		newConfig := configFromDefaults.Clone()
 
 		configFromFlags, err := config.FromFlags()
 		if err != nil {
@@ -201,7 +195,10 @@ func main() {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configPath, "err", err)
 		os.Exit(1)
 	}
-	config.Apply(configReloader.Config())
+	if err := config.Apply(configReloader.Config()); err != nil {
+		level.Info(logger).Log("msg", "Error applying config", "file", *configPath, "err", err)
+		os.Exit(1)
+	}
 
 	mycnfReloader := config.NewMycnfReloader(&config.MycnfReloaderOpts{
 		MycnfPath:                    *configMycnf,
@@ -222,7 +219,7 @@ func main() {
 		}
 	}
 
-	handlerFunc := newHandler(scrapers, configReloader.Config, mycnfReloader.Mycnf, logger)
+	handlerFunc := newHandler(collector.EnabledScrapers, configReloader.Config, mycnfReloader.Mycnf, logger)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
 		landingConfig := web.LandingConfig{
@@ -243,7 +240,7 @@ func main() {
 		}
 		http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/probe", handleProbe(scrapers, mycnfReloader.Mycnf, logger))
+	http.HandleFunc("/probe", handleProbe(collector.EnabledScrapers, mycnfReloader.Mycnf, logger))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 		// Reload configuration.
 		if err := configReloader.Reload(); err != nil {
@@ -251,8 +248,10 @@ func main() {
 			return
 		}
 
+		c := configReloader.Config()
+
 		// Configure registered collectors with latest configuration.
-		config.Apply(configReloader.Config())
+		config.Apply(c)
 
 		// Reload mycnf file.
 		if err := mycnfReloader.Reload(); err != nil {
@@ -260,7 +259,9 @@ func main() {
 			return
 		}
 
-		_, _ = w.Write([]byte(`ok`))
+		bs, _ := yaml.Marshal(c)
+
+		_, _ = w.Write(bs)
 	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {

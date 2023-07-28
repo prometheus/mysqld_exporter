@@ -52,19 +52,20 @@ func (c *Config) Merge(oc *Config) {
 		return
 	}
 
-	// Organize oc collectors by name.
-	ocCollectors := make(map[string]*Collector, len(oc.Collectors))
-	for _, collector := range oc.Collectors {
-		ocCollectors[collector.Name] = collector
+	// Organize c collectors by name.
+	cCollectors := make(map[string]*Collector, len(c.Collectors))
+	for _, collector := range c.Collectors {
+		cCollectors[collector.Name] = collector
 	}
 
-	// Range over c collectors, merging in matching oc collectors.
-	for _, collector := range c.Collectors {
-		ocCollector, ok := ocCollectors[collector.Name]
+	// Range over oc collectors. Update or add to c collectors.
+	for _, collector := range oc.Collectors {
+		cCollector, ok := cCollectors[collector.Name]
 		if !ok {
-			continue
+			c.Collectors = append(c.Collectors, collector)
+		} else {
+			cCollector.merge(collector)
 		}
-		collector.merge(ocCollector)
 	}
 }
 
@@ -89,7 +90,8 @@ func (c *Config) Validate() error {
 func (c *Collector) clone() *Collector {
 	clone := &Collector{}
 	clone.Name = c.Name
-	clone.Enabled = c.Enabled
+	enabled := *c.Enabled
+	clone.Enabled = &enabled
 	if c.Args == nil {
 		return clone
 	}

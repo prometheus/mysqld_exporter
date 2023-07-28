@@ -33,7 +33,7 @@ func Apply(config *Config) error {
 		}
 		args := make([]collector.Arg, len(c.Args))
 		for i := range c.Args {
-			args = append(args, collector.NewArg(c.Args[i].Name, c.Args[i].Value))
+			args[i] = collector.NewArg(c.Args[i].Name, c.Args[i].Value)
 		}
 		if err := cfg.Configure(args...); err != nil {
 			return fmt.Errorf("failed to configure scraper %s: %w", s.Name(), err)

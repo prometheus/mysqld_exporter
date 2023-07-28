@@ -25,7 +25,7 @@ import (
 	"github.com/prometheus/mysqld_exporter/config"
 )
 
-func handleProbe(scrapers []collector.Scraper, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
+func handleProbe(scrapersFn func() []collector.Scraper, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -55,7 +55,7 @@ func handleProbe(scrapers []collector.Scraper, mycnfFn func() config.Mycnf, logg
 			return
 		}
 
-		filteredScrapers := filterScrapers(scrapers, collectParams)
+		filteredScrapers := filterScrapers(scrapersFn(), collectParams)
 
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger))

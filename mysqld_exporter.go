@@ -169,28 +169,7 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	// Set up config reloaders.
-	configFromDefaults := config.FromRegistry()
-	configReloader := config.NewConfigReloader(func() (*config.Config, error) {
-		newConfig := configFromDefaults.Clone()
-
-		configFromFlags, err := config.FromFlags()
-		if err != nil {
-			return nil, err
-		}
-		newConfig.Merge(configFromFlags)
-
-		var configFromFile *config.Config
-		if *configPath != "" {
-			var err error
-			configFromFile, err = config.FromFile(*configPath)
-			if err != nil {
-				return nil, err
-			}
-			newConfig.Merge(configFromFile)
-		}
-
-		return newConfig, nil
-	})
+	configReloader := config.NewConfigReloader(config.DefaultLoader(*configPath))
 	if err := configReloader.Reload(); err != nil {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configPath, "err", err)
 		os.Exit(1)

@@ -1,297 +1,568 @@
-// Copyright 2022 The Prometheus Authors
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package config
 
 import (
-	"fmt"
-	"os"
 	"testing"
-
-	"github.com/go-kit/log"
 
 	"github.com/smartystreets/goconvey/convey"
 )
 
-func TestMycnfValidateConfig(t *testing.T) {
-	convey.Convey("Working config validation", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "testdata/client.cnf",
-		})
-		if err := c.Reload(); err != nil {
-			t.Error(err)
-		}
+var (
+	disabled = false
+	enabled  = true
+)
 
-		convey.Convey("Valid configuration", func() {
-			mycnf := c.Mycnf()
-			convey.So(mycnf, convey.ShouldContainKey, "client")
-			convey.So(mycnf, convey.ShouldContainKey, "client.server1")
+func TestConfigClone(t *testing.T) {
+	convey.Convey("Empty config", t, func() {
+		orig := &Config{}
+		clone := orig.Clone()
 
-			section, ok := mycnf["client"]
-			convey.So(ok, convey.ShouldBeTrue)
-			convey.So(section.User, convey.ShouldEqual, "root")
-			convey.So(section.Password, convey.ShouldEqual, "abc")
-
-			childSection, ok := mycnf["client.server1"]
-			convey.So(ok, convey.ShouldBeTrue)
-			convey.So(childSection.User, convey.ShouldEqual, "test")
-			convey.So(childSection.Password, convey.ShouldEqual, "foo")
-
+		convey.Convey("Clone is not equal to the original", func() {
+			convey.So(clone != orig, convey.ShouldBeTrue)
 		})
 
-		convey.Convey("False on non-existent section", func() {
-			mycnf := c.Mycnf()
-			_, ok := mycnf["fakeclient"]
-			convey.So(ok, convey.ShouldBeFalse)
+		convey.Convey("Modify the clone does not affect the original", func() {
+			clone.Collectors = append(clone.Collectors, &Collector{Name: "a"})
+			convey.So(orig.Collectors, convey.ShouldHaveLength, 0)
+		})
+
+		convey.Convey("Modify the original does not affect the clone", func() {
+			orig.Collectors = append(orig.Collectors, &Collector{Name: "b"})
+			convey.So(clone.Collectors, convey.ShouldHaveLength, 0)
 		})
 	})
 
-	convey.Convey("Inherit from parent section", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: true,
-			MycnfPath:                    "testdata/child_client.cnf",
-			Logger:                       log.NewNopLogger(),
-		})
-		if err := c.Reload(); err != nil {
-			t.Error(err)
+	convey.Convey("Non-empty", t, func() {
+		orig := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "0",
+				},
+				{
+					Name:    "1",
+					Enabled: &disabled,
+				},
+				{
+					Name:    "2",
+					Enabled: &enabled,
+				},
+				{
+					Name: "3",
+					Args: []*Arg{},
+				},
+				{
+					Name: "4",
+					Args: []*Arg{
+						{
+							Name: "4.0",
+						},
+						{
+							Name:  "4.1",
+							Value: true,
+						},
+						{
+							Name:  "4.1",
+							Value: 4,
+						},
+						{
+							Name:  "4.1",
+							Value: "4",
+						},
+					},
+				},
+			},
 		}
-		mycnf := c.Mycnf()
-		section, _ := mycnf["client.server1"]
-		convey.So(section.Password, convey.ShouldEqual, "abc")
+		clone := orig.Clone()
+
+		convey.Convey("Clone is not equal to the original", func() {
+			convey.So(clone != orig, convey.ShouldBeTrue)
+		})
+
+		convey.Convey("Clone is the same as the original", func() {
+			convey.So(clone, convey.ShouldEqual, orig)
+		})
+
+		convey.Convey("Modify the clone does not affect the original", func() {
+			clone.Collectors = append(clone.Collectors, &Collector{Name: "5"})
+			convey.So(orig.Collectors, convey.ShouldHaveLength, 5)
+		})
+
+		convey.Convey("Modify the original does not affect the clone", func() {
+			orig.Collectors = append(orig.Collectors, &Collector{Name: "5"})
+			convey.So(clone.Collectors, convey.ShouldHaveLength, 5)
+		})
+	})
+}
+
+func TestConfigMerge(t *testing.T) {
+	convey.Convey("Nil source config, non-nil target", t, func() {
+		target := &Config{}
+		var source *Config
+
+		target.Merge(source)
+
+		convey.Convey("Target is not modified", func() {
+			convey.So(target, convey.ShouldNotBeNil)
+			convey.So(target.Collectors, convey.ShouldBeNil)
+		})
+
+		convey.Convey("Source is not modified", func() {
+			convey.So(source, convey.ShouldBeNil)
+		})
 	})
 
-	convey.Convey("Environment variable / CLI flags", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "testhost:5000",
-			DefaultMysqldUser:            "testuser",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "",
-		})
-		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.Reload(); err != nil {
-			t.Error(err)
+	convey.Convey("Source config with zero collectors, target config with nil collectors", t, func() {
+		target := &Config{}
+		source := &Config{
+			Collectors: []*Collector{},
 		}
 
-		mycnf := c.Mycnf()
-		section := mycnf["client"]
-		convey.So(section.Host, convey.ShouldEqual, "testhost")
-		convey.So(section.Port, convey.ShouldEqual, 5000)
-		convey.So(section.User, convey.ShouldEqual, "testuser")
-		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+		target.Merge(source)
+
+		convey.Convey("Target collectors is zero", func() {
+			convey.So(target.Collectors, convey.ShouldNotBeNil)
+			convey.So(target.Collectors, convey.ShouldHaveLength, 0)
+		})
 	})
 
-	convey.Convey("Environment variable / CLI flags error without port", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "testhost",
-			DefaultMysqldUser:            "testuser",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "",
+	convey.Convey("Source config with nil collectors, target config with zero collectors", t, func() {
+		target := &Config{
+			Collectors: []*Collector{},
+		}
+		source := &Config{}
+
+		target.Merge(source)
+
+		convey.Convey("Target collectors is zero", func() {
+			convey.So(target.Collectors, convey.ShouldNotBeNil)
+			convey.So(target.Collectors, convey.ShouldHaveLength, 0)
 		})
-		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		err := c.Reload()
+	})
+
+	convey.Convey("Source and target configs have distinct collectors", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{Name: "a"},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{Name: "b"},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Adds source collector to target", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 2)
+			convey.So(target.Collectors[0].Name, convey.ShouldEqual, "a")
+			convey.So(target.Collectors[1].Name, convey.ShouldEqual, "b")
+		})
+	})
+
+	convey.Convey("Source collector does not specify enabled", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name:    "a",
+					Enabled: &enabled,
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Does not change target", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Name, convey.ShouldEqual, "a")
+			convey.So(target.Collectors[0].Enabled, convey.ShouldNotBeNil)
+			convey.So(target.Collectors[0].Enabled, convey.ShouldPointTo, &enabled)
+		})
+	})
+
+	convey.Convey("Source collector specifies enabled", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name:    "a",
+					Enabled: &enabled,
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Does not change target", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Name, convey.ShouldEqual, "a")
+			convey.So(target.Collectors[0].Enabled, convey.ShouldNotBeNil)
+			convey.So(
+				target.Collectors[0].Enabled,
+				convey.ShouldNotPointTo,
+				source.Collectors[0].Enabled,
+			)
+			convey.So(*target.Collectors[0].Enabled, convey.ShouldEqual, enabled)
+		})
+	})
+
+	convey.Convey("Source and target collector specify different enabled values", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name:    "a",
+					Enabled: &disabled,
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name:    "a",
+					Enabled: &enabled,
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Does not change target", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Name, convey.ShouldEqual, "a")
+			convey.So(target.Collectors[0].Enabled, convey.ShouldNotBeNil)
+			convey.So(*target.Collectors[0].Enabled, convey.ShouldEqual, enabled)
+			convey.So(
+				target.Collectors[0].Enabled,
+				convey.ShouldNotPointTo,
+				source.Collectors[0].Enabled,
+			)
+		})
+	})
+
+	convey.Convey("Source collector with zero args, target config with nil args", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Args: []*Arg{},
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Target collector args is zero", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args, convey.ShouldNotBeNil)
+			convey.So(target.Collectors[0].Args, convey.ShouldHaveLength, 0)
+		})
+	})
+	convey.Convey("Source collector with nil args, target config with zero args", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Args: []*Arg{},
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Target collector args is zero", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args, convey.ShouldNotBeNil)
+			convey.So(target.Collectors[0].Args, convey.ShouldHaveLength, 0)
+		})
+	})
+
+	convey.Convey("Source and target collector specify distinct args", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name: "a.a",
+						},
+					},
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name: "a.b",
+						},
+					},
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Adds source collector args to target", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args, convey.ShouldHaveLength, 2)
+			convey.So(target.Collectors[0].Args[0].Name, convey.ShouldEqual, "a.a")
+			convey.So(target.Collectors[0].Args[1].Name, convey.ShouldEqual, "a.b")
+		})
+	})
+
+	convey.Convey("Source collector args nil value", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name:  "a.a",
+							Value: 1,
+						},
+					},
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name: "a.a",
+						},
+					},
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Target is not changed", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args[0].Name, convey.ShouldEqual, "a.a")
+			convey.So(target.Collectors[0].Args[0].Value, convey.ShouldEqual, 1)
+		})
+	})
+
+	convey.Convey("Source and target collector arg with different value", t, func() {
+		target := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name:  "a.a",
+							Value: 1,
+						},
+					},
+				},
+			},
+		}
+		source := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name:  "a.a",
+							Value: 2,
+						},
+					},
+				},
+			},
+		}
+
+		target.Merge(source)
+
+		convey.Convey("Target is not changed", func() {
+			convey.So(target.Collectors, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args, convey.ShouldHaveLength, 1)
+			convey.So(target.Collectors[0].Args[0].Name, convey.ShouldEqual, "a.a")
+			convey.So(target.Collectors[0].Args[0].Value, convey.ShouldEqual, 2)
+		})
+	})
+}
+
+func TestConfigValidate(t *testing.T) {
+	convey.Convey("Valid config", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+				},
+				{
+					Name:    "b",
+					Enabled: &enabled,
+					Args:    []*Arg{},
+				},
+				{
+					Name:    "c",
+					Enabled: &disabled,
+					Args: []*Arg{
+						{
+							Name: "1",
+						},
+					},
+				},
+				{
+					Name: "d",
+					Args: []*Arg{
+						{
+							Name: "1",
+						},
+						{
+							Name:  "2",
+							Value: false,
+						},
+						{
+							Name:  "3",
+							Value: false,
+						},
+						{
+							Name:  "4",
+							Value: true,
+						},
+						{
+							Name:  "5",
+							Value: -1,
+						},
+						{
+							Name:  "6",
+							Value: "hello",
+						},
+					},
+				},
+			},
+		}
+
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeNil)
+	})
+
+	convey.Convey("Unnamed collector", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{},
+			},
+		}
+
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeError)
+		convey.So(err.Error(), convey.ShouldEqual, "collector  is invalid: name must not be empty")
+	})
+
+	convey.Convey("Config with duplicate collectors", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+				},
+				{
+					Name: "a",
+				},
+			},
+		}
+
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeError)
+		convey.So(err.Error(), convey.ShouldEqual, "duplicate collectors named a")
+	})
+
+	convey.Convey("Collector with duplicate args", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name: "a",
+						},
+						{
+							Name: "a",
+						},
+					},
+				},
+			},
+		}
+
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeError)
 		convey.So(
-			err,
-			convey.ShouldBeError,
+			err.Error(),
+			convey.ShouldEqual,
+			"collector a is invalid: duplicate args named a",
 		)
 	})
 
-	convey.Convey("Config file precedence over environment variables", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "fakeuser",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "testdata/client.cnf",
-		})
-		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.Reload(); err != nil {
-			t.Error(err)
+	convey.Convey("Unnamed arg", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{},
+					},
+				},
+			},
 		}
 
-		mycnf := c.Mycnf()
-		section := mycnf["client"]
-		convey.So(section.User, convey.ShouldEqual, "root")
-		convey.So(section.Password, convey.ShouldEqual, "abc")
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeError)
+		convey.So(err.Error(), convey.ShouldEqual, "collector a is invalid: arg  is invalid: name must not be empty")
 	})
 
-	convey.Convey("Client without user", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "testdata/missing_user.cnf",
-		})
-		os.Clearenv()
-		err := c.Reload()
+	convey.Convey("Arg with invalid type", t, func() {
+		c := &Config{
+			Collectors: []*Collector{
+				{
+					Name: "a",
+					Args: []*Arg{
+						{
+							Name:  "a",
+							Value: &enabled,
+						},
+					},
+				},
+			},
+		}
+
+		err := c.Validate()
+
+		convey.So(err, convey.ShouldBeError)
 		convey.So(
-			err,
-			convey.ShouldResemble,
-			fmt.Errorf("no configuration found"),
+			err.Error(),
+			convey.ShouldEqual,
+			"collector a is invalid: arg a is invalid: invalid type, must be [bool, int, string]",
 		)
-	})
-
-	convey.Convey("Client without password", t, func() {
-		c := NewMycnfReloader(&MycnfReloaderOpts{
-			MycnfPath:                    "testdata/missing_password.cnf",
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: true,
-			Logger:                       log.NewNopLogger(),
-		})
-		os.Clearenv()
-		if err := c.Reload(); err != nil {
-			t.Error(err)
-		}
-
-		mycnf := c.Mycnf()
-		section := mycnf["client"]
-		convey.So(section.User, convey.ShouldEqual, "abc")
-		convey.So(section.Password, convey.ShouldEqual, "")
-	})
-}
-
-func TestFormDSN(t *testing.T) {
-	var (
-		c = NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: false,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "testdata/client.cnf",
-		})
-		err error
-		dsn string
-	)
-
-	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.Reload(); err != nil {
-			t.Error(err)
-		}
-		convey.Convey("Default Client", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client"]
-			if dsn, err = section.FormDSN(""); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/")
-		})
-		convey.Convey("Target specific with explicit port", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client.server1"]
-			if dsn, err = section.FormDSN("server1:5000"); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
-		})
-		convey.Convey("UNIX domain socket", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client.server1"]
-			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock"); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "test:foo@unix(/run/mysqld/mysqld.sock)/")
-		})
-	})
-}
-
-func TestFormDSNWithSslSkipVerify(t *testing.T) {
-	var (
-		c = NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: true,
-			MycnfPath:                    "testdata/client.cnf",
-			Logger:                       log.NewNopLogger(),
-		})
-		err error
-		dsn string
-	)
-
-	convey.Convey("Host exporter dsn with tls skip verify", t, func() {
-		if err := c.Reload(); err != nil {
-			t.Error(err)
-		}
-		convey.Convey("Default Client", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client"]
-			if dsn, err = section.FormDSN(""); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/?tls=skip-verify")
-		})
-		convey.Convey("Target specific with explicit port", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client.server1"]
-			if dsn, err = section.FormDSN("server1:5000"); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/?tls=skip-verify")
-		})
-	})
-}
-
-func TestFormDSNWithCustomTls(t *testing.T) {
-	var (
-		c = NewMycnfReloader(&MycnfReloaderOpts{
-			DefaultMysqldAddress:         "localhost:3306",
-			DefaultMysqldUser:            "",
-			DefaultTlsInsecureSkipVerify: false,
-			Logger:                       log.NewNopLogger(),
-			MycnfPath:                    "testdata/client_custom_tls.cnf",
-		})
-		err error
-		dsn string
-	)
-
-	convey.Convey("Host exporter dsn with custom tls", t, func() {
-		if err := c.Reload(); err != nil {
-			t.Error(err)
-		}
-		convey.Convey("Target tls enabled", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client_tls_true"]
-			if dsn, err = section.FormDSN(""); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server2:3306)/?tls=true")
-		})
-
-		convey.Convey("Target tls preferred", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client_tls_preferred"]
-			if dsn, err = section.FormDSN(""); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=preferred")
-		})
-
-		convey.Convey("Target tls skip-verify", func() {
-			mycnf := c.Mycnf()
-			section := mycnf["client_tls_skip_verify"]
-			if dsn, err = section.FormDSN(""); err != nil {
-				t.Error(err)
-			}
-			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=skip-verify")
-		})
-
 	})
 }

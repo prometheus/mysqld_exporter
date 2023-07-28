@@ -14,6 +14,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -52,6 +53,10 @@ func (c *Config) Merge(oc *Config) {
 		return
 	}
 
+	if oc.Collectors != nil && c.Collectors == nil {
+		c.Collectors = make([]*Collector, 0)
+	}
+
 	// Organize c collectors by name.
 	cCollectors := make(map[string]*Collector, len(c.Collectors))
 	for _, collector := range c.Collectors {
@@ -59,29 +64,30 @@ func (c *Config) Merge(oc *Config) {
 	}
 
 	// Range over oc collectors. Update or add to c collectors.
-	for _, collector := range oc.Collectors {
-		cCollector, ok := cCollectors[collector.Name]
+	for _, ocCollector := range oc.Collectors {
+		cCollector, ok := cCollectors[ocCollector.Name]
 		if !ok {
-			c.Collectors = append(c.Collectors, collector)
+			c.Collectors = append(c.Collectors, ocCollector.clone())
 		} else {
-			cCollector.merge(collector)
+			cCollector.merge(ocCollector)
 		}
 	}
 }
 
 // Validate validates elements of c.
 func (c *Config) Validate() error {
-	var uniq map[string]bool
-	if len(c.Collectors) > 0 {
-		uniq = make(map[string]bool, len(c.Collectors))
+	if len(c.Collectors) == 0 {
+		return nil
 	}
+	uniq := make(map[string]bool, len(c.Collectors))
 	for _, collector := range c.Collectors {
-		if _, ok := uniq[collector.Name]; ok {
-			return fmt.Errorf("duplicate collectors named %s", collector.Name)
-		}
 		if err := collector.validate(); err != nil {
 			return fmt.Errorf("collector %s is invalid: %w", collector.Name, err)
 		}
+		if _, ok := uniq[collector.Name]; ok {
+			return fmt.Errorf("duplicate collectors named %s", collector.Name)
+		}
+		uniq[collector.Name] = true
 	}
 	return nil
 }
@@ -90,8 +96,10 @@ func (c *Config) Validate() error {
 func (c *Collector) clone() *Collector {
 	clone := &Collector{}
 	clone.Name = c.Name
-	enabled := *c.Enabled
-	clone.Enabled = &enabled
+	if c.Enabled != nil {
+		enabled := *c.Enabled
+		clone.Enabled = &enabled
+	}
 	if c.Args == nil {
 		return clone
 	}
@@ -111,31 +119,40 @@ func (c *Collector) merge(oc *Collector) {
 
 	c.Name = oc.Name
 	if oc.Enabled != nil {
-		*c.Enabled = *oc.Enabled
+		enabled := *oc.Enabled
+		c.Enabled = &enabled
 	}
 
-	// Organize oc args by name.
-	ocArgs := make(map[string]*Arg, len(oc.Args))
-	for _, arg := range oc.Args {
-		ocArgs[arg.Name] = arg
+	if oc.Args != nil && c.Args == nil {
+		c.Args = make([]*Arg, 0)
 	}
 
-	// Range over c collectors, merging in matching oc collectors.
+	// Organize c args by name.
+	cArgs := make(map[string]*Arg, len(c.Args))
 	for _, arg := range c.Args {
-		ocArg, ok := ocArgs[arg.Name]
+		cArgs[arg.Name] = arg
+	}
+
+	// Range over oc args, updating or adding to c args.
+	for _, ocArg := range oc.Args {
+		cArg, ok := cArgs[ocArg.Name]
 		if !ok {
-			continue
+			c.Args = append(c.Args, ocArg.clone())
+		} else {
+			cArg.merge(ocArg)
 		}
-		arg.merge(ocArg)
 	}
 }
 
 // validate validates elements of c.
 func (c *Collector) validate() error {
-	var uniq map[string]bool
-	if len(c.Args) > 0 {
-		uniq = make(map[string]bool, len(c.Args))
+	if c.Name == "" {
+		return errors.New("name must not be empty")
 	}
+	if len(c.Args) == 0 {
+		return nil
+	}
+	uniq := make(map[string]bool, len(c.Args))
 	for _, arg := range c.Args {
 		if _, ok := uniq[arg.Name]; ok {
 			return fmt.Errorf("duplicate args named %s", arg.Name)
@@ -143,6 +160,7 @@ func (c *Collector) validate() error {
 		if err := arg.validate(); err != nil {
 			return fmt.Errorf("arg %s is invalid: %w", arg.Name, err)
 		}
+		uniq[arg.Name] = true
 	}
 	return nil
 }
@@ -163,18 +181,26 @@ func (c *Arg) merge(oc *Arg) {
 	}
 
 	c.Name = oc.Name
-	c.Value = oc.Value
+	if oc.Value != nil {
+		c.Value = oc.Value
+	}
 }
 
 // validate validates elements of c.
 func (c *Arg) validate() error {
-	switch typ := c.Value.(type) {
+	if c.Name == "" {
+		return errors.New("name must not be empty")
+	}
+	if c.Value == nil {
+		return nil
+	}
+	switch c.Value.(type) {
 	case bool:
+		return nil
 	case int:
+		return nil
 	case string:
 		return nil
-	default:
-		fmt.Errorf("invalid type for arg %s: %v", c.Name, typ)
 	}
-	return nil
+	return errors.New("invalid type, must be [bool, int, string]")
 }

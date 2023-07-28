@@ -14,6 +14,7 @@
 package config
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -49,8 +50,13 @@ func (r *configReloader) Reload() (err error) {
 
 	config, err := r.loader()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %v", err)
 	}
+
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("failed to validate config: %v", err)
+	}
+
 	r.config = config
 
 	return nil

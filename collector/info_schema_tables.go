@@ -56,8 +56,8 @@ const (
 var (
 	tableSchemaDatabases = "databases"
 
-	tableSchemaArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	tableSchemaArgDefs = []*argDef{
+		{
 			name:         "databases",
 			help:         "The list of databases to collect table stats for, or '*' for all",
 			defaultValue: "*",
@@ -107,10 +107,14 @@ func (*ScrapeTableSchema) Version() float64 {
 	return 5.1
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeTableSchema) ArgDefinitions() []ArgDefinition {
-	return tableSchemaArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapeTableSchema) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+
+	return []Arg{
+		NewArg(tableSchemaDatabases, s.databases),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -136,11 +140,6 @@ func (s *ScrapeTableSchema) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapeTableSchema) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapeTableSchema) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -240,8 +239,8 @@ func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 }
 
 // check interface
-var scrapeTableSchema Scraper = &ScrapeTableSchema{}
+var _ Scraper = &ScrapeTableSchema{}
 
 func init() {
-	mustRegisterScraper(scrapeTableSchema)
+	registerScraper(&ScrapeTableSchema{}, tableSchemaArgDefs...)
 }

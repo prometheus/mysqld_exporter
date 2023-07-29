@@ -145,11 +145,6 @@ func (s *ScrapeGlobalVariables) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (s *ScrapeGlobalVariables) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the scraper.
 func (s *ScrapeGlobalVariables) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -269,8 +264,11 @@ func validPrometheusName(s string) string {
 }
 
 // check interface
-var scrapeGlobalVariables Scraper = &ScrapeGlobalVariables{}
+var _ Scraper = &ScrapeGlobalVariables{}
 
 func init() {
-	mustRegisterScraper(scrapeGlobalVariables)
+	s := &ScrapeGlobalVariables{}
+	// enabled by default
+	s.SetEnabled(true)
+	registerScraper(s)
 }

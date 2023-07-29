@@ -126,11 +126,6 @@ func (s *ScrapeQueryResponseTime) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapeQueryResponseTime) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeQueryResponseTime) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -161,8 +156,11 @@ func (*ScrapeQueryResponseTime) Scrape(ctx context.Context, db *sql.DB, ch chan<
 }
 
 // check interface
-var scrapeQueryResponseTime Scraper = &ScrapeQueryResponseTime{}
+var _ Scraper = &ScrapeQueryResponseTime{}
 
 func init() {
-	mustRegisterScraper(scrapeQueryResponseTime)
+	s := &ScrapeQueryResponseTime{}
+	// enabled by default
+	s.SetEnabled(true)
+	registerScraper(s)
 }

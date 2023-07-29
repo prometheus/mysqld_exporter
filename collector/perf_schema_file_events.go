@@ -77,11 +77,6 @@ func (s *ScrapePerfFileEvents) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfFileEvents) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapePerfFileEvents) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -148,8 +143,8 @@ func (*ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 }
 
 // check interface
-var scrapePerfFileEvents Scraper = &ScrapePerfFileEvents{}
+var _ Scraper = &ScrapePerfFileEvents{}
 
 func init() {
-	mustRegisterScraper(scrapePerfFileEvents)
+	registerScraper(&ScrapePerfFileEvents{})
 }

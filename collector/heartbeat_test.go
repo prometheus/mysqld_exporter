@@ -87,7 +87,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 			ch := make(chan prometheus.Metric)
 			go func() {
 				s := ScrapeHeartbeat{}
-				if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+				if err = s.Configure(defaultArgs(heartbeatArgDefs)...); err != nil {
 					t.Errorf("error configuring scraper defaults: %s", err)
 				}
 				if err = s.Configure(tt.Args...); err != nil {

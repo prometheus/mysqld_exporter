@@ -59,11 +59,6 @@ func (s *ScrapeEngineTokudbStatus) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (s *ScrapeEngineTokudbStatus) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeEngineTokudbStatus) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -115,8 +110,8 @@ func sanitizeTokudbMetric(metricName string) string {
 }
 
 // check interface
-var scrapeEngineTokudbStatus Scraper = &ScrapeEngineTokudbStatus{}
+var _ Scraper = &ScrapeEngineTokudbStatus{}
 
 func init() {
-	mustRegisterScraper(scrapeEngineTokudbStatus)
+	registerScraper(&ScrapeEngineTokudbStatus{})
 }

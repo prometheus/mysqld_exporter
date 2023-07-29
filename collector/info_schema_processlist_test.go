@@ -48,7 +48,7 @@ func TestScrapeProcesslist(t *testing.T) {
 	ch := make(chan prometheus.Metric)
 	go func() {
 		s := &ScrapeProcesslist{}
-		if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+		if err = s.Configure(defaultArgs(processlistArgDefs)...); err != nil {
 			t.Errorf("error configuring scraper defaults: %s", err)
 		}
 		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {

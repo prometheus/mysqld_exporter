@@ -72,9 +72,9 @@ const mysqlUserQuery = `
 
 // Tunable flags.
 var (
-	userPrivileges     = "privileges"
-	userArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	userPrivileges = "privileges"
+	userArgDefs    = []*argDef{
+		{
 			name:         userPrivileges,
 			help:         "Enable collecting user privileges from mysql.user",
 			defaultValue: false,
@@ -129,10 +129,14 @@ func (*ScrapeUser) Version() float64 {
 	return 5.1
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeUser) ArgDefinitions() []ArgDefinition {
-	return userArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapeUser) Args() []Arg {
+	s.Lock()
+	defer s.Unlock()
+
+	return []Arg{
+		NewArg(userPrivileges, s.privileges),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -158,11 +162,6 @@ func (s *ScrapeUser) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapeUser) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (*ScrapeUser) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -309,8 +308,8 @@ func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheu
 }
 
 // check interface
-var scrapeUser Scraper = &ScrapeUser{}
+var _ Scraper = &ScrapeUser{}
 
 func init() {
-	mustRegisterScraper(scrapeUser)
+	registerScraper(&ScrapeUser{}, userArgDefs...)
 }

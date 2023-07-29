@@ -43,7 +43,7 @@ func TestScrapePerfFileInstances(t *testing.T) {
 	ch := make(chan prometheus.Metric)
 	go func() {
 		s := &ScrapePerfFileInstances{}
-		if err = s.Configure(defaultArgs(s.ArgDefinitions())...); err != nil {
+		if err = s.Configure(defaultArgs(performanceSchemaFileInstancesArgDefs)...); err != nil {
 			panic(fmt.Sprintf("error configuring scraper defaults: %s", err))
 		}
 		if err = s.Configure(&arg{

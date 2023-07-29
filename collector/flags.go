@@ -20,46 +20,57 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 )
 
-func makeFlagsFromScraper(s Scraper) map[string]*kingpin.FlagClause {
-	flags := make(map[string]*kingpin.FlagClause)
-
+func makeFlagsForScraper(s Scraper, argDefs []*argDef, result func(bool, []Arg)) {
 	// Register collector enabled flag.
 	name := "collect." + s.Name()
 	help := s.Help()
-	if s.EnabledByDefault() {
+	if s.Enabled() {
 		help = fmt.Sprintf("%s (Enabled by default)", help)
 	}
-	ef := kingpin.Flag(name, help)
-	ef.Default(strconv.FormatBool(s.EnabledByDefault())).Bool()
-	flags[name] = ef
+	enabled := kingpin.Flag(
+		name,
+		help,
+	).Default(strconv.FormatBool(s.Enabled())).Bool()
 
-	// Register collector args flags.
-	cfg, ok := s.(Configurable)
-	if !ok {
-		return flags
-	}
-	for _, argDef := range cfg.ArgDefinitions() {
-		name := s.Name() + "." + argDef.Name()
+	var args []Arg
+	for _, loopArgDef := range argDefs {
+		argDef := loopArgDef
+		name := name + "." + argDef.name
 
-		help := argDef.Help()
+		help := argDef.help
 		af := kingpin.Flag(name, help)
 
-		switch argDef.DefaultValue().(type) {
+		switch argDef.defaultValue.(type) {
 		case bool:
-			enabled := argDef.DefaultValue().(bool)
-			af.Default(strconv.FormatBool(enabled)).Bool()
+			enabled := argDef.defaultValue.(bool)
 			if enabled {
 				af.Help(fmt.Sprintf("%s (Enabled by default)", help))
 			}
+			d := strconv.FormatBool(enabled)
+			value := af.Default(d).Bool()
+			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
+				args = append(args, NewArg(argDef.name, *value))
+				return nil
+			})
 		case int:
-			i := argDef.DefaultValue().(int)
-			af.Default(strconv.FormatInt(int64(i), 10)).Int()
+			d := argDef.defaultValue.(int)
+			value := af.Default(strconv.FormatInt(int64(d), 10)).Int()
+			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
+				args = append(args, NewArg(argDef.name, *value))
+				return nil
+			})
 		case string:
-			af.Default(argDef.DefaultValue().(string)).String()
+			d := argDef.defaultValue.(string)
+			value := af.Default(d).String()
+			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
+				args = append(args, NewArg(argDef.name, *value))
+				return nil
+			})
 		}
-
-		flags[name] = af
 	}
 
-	return flags
+	kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
+		result(*enabled, args)
+		return nil
+	})
 }

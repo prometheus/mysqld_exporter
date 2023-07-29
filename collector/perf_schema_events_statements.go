@@ -76,18 +76,18 @@ var (
 	perfEventsStatementsTimeLimit       = "timelimit"
 	perfEventsStatementsDigestTextLimit = "digest_text_limit"
 
-	perfEventsStatementsArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	perfEventsStatementsArgDefs = []*argDef{
+		{
 			name:         perfEventsStatementsLimit,
 			help:         "Limit the number of events statements digests by response time",
 			defaultValue: 250,
 		},
-		&argDefinition{
+		{
 			name:         perfEventsStatementsTimeLimit,
 			help:         "Limit how old the 'last_seen' events statements can be, in seconds",
 			defaultValue: 86400,
 		},
-		&argDefinition{
+		{
 			name:         perfEventsStatementsDigestTextLimit,
 			help:         "Maximum length of the normalized statement text",
 			defaultValue: 120,
@@ -184,10 +184,16 @@ func (*ScrapePerfEventsStatements) Version() float64 {
 	return 5.6
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapePerfEventsStatements) ArgDefinitions() []ArgDefinition {
-	return perfEventsStatementsArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapePerfEventsStatements) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+
+	return []Arg{
+		NewArg(perfEventsStatementsLimit, s.limit),
+		NewArg(perfEventsStatementsTimeLimit, s.timeLimit),
+		NewArg(perfEventsStatementsDigestTextLimit, s.digestTextLimit),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -217,11 +223,6 @@ func (s *ScrapePerfEventsStatements) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapePerfEventsStatements) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfEventsStatements) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -314,8 +315,8 @@ func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch 
 }
 
 // check interface
-var scrapePerfEventsStatements Scraper = &ScrapePerfEventsStatements{}
+var _ Scraper = &ScrapePerfEventsStatements{}
 
 func init() {
-	mustRegisterScraper(scrapePerfEventsStatements)
+	registerScraper(&ScrapePerfEventsStatements{}, perfEventsStatementsArgDefs...)
 }

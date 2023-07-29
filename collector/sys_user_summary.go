@@ -106,11 +106,6 @@ func (s *ScrapeSysUserSummary) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapeSysUserSummary) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeSysUserSummary) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -171,8 +166,8 @@ func (*ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 	return nil
 }
 
-var scrapeSysUserSummary Scraper = &ScrapeSysUserSummary{}
+var _ Scraper = &ScrapeSysUserSummary{}
 
 func init() {
-	mustRegisterScraper(scrapeSysUserSummary)
+	registerScraper(&ScrapeSysUserSummary{})
 }

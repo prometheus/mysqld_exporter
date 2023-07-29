@@ -76,11 +76,6 @@ func (s *ScrapeSlaveStatus) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapeSlaveStatus) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeSlaveStatus) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -155,8 +150,11 @@ func (*ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 }
 
 // check interface
-var scrapeSlaveStatus Scraper = &ScrapeSlaveStatus{}
+var _ Scraper = &ScrapeSlaveStatus{}
 
 func init() {
-	mustRegisterScraper(scrapeSlaveStatus)
+	s := &ScrapeSlaveStatus{}
+	// enabled by default
+	s.SetEnabled(true)
+	registerScraper(s)
 }

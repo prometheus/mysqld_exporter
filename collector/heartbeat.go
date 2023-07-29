@@ -43,18 +43,18 @@ var (
 	heartbeatTable    = "table"
 	heartbeatUtc      = "utc"
 
-	heartbeatArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	heartbeatArgDefs = []*argDef{
+		{
 			name:         heartbeatDatabase,
 			help:         "Database from where to collect heartbeat data",
 			defaultValue: "heartbeat",
 		},
-		&argDefinition{
+		{
 			name:         heartbeatTable,
 			help:         "Database from where to collect heartbeat data",
 			defaultValue: "heartbeat",
 		},
-		&argDefinition{
+		{
 			name:         heartbeatUtc,
 			help:         "Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
 			defaultValue: false,
@@ -114,20 +114,29 @@ func (s *ScrapeHeartbeat) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (*ScrapeHeartbeat) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeHeartbeat) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeHeartbeat) ArgDefinitions() []ArgDefinition {
-	return heartbeatArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapeHeartbeat) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+	return []Arg{
+		&arg{
+			name:  heartbeatDatabase,
+			value: s.database,
+		},
+		&arg{
+			name:  heartbeatTable,
+			value: s.table,
+		},
+		&arg{
+			name:  heartbeatUtc,
+			value: s.utc,
+		},
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -221,8 +230,8 @@ func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 }
 
 // check interface
-var scrapeHeartbeat Scraper = &ScrapeHeartbeat{}
+var _ Scraper = &ScrapeHeartbeat{}
 
 func init() {
-	mustRegisterScraper(scrapeHeartbeat)
+	registerScraper(&ScrapeHeartbeat{}, heartbeatArgDefs...)
 }

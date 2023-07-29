@@ -14,23 +14,22 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
+	"github.com/alecthomas/kingpin/v2"
 	"gopkg.in/yaml.v2"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/mysqld_exporter/collector"
 )
 
 var (
-	fromFlags    *Config
-	fromRegistry *Config
+	commandLineParsed bool
 )
 
+// FromFile returns a *Config as parsed from a YAML file.
 func FromFile(path string) (*Config, error) {
-	configFromFile := &Config{}
+	fileConfig := &Config{}
 
 	var bs []byte
 	var err error
@@ -38,135 +37,55 @@ func FromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to load %s: %w", path, err)
 	}
 
-	if err = yaml.Unmarshal(bs, configFromFile); err != nil {
+	if err = yaml.Unmarshal(bs, fileConfig); err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
-	if err = configFromFile.Validate(); err != nil {
+	if err = fileConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("config is invalid %s: %w", path, err)
 	}
 
-	return configFromFile, err
+	return fileConfig, err
 }
 
-func FromFlags() (*Config, error) {
-	if fromFlags == nil {
-		return nil, errors.New("cannot use before cli flags have been parsed")
-	}
-	return fromFlags, nil
-}
-
-func FromRegistry() *Config {
-	return fromRegistry
-}
-
-// makeConfigFromFlags returns a *config.Config populated by user-provided CLI flags.
-// The config is not populated untilt he flags are parsed.
-func makeFromFlags(flags map[string]*kingpin.FlagClause, setConfigFn func(*Config)) {
-	configFromFlags := &Config{}
-
-	// Process scrapers.
-	for _, s := range collector.AllScrapers() {
-		// Get scraper enablement flag.
-		cf, ok := flags["collect."+s.Name()]
-		if !ok {
-			continue
-		}
-
-		// Was it enabled by the user?
-		enabledByUser := false
-		cf.IsSetByUser(&enabledByUser)
-
-		// If so, add c to config.
-		c := &Collector{}
-		cf.Action(func(*kingpin.ParseContext) error {
-			if !enabledByUser {
-				return nil
-			}
-			c.Name = s.Name()
-			c.Enabled = cf.Bool()
-			configFromFlags.Collectors = append(configFromFlags.Collectors, c)
-			return nil
-		})
-
-		// Process scraper args.
-		cfg, ok := s.(collector.Configurable)
-		if !ok {
-			continue
-		}
-
-		for _, argDef := range cfg.ArgDefinitions() {
-			// Get scraper arg flag.
-			af, ok := flags["collect."+s.Name()+"."+argDef.Name()]
-			if !ok {
-				continue
-			}
-
-			// Was it set by the user?
-			setByUser := false
-			af.IsSetByUser(&setByUser)
-
-			// If so, add arg to collector.
-			arg := &Arg{}
-			af.Action(func(*kingpin.ParseContext) error {
-				if !setByUser {
-					return nil
-				}
-				arg.Name = argDef.Name()
-				var value interface{}
-				switch argDef.DefaultValue().(type) {
-				case bool:
-					value = af.Bool()
-				case int:
-					value = af.Int()
-				case string:
-					value = af.String()
-				}
-				arg.Value = value
-				c.Args = append(c.Args, arg)
-				return nil
-			})
-		}
+// FromState returns a *Config based on the current program state. Cannot be
+// used before the command line is parsed.
+func FromState() *Config {
+	if !commandLineParsed {
+		panic("cannot inspect program state before command line is parsed")
 	}
 
-	kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-		setConfigFn(configFromFlags)
-		return nil
-	})
-}
-
-func makeFromRegistry() *Config {
-	registryConfig := &Config{}
+	stateConfig := &Config{}
 
 	for _, s := range collector.AllScrapers() {
-		enabled := collector.IsScraperEnabled(s.Name())
+		enabled := s.Enabled()
 		c := &Collector{}
 
 		c.Name = s.Name()
 		c.Enabled = &enabled
 
-		registryConfig.Collectors = append(registryConfig.Collectors, c)
+		stateConfig.Collectors = append(stateConfig.Collectors, c)
 
 		cfg, ok := s.(collector.Configurable)
 		if !ok {
 			continue
 		}
 
-		for _, argDef := range cfg.ArgDefinitions() {
+		for _, sarg := range cfg.Args() {
 			arg := &Arg{}
-			arg.Name = argDef.Name()
-			arg.Value = argDef.DefaultValue()
+			arg.Name = sarg.Name()
+			arg.Value = sarg.Value()
 
 			c.Args = append(c.Args, arg)
 		}
 	}
 
-	return registryConfig
+	return stateConfig
 }
 
 func init() {
-	fromRegistry = makeFromRegistry()
-	makeFromFlags(collector.AllScraperFlags(), func(config *Config) {
-		fromFlags = config
+	kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
+		commandLineParsed = true
+		return nil
 	})
 }

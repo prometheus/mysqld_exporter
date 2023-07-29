@@ -38,8 +38,8 @@ const perfMemoryEventsQuery = `
 var (
 	performanceSchemaMemoryEventsRemovePrefix = "remove_prefix"
 
-	performanceSchemaMemoryEventsArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	performanceSchemaMemoryEventsArgDefs = []*argDef{
+		{
 			name:         performanceSchemaMemoryEventsRemovePrefix,
 			help:         "Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
 			defaultValue: "memory/",
@@ -89,10 +89,14 @@ func (*ScrapePerfMemoryEvents) Version() float64 {
 	return 5.7
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapePerfMemoryEvents) ArgDefinitions() []ArgDefinition {
-	return performanceSchemaMemoryEventsArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapePerfMemoryEvents) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+
+	return []Arg{
+		NewArg(performanceSchemaMemoryEventsRemovePrefix, s.removePrefix),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -118,11 +122,6 @@ func (s *ScrapePerfMemoryEvents) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapePerfMemoryEvents) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfMemoryEvents) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -170,8 +169,8 @@ func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan
 }
 
 // check interface
-var scrapePerfMemoryEvents Scraper = &ScrapePerfMemoryEvents{}
+var _ Scraper = &ScrapePerfMemoryEvents{}
 
 func init() {
-	mustRegisterScraper(scrapePerfMemoryEvents)
+	registerScraper(&ScrapePerfMemoryEvents{}, performanceSchemaMemoryEventsArgDefs...)
 }

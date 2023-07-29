@@ -77,11 +77,6 @@ func (s *ScrapeAutoIncrementColumns) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (*ScrapeAutoIncrementColumns) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the scraper.
 func (s *ScrapeAutoIncrementColumns) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -119,8 +114,8 @@ func (*ScrapeAutoIncrementColumns) Scrape(ctx context.Context, db *sql.DB, ch ch
 }
 
 // check interface
-var scrapeAutoIncrementColumns Scraper = &ScrapeAutoIncrementColumns{}
+var _ Scraper = &ScrapeAutoIncrementColumns{}
 
 func init() {
-	mustRegisterScraper(scrapeAutoIncrementColumns)
+	registerScraper(&ScrapeAutoIncrementColumns{})
 }

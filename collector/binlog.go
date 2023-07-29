@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/go-kit/log"
@@ -57,7 +56,6 @@ var (
 
 // ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
 type ScrapeBinlogSize struct {
-	sync.RWMutex
 	enabled atomic.Bool
 }
 
@@ -79,11 +77,6 @@ func (*ScrapeBinlogSize) Version() float64 {
 // Enabled describes if the Scraper is currently enabled.
 func (s *ScrapeBinlogSize) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (s *ScrapeBinlogSize) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -159,8 +152,8 @@ func (*ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 }
 
 // check interface
-var scrapeBinlogSize Scraper = &ScrapeBinlogSize{}
+var _ Scraper = &ScrapeBinlogSize{}
 
 func init() {
-	mustRegisterScraper(scrapeBinlogSize)
+	registerScraper(&ScrapeBinlogSize{})
 }

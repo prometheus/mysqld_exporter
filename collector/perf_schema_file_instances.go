@@ -40,13 +40,13 @@ var (
 	performanceSchemaFileInstancesFilter       = "filter"
 	performanceSchemaFileInstancesRemovePrefix = "remove_prefix"
 
-	performanceSchemaFileInstancesArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	performanceSchemaFileInstancesArgDefs = []*argDef{
+		{
 			name:         performanceSchemaFileInstancesFilter,
 			help:         "RegEx file_name filter for performance_schema.file_summary_by_instance",
 			defaultValue: ".*",
 		},
-		&argDefinition{
+		{
 			name:         performanceSchemaFileInstancesRemovePrefix,
 			help:         "Remove path prefix in performance_schema.file_summary_by_instance",
 			defaultValue: "/var/lib/mysql/",
@@ -92,10 +92,15 @@ func (*ScrapePerfFileInstances) Version() float64 {
 	return 5.5
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapePerfFileInstances) ArgDefinitions() []ArgDefinition {
-	return performanceSchemaFileInstancesArgDefinitions
+// ArgDefs describes the args the Scraper accepts.
+func (s *ScrapePerfFileInstances) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+
+	return []Arg{
+		NewArg(performanceSchemaFileInstancesFilter, s.filter),
+		NewArg(performanceSchemaFileInstancesRemovePrefix, s.removePrefix),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -123,11 +128,6 @@ func (s *ScrapePerfFileInstances) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapePerfFileInstances) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfFileInstances) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -185,8 +185,8 @@ func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch cha
 }
 
 // check interface
-var scrapePerfFileInstances Scraper = &ScrapePerfFileInstances{}
+var _ Scraper = &ScrapePerfFileInstances{}
 
 func init() {
-	mustRegisterScraper(scrapePerfFileInstances)
+	registerScraper(&ScrapePerfFileInstances{}, performanceSchemaFileInstancesArgDefs...)
 }

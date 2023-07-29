@@ -16,23 +16,15 @@ package config
 // DefaultLoader returns a *Config generating function that produces configs in
 // this way:
 //
-// 1. Takes the config as it exists at program start.
-// 2. Merges in config from CLI flags.
-// 3. Merges in config from config file (if non-empty).
+// 1. Takes the config (defaults + flags) as it exists at program start.
+// 2. Merges in config from config file (if non-empty).
 func DefaultLoader(configPath string) func() (*Config, error) {
-	// Clone config as it exists at program start.
-	baseConfig := FromRegistry().Clone()
+	// Clone config as it exists at program start, after parsing CLI flags.
+	baseConfig := FromState().Clone()
 
 	return func() (*Config, error) {
 		// Clone base config.
 		newConfig := baseConfig.Clone()
-
-		// Merge in config from flags.
-		fromFlags, err := FromFlags()
-		if err != nil {
-			return nil, err
-		}
-		baseConfig.Merge(fromFlags)
 
 		// If a config file is empty, return current config.
 		if configPath == "" {

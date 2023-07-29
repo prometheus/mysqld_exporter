@@ -49,18 +49,18 @@ var (
 	processesByUser    = "processes_by_user"
 	processesByHost    = "processes_by_host"
 
-	processlistArgDefinitions = []ArgDefinition{
-		&argDefinition{
+	processlistArgDefs = []*argDef{
+		{
 			name:         processlistMinTime,
 			help:         "Minimum time a thread must be in each state to be counted",
 			defaultValue: 0,
 		},
-		&argDefinition{
+		{
 			name:         processesByUser,
 			help:         "Enable collecting the number of processes by user",
 			defaultValue: true,
 		},
-		&argDefinition{
+		{
 			name:         processesByHost,
 			help:         "Enable collecting the number of processes by host",
 			defaultValue: true,
@@ -113,10 +113,16 @@ func (*ScrapeProcesslist) Version() float64 {
 	return 5.1
 }
 
-// ArgDefinitions describe the names, types, and default values of
-// configuration arguments accepted by the scraper.
-func (*ScrapeProcesslist) ArgDefinitions() []ArgDefinition {
-	return processlistArgDefinitions
+// ArgDefs describes the args accepted by the Scraper.
+func (s *ScrapeProcesslist) Args() []Arg {
+	s.RLock()
+	defer s.RUnlock()
+
+	return []Arg{
+		NewArg(processlistMinTime, s.minTime),
+		NewArg(processesByUser, s.processesByUser),
+		NewArg(processesByHost, s.processesByHost),
+	}
 }
 
 // Configure modifies the runtime behavior of the scraper via accepted args.
@@ -154,11 +160,6 @@ func (s *ScrapeProcesslist) Configure(args ...Arg) error {
 // Enabled describes if the Scraper is currently.
 func (s *ScrapeProcesslist) Enabled() bool {
 	return s.enabled.Load()
-}
-
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapeProcesslist) EnabledByDefault() bool {
-	return false
 }
 
 // SetEnabled enables or disables the Scraper.
@@ -281,8 +282,8 @@ func sanitizeState(state string) string {
 }
 
 // check interface
-var scrapeProcesslist Scraper = &ScrapeProcesslist{}
+var _ Scraper = &ScrapeProcesslist{}
 
 func init() {
-	mustRegisterScraper(scrapeProcesslist)
+	registerScraper(&ScrapeProcesslist{}, processlistArgDefs...)
 }

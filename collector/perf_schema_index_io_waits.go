@@ -71,11 +71,6 @@ func (s *ScrapePerfIndexIOWaits) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfIndexIOWaits) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapePerfIndexIOWaits) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -146,8 +141,8 @@ func (*ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 }
 
 // check interface
-var scrapePerfIndexIOWaits Scraper = &ScrapePerfIndexIOWaits{}
+var _ Scraper = &ScrapePerfIndexIOWaits{}
 
 func init() {
-	mustRegisterScraper(scrapePerfIndexIOWaits)
+	registerScraper(&ScrapePerfIndexIOWaits{})
 }

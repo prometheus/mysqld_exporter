@@ -52,11 +52,6 @@ func (s *ScrapePerfReplicationGroupMembers) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfReplicationGroupMembers) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapePerfReplicationGroupMembers) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -108,8 +103,8 @@ func (*ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, db *sql.DB
 }
 
 // check interface
-var scrapePerfReplicationGroupMembers Scraper = &ScrapePerfReplicationGroupMembers{}
+var _ Scraper = &ScrapePerfReplicationGroupMembers{}
 
 func init() {
-	mustRegisterScraper(scrapePerfReplicationGroupMembers)
+	registerScraper(&ScrapePerfReplicationGroupMembers{})
 }

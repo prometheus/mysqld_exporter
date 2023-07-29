@@ -61,11 +61,6 @@ func (s *ScrapeEngineInnodbStatus) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled, by default.
-func (s *ScrapeEngineInnodbStatus) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapeEngineInnodbStatus) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -120,8 +115,8 @@ func (*ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan
 }
 
 // check interface
-var scrapeEngineInnodbStatus Scraper = &ScrapeEngineInnodbStatus{}
+var _ Scraper = &ScrapeEngineInnodbStatus{}
 
 func init() {
-	mustRegisterScraper(scrapeEngineInnodbStatus)
+	registerScraper(&ScrapeEngineInnodbStatus{})
 }

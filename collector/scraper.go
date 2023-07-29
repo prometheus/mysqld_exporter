@@ -31,15 +31,13 @@ type Arg interface {
 	Value() interface{}
 }
 
-// ArgDefinition describes an Arg that a Configurable Scraper will accept.
-type ArgDefinition interface {
-	// Name of the Arg that this ArgDefinition defines.
-	Name() string
-	// Help describes the the role of the Arg defined by this ArgDefinition.
-	Help() string
-	// DefaultValue defines the default value of the Arg defined by this
-	// ArgDefinition.
-	DefaultValue() interface{}
+// Configurable is an optional interface that Scrapers can implement to
+// advertise and accept configuration.
+type Configurable interface {
+	// Args describes the current Scraper configuration.
+	Args() []Arg
+	// Configure the Scraper.
+	Configure(...Arg) error
 }
 
 // Scraper is minimal interface that let's you add new prometheus metrics to mysqld_exporter.
@@ -57,9 +55,6 @@ type Scraper interface {
 	// Enabled describes if the Scraper is currently.
 	Enabled() bool
 
-	// EnabledByDefault describes if the Scraper is enabled by default.
-	EnabledByDefault() bool
-
 	// SetEnabled enables or disables the Scraper.
 	SetEnabled(bool)
 
@@ -72,7 +67,7 @@ type arg struct {
 	value interface{}
 }
 
-type argDefinition struct {
+type argDef struct {
 	name         string
 	help         string
 	defaultValue interface{}
@@ -93,28 +88,12 @@ func (a *arg) Value() interface{} {
 	return a.value
 }
 
-// Name of the Arg that this ArgDefinition defines.
-func (a *argDefinition) Name() string {
-	return a.name
-}
-
-// Help describes the the role of the Arg defined by this ArgDefinition.
-func (a *argDefinition) Help() string {
-	return a.help
-}
-
-// DefaultValue defines the default value of the Arg defined by this
-// ArgDefinition.
-func (a *argDefinition) DefaultValue() interface{} {
-	return a.defaultValue
-}
-
-func defaultArgs(argDefs []ArgDefinition) []Arg {
+func defaultArgs(argDefs []*argDef) []Arg {
 	args := make([]Arg, len(argDefs))
 	for i, argDef := range argDefs {
 		args[i] = &arg{
-			name:  argDef.Name(),
-			value: argDef.DefaultValue(),
+			name:  argDef.name,
+			value: argDef.defaultValue,
 		}
 	}
 	return args
@@ -130,15 +109,4 @@ func unknownArgError(scraperName, argName string) error {
 
 func wrongArgTypeError(scraperName, argName string, argValue interface{}) error {
 	return fmt.Errorf("scraper %s arg %s value %v has the wrong type", scraperName, argName, argValue)
-}
-
-// Configurable is an optional interface that Scrapers can implement to
-// advertise and accept configuration.
-type Configurable interface {
-	// ArgDefinitions describes the names, types, and default values of any
-	// arguments accepted by the Scraper.
-	ArgDefinitions() []ArgDefinition
-
-	// Configure the Scraper.
-	Configure(...Arg) error
 }

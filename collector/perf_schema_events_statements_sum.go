@@ -184,11 +184,6 @@ func (s *ScrapePerfEventsStatementsSum) Enabled() bool {
 	return s.enabled.Load()
 }
 
-// EnabledByDefault describes if the Scraper is enabled by default.
-func (s *ScrapePerfEventsStatementsSum) EnabledByDefault() bool {
-	return false
-}
-
 // SetEnabled enables or disables the Scraper.
 func (s *ScrapePerfEventsStatementsSum) SetEnabled(enabled bool) {
 	s.enabled.Store(enabled)
@@ -291,8 +286,8 @@ func (*ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch
 }
 
 // check interface
-var scrapePerfEventsStatementsSum Scraper = &ScrapePerfEventsStatementsSum{}
+var _ Scraper = &ScrapePerfEventsStatementsSum{}
 
 func init() {
-	mustRegisterScraper(scrapePerfEventsStatementsSum)
+	registerScraper(&ScrapePerfEventsStatementsSum{})
 }

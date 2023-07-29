@@ -21,6 +21,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -34,7 +36,10 @@ const (
 )
 
 // ScrapeEngineInnodbStatus scrapes from `SHOW ENGINE INNODB STATUS`.
-type ScrapeEngineInnodbStatus struct{}
+type ScrapeEngineInnodbStatus struct {
+	sync.RWMutex
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeEngineInnodbStatus) Name() string {
@@ -49,6 +54,21 @@ func (*ScrapeEngineInnodbStatus) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeEngineInnodbStatus) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeEngineInnodbStatus) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (s *ScrapeEngineInnodbStatus) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeEngineInnodbStatus) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -103,5 +123,5 @@ func (*ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan
 var scrapeEngineInnodbStatus Scraper = &ScrapeEngineInnodbStatus{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeEngineInnodbStatus, false)
+	mustRegisterScraper(scrapeEngineInnodbStatus)
 }

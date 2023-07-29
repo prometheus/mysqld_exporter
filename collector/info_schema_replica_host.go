@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -66,7 +67,9 @@ var (
 )
 
 // ScrapeReplicaHost collects from `information_schema.replica_host_status`.
-type ScrapeReplicaHost struct{}
+type ScrapeReplicaHost struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeReplicaHost) Name() string {
@@ -81,6 +84,21 @@ func (*ScrapeReplicaHost) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeReplicaHost) Version() float64 {
 	return 5.6
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeReplicaHost) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeReplicaHost) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeReplicaHost) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -147,5 +165,5 @@ func (*ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var scrapeReplicaHost Scraper = &ScrapeReplicaHost{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeReplicaHost, false)
+	mustRegisterScraper(scrapeReplicaHost)
 }

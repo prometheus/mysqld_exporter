@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -163,6 +164,7 @@ type ScrapePerfEventsStatements struct {
 	sync.RWMutex
 
 	digestTextLimit int
+	enabled         atomic.Bool
 	limit           int
 	timeLimit       int
 }
@@ -210,6 +212,21 @@ func (s *ScrapePerfEventsStatements) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfEventsStatements) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfEventsStatements) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfEventsStatements) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -300,5 +317,5 @@ func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch 
 var scrapePerfEventsStatements Scraper = &ScrapePerfEventsStatements{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfEventsStatements, false)
+	mustRegisterScraper(scrapePerfEventsStatements)
 }

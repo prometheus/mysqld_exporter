@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -75,7 +76,9 @@ var (
 )
 
 // ScrapeInnodbMetrics collects from `information_schema.innodb_metrics`.
-type ScrapeInnodbMetrics struct{}
+type ScrapeInnodbMetrics struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeInnodbMetrics) Name() string {
@@ -90,6 +93,21 @@ func (*ScrapeInnodbMetrics) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeInnodbMetrics) Version() float64 {
 	return 5.6
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeInnodbMetrics) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeInnodbMetrics) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeInnodbMetrics) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -203,5 +221,5 @@ func (*ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var scrapeInnodbMetrics Scraper = &ScrapeInnodbMetrics{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeInnodbMetrics, false)
+	mustRegisterScraper(scrapeInnodbMetrics)
 }

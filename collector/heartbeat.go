@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -88,6 +89,7 @@ type ScrapeHeartbeat struct {
 	sync.RWMutex
 
 	database string
+	enabled  atomic.Bool
 	table    string
 	utc      bool
 }
@@ -105,6 +107,21 @@ func (*ScrapeHeartbeat) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeHeartbeat) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeHeartbeat) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (*ScrapeHeartbeat) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeHeartbeat) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // ArgDefinitions describe the names, types, and default values of
@@ -207,5 +224,5 @@ func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var scrapeHeartbeat Scraper = &ScrapeHeartbeat{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeHeartbeat, false)
+	mustRegisterScraper(scrapeHeartbeat)
 }

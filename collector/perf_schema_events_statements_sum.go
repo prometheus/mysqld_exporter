@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -159,7 +160,9 @@ var (
 )
 
 // ScrapePerfEventsStatementsSum collects from `performance_schema.events_statements_summary_by_digest`.
-type ScrapePerfEventsStatementsSum struct{}
+type ScrapePerfEventsStatementsSum struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapePerfEventsStatementsSum) Name() string {
@@ -174,6 +177,21 @@ func (*ScrapePerfEventsStatementsSum) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapePerfEventsStatementsSum) Version() float64 {
 	return 5.7
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfEventsStatementsSum) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfEventsStatementsSum) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfEventsStatementsSum) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -276,5 +294,5 @@ func (*ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, db *sql.DB, ch
 var scrapePerfEventsStatementsSum Scraper = &ScrapePerfEventsStatementsSum{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfEventsStatementsSum, false)
+	mustRegisterScraper(scrapePerfEventsStatementsSum)
 }

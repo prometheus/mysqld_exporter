@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -69,6 +70,7 @@ var (
 type ScrapePerfMemoryEvents struct {
 	sync.RWMutex
 
+	enabled      atomic.Bool
 	removePrefix string
 }
 
@@ -111,6 +113,21 @@ func (s *ScrapePerfMemoryEvents) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfMemoryEvents) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfMemoryEvents) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfMemoryEvents) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -156,5 +173,5 @@ func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan
 var scrapePerfMemoryEvents Scraper = &ScrapePerfMemoryEvents{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfMemoryEvents, false)
+	mustRegisterScraper(scrapePerfMemoryEvents)
 }

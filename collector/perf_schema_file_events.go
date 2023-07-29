@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -52,7 +53,9 @@ var (
 )
 
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-type ScrapePerfFileEvents struct{}
+type ScrapePerfFileEvents struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapePerfFileEvents) Name() string {
@@ -67,6 +70,21 @@ func (*ScrapePerfFileEvents) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapePerfFileEvents) Version() float64 {
 	return 5.6
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfFileEvents) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfFileEvents) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfFileEvents) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -133,5 +151,5 @@ func (*ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 var scrapePerfFileEvents Scraper = &ScrapePerfFileEvents{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfFileEvents, false)
+	mustRegisterScraper(scrapePerfFileEvents)
 }

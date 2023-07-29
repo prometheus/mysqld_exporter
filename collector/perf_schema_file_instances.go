@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -71,6 +72,7 @@ var (
 type ScrapePerfFileInstances struct {
 	sync.RWMutex
 
+	enabled      atomic.Bool
 	filter       string
 	removePrefix string
 }
@@ -116,6 +118,21 @@ func (s *ScrapePerfFileInstances) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfFileInstances) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfFileInstances) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfFileInstances) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -171,5 +188,5 @@ func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch cha
 var scrapePerfFileInstances Scraper = &ScrapePerfFileInstances{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfFileInstances, false)
+	mustRegisterScraper(scrapePerfFileInstances)
 }

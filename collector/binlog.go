@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,7 +56,10 @@ var (
 )
 
 // ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
-type ScrapeBinlogSize struct{}
+type ScrapeBinlogSize struct {
+	sync.RWMutex
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeBinlogSize) Name() string {
@@ -69,6 +74,21 @@ func (*ScrapeBinlogSize) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeBinlogSize) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeBinlogSize) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (s *ScrapeBinlogSize) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeBinlogSize) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -142,5 +162,5 @@ func (*ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var scrapeBinlogSize Scraper = &ScrapeBinlogSize{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeBinlogSize, false)
+	mustRegisterScraper(scrapeBinlogSize)
 }

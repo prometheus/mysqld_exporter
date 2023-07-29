@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -47,7 +48,9 @@ var (
 )
 
 // ScrapePerfTableIOWaits collects from `performance_schema.table_io_waits_summary_by_table`.
-type ScrapePerfTableIOWaits struct{}
+type ScrapePerfTableIOWaits struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapePerfTableIOWaits) Name() string {
@@ -62,6 +65,21 @@ func (*ScrapePerfTableIOWaits) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapePerfTableIOWaits) Version() float64 {
 	return 5.6
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfTableIOWaits) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfTableIOWaits) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfTableIOWaits) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -125,5 +143,5 @@ func (*ScrapePerfTableIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 var scrapePerfTableIOWaits Scraper = &ScrapePerfTableIOWaits{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfTableIOWaits, false)
+	mustRegisterScraper(scrapePerfTableIOWaits)
 }

@@ -16,6 +16,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -81,7 +82,9 @@ var (
 		[]string{"user"}, nil)
 )
 
-type ScrapeSysUserSummary struct{}
+type ScrapeSysUserSummary struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeSysUserSummary) Name() string {
@@ -96,6 +99,21 @@ func (*ScrapeSysUserSummary) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeSysUserSummary) Version() float64 {
 	return 5.7
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeSysUserSummary) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeSysUserSummary) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeSysUserSummary) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape the information from sys.user_summary, creating a metric for each value of each row, labeled with the user
@@ -156,5 +174,5 @@ func (*ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 var scrapeSysUserSummary Scraper = &ScrapeSysUserSummary{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeSysUserSummary, false)
+	mustRegisterScraper(scrapeSysUserSummary)
 }

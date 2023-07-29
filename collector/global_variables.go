@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -120,7 +121,9 @@ var (
 )
 
 // ScrapeGlobalVariables collects from `SHOW GLOBAL VARIABLES`.
-type ScrapeGlobalVariables struct{}
+type ScrapeGlobalVariables struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeGlobalVariables) Name() string {
@@ -135,6 +138,21 @@ func (*ScrapeGlobalVariables) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeGlobalVariables) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeGlobalVariables) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (s *ScrapeGlobalVariables) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the scraper.
+func (s *ScrapeGlobalVariables) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -254,5 +272,5 @@ func validPrometheusName(s string) string {
 var scrapeGlobalVariables Scraper = &ScrapeGlobalVariables{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeGlobalVariables, true)
+	mustRegisterScraper(scrapeGlobalVariables)
 }

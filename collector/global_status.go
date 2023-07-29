@@ -21,6 +21,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -81,7 +83,10 @@ var (
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
-type ScrapeGlobalStatus struct{}
+type ScrapeGlobalStatus struct {
+	sync.RWMutex
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeGlobalStatus) Name() string {
@@ -96,6 +101,21 @@ func (*ScrapeGlobalStatus) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeGlobalStatus) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeGlobalStatus) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (s *ScrapeGlobalStatus) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeGlobalStatus) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -229,5 +249,5 @@ func (*ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 var scrapeGlobalStatus Scraper = &ScrapeGlobalStatus{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeGlobalStatus, true)
+	mustRegisterScraper(scrapeGlobalStatus)
 }

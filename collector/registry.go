@@ -15,19 +15,16 @@ package collector
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/alecthomas/kingpin/v2"
 )
 
 type scraperEntry struct {
-	enabled bool
 	flags   map[string]*kingpin.FlagClause
 	scraper Scraper
 }
 
 var (
-	registryMu      sync.Mutex
 	scraperRegistry map[string]*scraperEntry = make(map[string]*scraperEntry)
 )
 
@@ -45,7 +42,7 @@ func AllScrapers() []Scraper {
 func EnabledScrapers() []Scraper {
 	enabled := make([]Scraper, 0)
 	for _, se := range scraperRegistry {
-		if se.enabled {
+		if se.scraper.Enabled() {
 			enabled = append(enabled, se.scraper)
 		}
 	}
@@ -54,14 +51,11 @@ func EnabledScrapers() []Scraper {
 }
 
 func IsScraperEnabled(name string) bool {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-
 	se, ok := scraperRegistry[name]
 	if !ok {
 		return false
 	}
-	return se.enabled
+	return se.scraper.Enabled()
 }
 
 func AllScraperFlags() map[string]*kingpin.FlagClause {
@@ -83,33 +77,30 @@ func LookupScraper(name string) (Scraper, bool) {
 }
 
 func SetScraperEnabled(name string, enabled bool) {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-
 	se, ok := scraperRegistry[name]
 	if ok {
-		se.enabled = enabled
+		se.scraper.SetEnabled(enabled)
 	}
 }
 
-func mustRegisterScraperWithDefaults(s Scraper, enabled bool) {
-	if cfg, ok := s.(Configurable); ok {
-		if err := cfg.Configure(defaultArgs(cfg.ArgDefinitions())...); err != nil {
-			panic(fmt.Sprintf("bug: %v", err))
-		}
-	}
-	if err := registerScraper(s, enabled); err != nil {
+func mustRegisterScraper(s Scraper) {
+	if err := registerScraper(s); err != nil {
 		panic(fmt.Sprintf("bug: %v", err))
 	}
 }
 
-func registerScraper(s Scraper, enabled bool) error {
+func registerScraper(s Scraper) error {
 	if _, ok := scraperRegistry[s.Name()]; ok {
 		return fmt.Errorf("scraper with name %s is already registered", s.Name())
 	}
+	s.SetEnabled(s.EnabledByDefault())
+	if cfg, ok := s.(Configurable); ok {
+		if err := cfg.Configure(defaultArgs(cfg.ArgDefinitions())...); err != nil {
+			return fmt.Errorf("failed to configure scraper %s: %w", s.Name(), err)
+		}
+	}
 	scraperRegistry[s.Name()] = &scraperEntry{
-		enabled: enabled,
-		flags:   makeFlagsFromScraper(s, enabled),
+		flags:   makeFlagsFromScraper(s),
 		scraper: s,
 	}
 	return nil

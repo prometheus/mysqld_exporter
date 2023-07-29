@@ -54,6 +54,15 @@ type Scraper interface {
 	// Version of MySQL from which scraper is available.
 	Version() float64
 
+	// Enabled describes if the Scraper is currently.
+	Enabled() bool
+
+	// EnabledByDefault describes if the Scraper is enabled by default.
+	EnabledByDefault() bool
+
+	// SetEnabled enables or disables the Scraper.
+	SetEnabled(bool)
+
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
 	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error
 }

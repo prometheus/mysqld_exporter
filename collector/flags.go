@@ -20,17 +20,17 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 )
 
-func makeFlagsFromScraper(s Scraper, enabled bool) map[string]*kingpin.FlagClause {
+func makeFlagsFromScraper(s Scraper) map[string]*kingpin.FlagClause {
 	flags := make(map[string]*kingpin.FlagClause)
 
 	// Register collector enabled flag.
 	name := "collect." + s.Name()
 	help := s.Help()
-	if enabled {
+	if s.EnabledByDefault() {
 		help = fmt.Sprintf("%s (Enabled by default)", help)
 	}
 	ef := kingpin.Flag(name, help)
-	ef.Default(strconv.FormatBool(enabled)).Bool()
+	ef.Default(strconv.FormatBool(s.EnabledByDefault())).Bool()
 	flags[name] = ef
 
 	// Register collector args flags.

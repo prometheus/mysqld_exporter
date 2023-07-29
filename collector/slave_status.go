@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,7 +52,9 @@ func columnValue(scanArgs []interface{}, slaveCols []string, colName string) str
 }
 
 // ScrapeSlaveStatus collects from `SHOW SLAVE STATUS`.
-type ScrapeSlaveStatus struct{}
+type ScrapeSlaveStatus struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeSlaveStatus) Name() string {
@@ -66,6 +69,21 @@ func (*ScrapeSlaveStatus) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeSlaveStatus) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeSlaveStatus) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeSlaveStatus) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeSlaveStatus) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -140,5 +158,5 @@ func (*ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var scrapeSlaveStatus Scraper = &ScrapeSlaveStatus{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeSlaveStatus, true)
+	mustRegisterScraper(scrapeSlaveStatus)
 }

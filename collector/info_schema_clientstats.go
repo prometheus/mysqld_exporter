@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -143,7 +144,9 @@ var (
 )
 
 // ScrapeClientStat collects from `information_schema.client_statistics`.
-type ScrapeClientStat struct{}
+type ScrapeClientStat struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeClientStat) Name() string {
@@ -158,6 +161,21 @@ func (*ScrapeClientStat) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeClientStat) Version() float64 {
 	return 5.5
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeClientStat) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (*ScrapeClientStat) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the scraper.
+func (s *ScrapeClientStat) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -224,5 +242,5 @@ func (*ScrapeClientStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var scrapeClientStat Scraper = &ScrapeClientStat{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeClientStat, false)
+	mustRegisterScraper(scrapeClientStat)
 }

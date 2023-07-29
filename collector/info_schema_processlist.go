@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -91,6 +92,7 @@ var (
 type ScrapeProcesslist struct {
 	sync.RWMutex
 
+	enabled         atomic.Bool
 	minTime         int
 	processesByUser bool
 	processesByHost bool
@@ -147,6 +149,21 @@ func (s *ScrapeProcesslist) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeProcesslist) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeProcesslist) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeProcesslist) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -267,5 +284,5 @@ func sanitizeState(state string) string {
 var scrapeProcesslist Scraper = &ScrapeProcesslist{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeProcesslist, false)
+	mustRegisterScraper(scrapeProcesslist)
 }

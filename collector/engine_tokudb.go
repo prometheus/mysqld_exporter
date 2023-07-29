@@ -19,6 +19,8 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -32,7 +34,10 @@ const (
 )
 
 // ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
-type ScrapeEngineTokudbStatus struct{}
+type ScrapeEngineTokudbStatus struct {
+	sync.RWMutex
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeEngineTokudbStatus) Name() string {
@@ -47,6 +52,21 @@ func (*ScrapeEngineTokudbStatus) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeEngineTokudbStatus) Version() float64 {
 	return 5.6
+}
+
+// Enabled describes if the Scraper is currently enabled.
+func (s *ScrapeEngineTokudbStatus) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled, by default.
+func (s *ScrapeEngineTokudbStatus) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeEngineTokudbStatus) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -98,5 +118,5 @@ func sanitizeTokudbMetric(metricName string) string {
 var scrapeEngineTokudbStatus Scraper = &ScrapeEngineTokudbStatus{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeEngineTokudbStatus, false)
+	mustRegisterScraper(scrapeEngineTokudbStatus)
 }

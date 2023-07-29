@@ -16,6 +16,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/log"
@@ -83,7 +84,9 @@ var (
 )
 
 // ScrapePerfReplicationApplierStatsByWorker collects from `performance_schema.replication_applier_status_by_worker`.
-type ScrapePerfReplicationApplierStatsByWorker struct{}
+type ScrapePerfReplicationApplierStatsByWorker struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapePerfReplicationApplierStatsByWorker) Name() string {
@@ -98,6 +101,21 @@ func (*ScrapePerfReplicationApplierStatsByWorker) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapePerfReplicationApplierStatsByWorker) Version() float64 {
 	return 5.7
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapePerfReplicationApplierStatsByWorker) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapePerfReplicationApplierStatsByWorker) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapePerfReplicationApplierStatsByWorker) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -237,5 +255,5 @@ func (*ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db
 var scrapePerfReplicationApplierStatsByWorker Scraper = &ScrapePerfReplicationApplierStatsByWorker{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapePerfReplicationApplierStatsByWorker, false)
+	mustRegisterScraper(scrapePerfReplicationApplierStatsByWorker)
 }

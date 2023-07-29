@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -54,7 +55,9 @@ var (
 )
 
 // ScrapeTableStat collects from `information_schema.table_statistics`.
-type ScrapeTableStat struct{}
+type ScrapeTableStat struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeTableStat) Name() string {
@@ -69,6 +72,21 @@ func (*ScrapeTableStat) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeTableStat) Version() float64 {
 	return 5.1
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeTableStat) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeTableStat) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeTableStat) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -129,5 +147,5 @@ func (*ScrapeTableStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 var scrapeTableStat Scraper = &ScrapeTableStat{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeTableStat, false)
+	mustRegisterScraper(scrapeTableStat)
 }

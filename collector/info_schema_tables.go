@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -88,6 +89,7 @@ type ScrapeTableSchema struct {
 	sync.RWMutex
 
 	databases string
+	enabled   atomic.Bool
 }
 
 // Name of the Scraper. Should be unique.
@@ -129,6 +131,21 @@ func (s *ScrapeTableSchema) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeTableSchema) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeTableSchema) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeTableSchema) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -226,5 +243,5 @@ func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var scrapeTableSchema Scraper = &ScrapeTableSchema{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeTableSchema, false)
+	mustRegisterScraper(scrapeTableSchema)
 }

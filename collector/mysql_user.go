@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -109,6 +110,7 @@ var (
 type ScrapeUser struct {
 	sync.RWMutex
 
+	enabled    atomic.Bool
 	privileges bool
 }
 
@@ -151,6 +153,21 @@ func (s *ScrapeUser) Configure(args ...Arg) error {
 		}
 	}
 	return nil
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeUser) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (*ScrapeUser) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeUser) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -295,5 +312,5 @@ func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheu
 var scrapeUser Scraper = &ScrapeUser{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeUser, false)
+	mustRegisterScraper(scrapeUser)
 }

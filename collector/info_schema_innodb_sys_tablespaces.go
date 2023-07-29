@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,7 +68,9 @@ var (
 )
 
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
-type ScrapeInfoSchemaInnodbTablespaces struct{}
+type ScrapeInfoSchemaInnodbTablespaces struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeInfoSchemaInnodbTablespaces) Name() string {
@@ -82,6 +85,21 @@ func (*ScrapeInfoSchemaInnodbTablespaces) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 	return 5.7
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeInfoSchemaInnodbTablespaces) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (s *ScrapeInfoSchemaInnodbTablespaces) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeInfoSchemaInnodbTablespaces) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -150,5 +168,5 @@ func (*ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB
 var scrapeInfoSchemaInnodbTablespaces Scraper = &ScrapeInfoSchemaInnodbTablespaces{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeInfoSchemaInnodbTablespaces, false)
+	mustRegisterScraper(scrapeInfoSchemaInnodbTablespaces)
 }

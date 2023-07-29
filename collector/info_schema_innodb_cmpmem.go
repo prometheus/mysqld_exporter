@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"sync/atomic"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,7 +55,9 @@ var (
 )
 
 // ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
-type ScrapeInnodbCmpMem struct{}
+type ScrapeInnodbCmpMem struct {
+	enabled atomic.Bool
+}
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeInnodbCmpMem) Name() string {
@@ -69,6 +72,21 @@ func (*ScrapeInnodbCmpMem) Help() string {
 // Version of MySQL from which scraper is available.
 func (*ScrapeInnodbCmpMem) Version() float64 {
 	return 5.5
+}
+
+// Enabled describes if the Scraper is currently.
+func (s *ScrapeInnodbCmpMem) Enabled() bool {
+	return s.enabled.Load()
+}
+
+// EnabledByDefault describes if the Scraper is enabled by default.
+func (*ScrapeInnodbCmpMem) EnabledByDefault() bool {
+	return false
+}
+
+// SetEnabled enables or disables the Scraper.
+func (s *ScrapeInnodbCmpMem) SetEnabled(enabled bool) {
+	s.enabled.Store(enabled)
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
@@ -103,5 +121,5 @@ func (*ScrapeInnodbCmpMem) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 var scrapeInnodbCmpMem Scraper = &ScrapeInnodbCmpMem{}
 
 func init() {
-	mustRegisterScraperWithDefaults(scrapeInnodbCmpMem, true)
+	mustRegisterScraper(scrapeInnodbCmpMem)
 }

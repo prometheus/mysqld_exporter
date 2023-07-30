@@ -131,5 +131,7 @@ func (*ScrapePerfReplicationGroupMemberStats) Scrape(ctx context.Context, db *sq
 var _ Scraper = &ScrapePerfReplicationGroupMemberStats{}
 
 func init() {
-	registerScraper(&ScrapePerfReplicationGroupMemberStats{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfReplicationGroupMemberStats{})
+	})
 }

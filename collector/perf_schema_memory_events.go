@@ -172,5 +172,7 @@ func (s *ScrapePerfMemoryEvents) Scrape(ctx context.Context, db *sql.DB, ch chan
 var _ Scraper = &ScrapePerfMemoryEvents{}
 
 func init() {
-	registerScraper(&ScrapePerfMemoryEvents{}, performanceSchemaMemoryEventsArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfMemoryEvents{}, performanceSchemaMemoryEventsArgDefs...)
+	})
 }

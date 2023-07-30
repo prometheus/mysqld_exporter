@@ -20,7 +20,7 @@ func Apply(config *Config) error {
 		// Disable or enable the scraper if requested.
 		if c.Enabled != nil {
 			enabled := *c.Enabled
-			collector.SetScraperEnabled(s.Name(), enabled)
+			s.SetEnabled(enabled)
 		}
 
 		// Apply arguments if the scraper is configurable.

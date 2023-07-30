@@ -254,5 +254,7 @@ func (*ScrapePerfTableLockWaits) Scrape(ctx context.Context, db *sql.DB, ch chan
 var _ Scraper = &ScrapePerfTableLockWaits{}
 
 func init() {
-	registerScraper(&ScrapePerfTableLockWaits{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfTableLockWaits{})
+	})
 }

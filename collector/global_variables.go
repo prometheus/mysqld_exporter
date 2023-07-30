@@ -267,8 +267,10 @@ func validPrometheusName(s string) string {
 var _ Scraper = &ScrapeGlobalVariables{}
 
 func init() {
-	s := &ScrapeGlobalVariables{}
-	// enabled by default
-	s.SetEnabled(true)
-	registerScraper(s)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		s := &ScrapeGlobalVariables{}
+		// enabled by default
+		s.SetEnabled(true)
+		registerScraper(s)
+	})
 }

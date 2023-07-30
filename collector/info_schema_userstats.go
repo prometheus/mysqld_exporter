@@ -232,5 +232,7 @@ func (*ScrapeUserStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometh
 var _ Scraper = &ScrapeUserStat{}
 
 func init() {
-	registerScraper(&ScrapeUserStat{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeUserStat{})
+	})
 }

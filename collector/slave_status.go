@@ -153,8 +153,10 @@ func (*ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var _ Scraper = &ScrapeSlaveStatus{}
 
 func init() {
-	s := &ScrapeSlaveStatus{}
-	// enabled by default
-	s.SetEnabled(true)
-	registerScraper(s)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		s := &ScrapeSlaveStatus{}
+		// enabled by default
+		s.SetEnabled(true)
+		registerScraper(s)
+	})
 }

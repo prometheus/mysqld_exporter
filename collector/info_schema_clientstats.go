@@ -237,5 +237,7 @@ func (*ScrapeClientStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var _ Scraper = &ScrapeClientStat{}
 
 func init() {
-	registerScraper(&ScrapeClientStat{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeClientStat{})
+	})
 }

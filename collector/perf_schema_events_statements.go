@@ -318,5 +318,7 @@ func (s *ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch 
 var _ Scraper = &ScrapePerfEventsStatements{}
 
 func init() {
-	registerScraper(&ScrapePerfEventsStatements{}, perfEventsStatementsArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfEventsStatements{}, perfEventsStatementsArgDefs...)
+	})
 }

@@ -92,7 +92,6 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
-
 }
 
 func newHandler(scrapersFn func() []collector.Scraper, configFn func() *config.Config, mycnfFn func() config.Mycnf, logger log.Logger) http.HandlerFunc {
@@ -157,6 +156,9 @@ func newHandler(scrapersFn func() []collector.Scraper, configFn func() *config.C
 }
 
 func main() {
+	// Initialize scraper registry.
+	collector.InitRegistry(kingpin.CommandLine)
+
 	// Parse flags.
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
@@ -169,7 +171,8 @@ func main() {
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	// Set up config reloaders.
-	configReloader := config.NewConfigReloader(config.DefaultLoader(*configPath))
+	configLoader := config.DefaultConfigLoader(*configPath)
+	configReloader := config.NewConfigReloader(configLoader.Load)
 	if err := configReloader.Reload(); err != nil {
 		level.Info(logger).Log("msg", "Error parsing host config", "file", *configPath, "err", err)
 		os.Exit(1)

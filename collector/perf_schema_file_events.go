@@ -146,5 +146,7 @@ func (*ScrapePerfFileEvents) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 var _ Scraper = &ScrapePerfFileEvents{}
 
 func init() {
-	registerScraper(&ScrapePerfFileEvents{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfFileEvents{})
+	})
 }

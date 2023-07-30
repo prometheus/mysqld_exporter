@@ -123,8 +123,10 @@ func (*ScrapeInnodbCmp) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 var _ Scraper = &ScrapeInnodbCmp{}
 
 func init() {
-	s := &ScrapeInnodbCmp{}
-	// enabled by default
-	s.SetEnabled(true)
-	registerScraper(s)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		s := &ScrapeInnodbCmp{}
+		// enabled by default
+		s.SetEnabled(true)
+		registerScraper(s)
+	})
 }

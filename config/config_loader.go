@@ -13,32 +13,44 @@
 
 package config
 
-// DefaultLoader returns a *Config generating function that produces configs in
-// this way:
+type ConfigLoader interface {
+	Load() (*Config, error)
+}
+
+type defaultConfigLoader struct {
+	baseConfig *Config
+	configPath string
+}
+
+// DefaultConfigLoader returns a ConfigLoader that produces *Config by
+// merging the config located at configPath with a *Config produced from
+// program state.
+func DefaultConfigLoader(configPath string) ConfigLoader {
+	return &defaultConfigLoader{
+		baseConfig: FromState(),
+		configPath: configPath,
+	}
+}
+
+// Load produces a *Config in the following way:
 //
-// 1. Takes the config (defaults + flags) as it exists at program start.
-// 2. Merges in config from config file (if non-empty).
-func DefaultLoader(configPath string) func() (*Config, error) {
-	// Clone config as it exists at program start, after parsing CLI flags.
-	baseConfig := FromState().Clone()
+// 1. Obtains and stores an immutable base *Config from program state.
+// 2. On each call to Load(), loads a *Config from configPath
+func (dcf *defaultConfigLoader) Load() (*Config, error) {
+	// Clone base config.
+	newConfig := dcf.baseConfig.Clone()
 
-	return func() (*Config, error) {
-		// Clone base config.
-		newConfig := baseConfig.Clone()
-
-		// If a config file is empty, return current config.
-		if configPath == "" {
-			return newConfig, nil
-		}
-
-		// Otherwise, load and merge config.
-		fileConfig, err := FromFile(configPath)
-		if err != nil {
-			return nil, err
-		}
-
-		newConfig.Merge(fileConfig)
-
+	// If a config file is empty, return new config.
+	if dcf.configPath == "" {
 		return newConfig, nil
 	}
+
+	// Otherwise, load and merge file config into new config.
+	fileConfig, err := FromFile(dcf.configPath)
+	if err != nil {
+		return nil, err
+	}
+	newConfig.Merge(fileConfig)
+
+	return newConfig, nil
 }

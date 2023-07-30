@@ -233,5 +233,7 @@ func (s *ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var _ Scraper = &ScrapeHeartbeat{}
 
 func init() {
-	registerScraper(&ScrapeHeartbeat{}, heartbeatArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeHeartbeat{}, heartbeatArgDefs...)
+	})
 }

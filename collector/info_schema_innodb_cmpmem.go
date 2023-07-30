@@ -116,8 +116,10 @@ func (*ScrapeInnodbCmpMem) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 var _ Scraper = &ScrapeInnodbCmpMem{}
 
 func init() {
-	s := &ScrapeInnodbCmpMem{}
-	// enabled by default
-	s.SetEnabled(true)
-	registerScraper(s)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		s := &ScrapeInnodbCmpMem{}
+		// enabled by default
+		s.SetEnabled(true)
+		registerScraper(s)
+	})
 }

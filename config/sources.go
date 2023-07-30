@@ -17,14 +17,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alecthomas/kingpin/v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/mysqld_exporter/collector"
-)
-
-var (
-	commandLineParsed bool
 )
 
 // FromFile returns a *Config as parsed from a YAML file.
@@ -51,10 +46,6 @@ func FromFile(path string) (*Config, error) {
 // FromState returns a *Config based on the current program state. Cannot be
 // used before the command line is parsed.
 func FromState() *Config {
-	if !commandLineParsed {
-		panic("cannot inspect program state before command line is parsed")
-	}
-
 	stateConfig := &Config{}
 
 	for _, s := range collector.AllScrapers() {
@@ -81,11 +72,4 @@ func FromState() *Config {
 	}
 
 	return stateConfig
-}
-
-func init() {
-	kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-		commandLineParsed = true
-		return nil
-	})
 }

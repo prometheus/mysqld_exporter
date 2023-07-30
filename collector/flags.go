@@ -20,25 +20,30 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 )
 
-func makeFlagsForScraper(s Scraper, argDefs []*argDef, result func(bool, []Arg)) {
+func makeFlagsForScraper(
+	app *kingpin.Application,
+	s Scraper,
+	argDefs []*argDef,
+	onCommandLineParsed func(enabled bool, args []Arg),
+) {
 	// Register collector enabled flag.
 	name := "collect." + s.Name()
 	help := s.Help()
 	if s.Enabled() {
 		help = fmt.Sprintf("%s (Enabled by default)", help)
 	}
-	enabled := kingpin.Flag(
+	enabled := app.Flag(
 		name,
 		help,
 	).Default(strconv.FormatBool(s.Enabled())).Bool()
 
-	var args []Arg
+	var makeArgs [](func() Arg)
 	for _, loopArgDef := range argDefs {
 		argDef := loopArgDef
 		name := name + "." + argDef.name
 
 		help := argDef.help
-		af := kingpin.Flag(name, help)
+		af := app.Flag(name, help)
 
 		switch argDef.defaultValue.(type) {
 		case bool:
@@ -48,29 +53,30 @@ func makeFlagsForScraper(s Scraper, argDefs []*argDef, result func(bool, []Arg))
 			}
 			d := strconv.FormatBool(enabled)
 			value := af.Default(d).Bool()
-			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-				args = append(args, NewArg(argDef.name, *value))
-				return nil
+			makeArgs = append(makeArgs, func() Arg {
+				return NewArg(argDef.name, *value)
 			})
 		case int:
 			d := argDef.defaultValue.(int)
 			value := af.Default(strconv.FormatInt(int64(d), 10)).Int()
-			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-				args = append(args, NewArg(argDef.name, *value))
-				return nil
+			makeArgs = append(makeArgs, func() Arg {
+				return NewArg(argDef.name, *value)
 			})
 		case string:
 			d := argDef.defaultValue.(string)
 			value := af.Default(d).String()
-			kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-				args = append(args, NewArg(argDef.name, *value))
-				return nil
+			makeArgs = append(makeArgs, func() Arg {
+				return NewArg(argDef.name, *value)
 			})
 		}
 	}
 
-	kingpin.CommandLine.Action(func(*kingpin.ParseContext) error {
-		result(*enabled, args)
+	app.Action(func(*kingpin.ParseContext) error {
+		var args []Arg
+		for _, makeArg := range makeArgs {
+			args = append(args, makeArg())
+		}
+		onCommandLineParsed(*enabled, args)
 		return nil
 	})
 }

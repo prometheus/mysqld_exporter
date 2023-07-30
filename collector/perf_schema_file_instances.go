@@ -188,5 +188,7 @@ func (s *ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch cha
 var _ Scraper = &ScrapePerfFileInstances{}
 
 func init() {
-	registerScraper(&ScrapePerfFileInstances{}, performanceSchemaFileInstancesArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfFileInstances{}, performanceSchemaFileInstancesArgDefs...)
+	})
 }

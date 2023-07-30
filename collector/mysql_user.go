@@ -311,5 +311,7 @@ func (s *ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheu
 var _ Scraper = &ScrapeUser{}
 
 func init() {
-	registerScraper(&ScrapeUser{}, userArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeUser{}, userArgDefs...)
+	})
 }

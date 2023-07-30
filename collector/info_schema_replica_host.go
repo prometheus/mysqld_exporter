@@ -160,5 +160,7 @@ func (*ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prom
 var _ Scraper = &ScrapeReplicaHost{}
 
 func init() {
-	registerScraper(&ScrapeReplicaHost{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeReplicaHost{})
+	})
 }

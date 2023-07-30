@@ -15,26 +15,83 @@ package collector
 
 import (
 	"fmt"
+	"sync"
+
+	"github.com/alecthomas/kingpin/v2"
 )
 
+type registerScraperFn func(Scraper, ...*argDef)
+type registryInitHook func(registerScraperFn)
+
+type registry struct {
+	sync.Mutex
+
+	app       *kingpin.Application
+	scrapers  map[string]Scraper
+	initHooks []registryInitHook
+}
+
 var (
-	scrapers map[string]Scraper = make(map[string]Scraper)
+	globalRegistry = newRegistry()
 )
 
 // AllScrapers returns a list of all registered scrapers.
 func AllScrapers() []Scraper {
+	return globalRegistry.allScrapers()
+}
+
+// EnabledScrapers returns a list of all enabled scrapers.
+func EnabledScrapers() []Scraper {
+	return globalRegistry.enabledScrapers()
+}
+
+func InitRegistry(app *kingpin.Application) {
+	// Lock registry for external use until command line is parsed.
+	globalRegistry.Lock()
+
+	globalRegistry.init(app)
+
+	// Only unlock once, so that command line can be re-parsed (for tests).
+	var once sync.Once
+	app.Action(func(*kingpin.ParseContext) error {
+		once.Do(globalRegistry.Unlock)
+		return nil
+	})
+}
+
+// LookupScraper returns the Scraper with the requested name, if found.
+func LookupScraper(name string) (Scraper, bool) {
+	return globalRegistry.lookupScraper(name)
+}
+
+func initRegistry(app *kingpin.Application) {
+	globalRegistry.init(app)
+}
+
+func newRegistry() *registry {
+	return &registry{
+		scrapers: make(map[string]Scraper),
+	}
+}
+
+func onRegistryInit(initHook registryInitHook) {
+	globalRegistry.onInit(initHook)
+}
+
+func (r *registry) allScrapers() []Scraper {
+	r.Lock()
+	defer r.Unlock()
 	all := make([]Scraper, 0)
-	for _, s := range scrapers {
+	for _, s := range r.scrapers {
 		all = append(all, s)
 	}
 
 	return all
 }
 
-// EnabledScrapers returns a list of all enabled scrapers.
-func EnabledScrapers() []Scraper {
+func (r *registry) enabledScrapers() []Scraper {
 	enabled := make([]Scraper, 0)
-	for _, s := range scrapers {
+	for _, s := range r.allScrapers() {
 		if s.Enabled() {
 			enabled = append(enabled, s)
 		}
@@ -43,33 +100,45 @@ func EnabledScrapers() []Scraper {
 	return enabled
 }
 
-func IsScraperEnabled(name string) bool {
-	s, ok := scrapers[name]
-	if !ok {
-		return false
+func (r *registry) init(app *kingpin.Application) {
+	// Use the provided kingpin app.
+	r.app = app
+
+	// Reset all scrapers. They will be re-registered by init hooks.
+	r.scrapers = make(map[string]Scraper, len(r.initHooks))
+
+	// Register scrapers.
+	for _, hook := range r.initHooks {
+		hook(r.registerScraper)
 	}
-	return s.Enabled()
 }
 
-func LookupScraper(name string) (Scraper, bool) {
-	s, ok := scrapers[name]
+func (r *registry) lookupScraper(name string) (Scraper, bool) {
+	r.Lock()
+	defer r.Unlock()
+	s, ok := r.scrapers[name]
 	if !ok {
 		return nil, false
 	}
 	return s, true
 }
 
-func SetScraperEnabled(name string, enabled bool) {
-	s, ok := scrapers[name]
-	if ok {
-		s.SetEnabled(enabled)
-	}
+func (r *registry) onInit(initHook func(registerScraper registerScraperFn)) {
+	r.initHooks = append(r.initHooks, initHook)
 }
 
-func registerScraper(s Scraper, args ...*argDef) {
+func (r *registry) registerScraper(s Scraper, argDefs ...*argDef) {
+	if _, ok := r.scrapers[s.Name()]; ok {
+		panic(fmt.Sprintf("bug: scraper with name %s is already registered", s.Name()))
+	}
+
+	r.scrapers[s.Name()] = s
+
 	makeFlagsForScraper(
+		r.app,
 		s,
-		args,
+		argDefs,
+		// This is called once all the scraper's flags are parsed.
 		func(enabled bool, args []Arg) {
 			s.SetEnabled(enabled)
 			if cfg, ok := s.(Configurable); ok {
@@ -79,10 +148,6 @@ func registerScraper(s Scraper, args ...*argDef) {
 					}
 				}
 			}
-			if _, ok := scrapers[s.Name()]; ok {
-				panic(fmt.Sprintf("bug: scraper with name %s is already registered", s.Name()))
-			}
-			scrapers[s.Name()] = s
 		},
 	)
 }

@@ -169,5 +169,7 @@ func (*ScrapeSysUserSummary) Scrape(ctx context.Context, db *sql.DB, ch chan<- p
 var _ Scraper = &ScrapeSysUserSummary{}
 
 func init() {
-	registerScraper(&ScrapeSysUserSummary{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeSysUserSummary{})
+	})
 }

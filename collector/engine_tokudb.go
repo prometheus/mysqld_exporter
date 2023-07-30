@@ -113,5 +113,7 @@ func sanitizeTokudbMetric(metricName string) string {
 var _ Scraper = &ScrapeEngineTokudbStatus{}
 
 func init() {
-	registerScraper(&ScrapeEngineTokudbStatus{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeEngineTokudbStatus{})
+	})
 }

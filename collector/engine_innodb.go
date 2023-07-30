@@ -118,5 +118,7 @@ func (*ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan
 var _ Scraper = &ScrapeEngineInnodbStatus{}
 
 func init() {
-	registerScraper(&ScrapeEngineInnodbStatus{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeEngineInnodbStatus{})
+	})
 }

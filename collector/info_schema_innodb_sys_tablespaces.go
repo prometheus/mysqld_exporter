@@ -163,5 +163,7 @@ func (*ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB
 var _ Scraper = &ScrapeInfoSchemaInnodbTablespaces{}
 
 func init() {
-	registerScraper(&ScrapeInfoSchemaInnodbTablespaces{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeInfoSchemaInnodbTablespaces{})
+	})
 }

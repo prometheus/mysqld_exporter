@@ -144,5 +144,7 @@ func (*ScrapePerfIndexIOWaits) Scrape(ctx context.Context, db *sql.DB, ch chan<-
 var _ Scraper = &ScrapePerfIndexIOWaits{}
 
 func init() {
-	registerScraper(&ScrapePerfIndexIOWaits{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapePerfIndexIOWaits{})
+	})
 }

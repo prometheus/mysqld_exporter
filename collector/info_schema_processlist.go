@@ -285,5 +285,7 @@ func sanitizeState(state string) string {
 var _ Scraper = &ScrapeProcesslist{}
 
 func init() {
-	registerScraper(&ScrapeProcesslist{}, processlistArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeProcesslist{}, processlistArgDefs...)
+	})
 }

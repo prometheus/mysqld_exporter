@@ -244,8 +244,10 @@ func (*ScrapeGlobalStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- pro
 var _ Scraper = &ScrapeGlobalStatus{}
 
 func init() {
-	s := &ScrapeGlobalStatus{}
-	// enabled by default
-	s.SetEnabled(true)
-	registerScraper(s)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		s := &ScrapeGlobalStatus{}
+		// enabled by default
+		s.SetEnabled(true)
+		registerScraper(s)
+	})
 }

@@ -242,5 +242,7 @@ func (s *ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var _ Scraper = &ScrapeTableSchema{}
 
 func init() {
-	registerScraper(&ScrapeTableSchema{}, tableSchemaArgDefs...)
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeTableSchema{}, tableSchemaArgDefs...)
+	})
 }

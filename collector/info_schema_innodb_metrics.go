@@ -216,5 +216,7 @@ func (*ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- pr
 var _ Scraper = &ScrapeInnodbMetrics{}
 
 func init() {
-	registerScraper(&ScrapeInnodbMetrics{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeInnodbMetrics{})
+	})
 }

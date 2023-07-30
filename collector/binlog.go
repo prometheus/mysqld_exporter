@@ -155,5 +155,7 @@ func (*ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 var _ Scraper = &ScrapeBinlogSize{}
 
 func init() {
-	registerScraper(&ScrapeBinlogSize{})
+	onRegistryInit(func(registerScraper registerScraperFn) {
+		registerScraper(&ScrapeBinlogSize{})
+	})
 }

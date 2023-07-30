@@ -23,12 +23,7 @@ import (
 	"github.com/smartystreets/goconvey/convey"
 )
 
-var (
-	testApp = kingpin.New("mysqld_exporter.collector[tests]", "")
-)
-
 func TestMain(m *testing.M) {
-	InitRegistry(testApp)
 	code := m.Run()
 	os.Exit(code)
 }
@@ -61,8 +56,20 @@ func valueToString(value interface{}) string {
 func testScraperCommon(t *testing.T, s Scraper, enabledByDefault bool, argDefs ...*argDef) {
 	t.Helper()
 
+	// Create a test kingpin Application.
+	testApp := kingpin.New(fmt.Sprintf("mysqld_exporter.collector.test[%s]", t.Name()), "")
+
+	// Initialize global registry with test kingpin Application. CLI flags
+	// will be attached to the kingpin application.
+	InitRegistry(testApp)
+
+	// Reset the global registry after tests are done.
+	defer deinitRegistry()
+
+	// Do an initial CLI parsing. CLI flags can be re-parsed any number of times.
+	testApp.Parse([]string{})
+
 	convey.Convey("Test registered scraper", t, func() {
-		testParseCommandLine(t)
 		rs, ok := LookupScraper(s.Name())
 
 		convey.Convey("Is found in global registry", func() {
@@ -80,14 +87,14 @@ func testScraperCommon(t *testing.T, s Scraper, enabledByDefault bool, argDefs .
 
 		convey.Convey("Can be disabled/enabled by command line", func() {
 			if enabledByDefault {
-				testParseCommandLine(t, "--no-collect."+rs.Name())
+				testApp.Parse([]string{"--no-collect." + rs.Name()})
 				convey.So(rs.Enabled(), convey.ShouldBeFalse)
-				testParseCommandLine(t, "--collect."+rs.Name())
+				testApp.Parse([]string{"--collect." + rs.Name()})
 				convey.So(rs.Enabled(), convey.ShouldBeTrue)
 			} else {
-				testParseCommandLine(t, "--collect."+rs.Name())
+				testApp.Parse([]string{"--collect." + rs.Name()})
 				convey.So(rs.Enabled(), convey.ShouldBeTrue)
-				testParseCommandLine(t, "--no-collect."+rs.Name())
+				testApp.Parse([]string{"--no-collect." + rs.Name()})
 				convey.So(rs.Enabled(), convey.ShouldBeFalse)
 			}
 		})
@@ -122,7 +129,7 @@ func testScraperCommon(t *testing.T, s Scraper, enabledByDefault bool, argDefs .
 							if !valueIsBool {
 								cliArgs = append(cliArgs, valueToString(value))
 							}
-							testParseCommandLine(t, cliArgs...)
+							testApp.Parse(cliArgs)
 
 							for _, arg := range cfg.Args() {
 								if match.Name() == arg.Name() {
@@ -162,12 +169,4 @@ func testScraperCommon(t *testing.T, s Scraper, enabledByDefault bool, argDefs .
 		s.SetEnabled(orig)
 		convey.So(s.Enabled(), convey.ShouldEqual, orig)
 	})
-}
-
-// testParseCommandLine is a helper to for testing different command line
-// options.
-func testParseCommandLine(t *testing.T, args ...string) {
-	t.Helper()
-
-	testApp.Parse(args)
 }

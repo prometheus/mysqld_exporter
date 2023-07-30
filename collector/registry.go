@@ -46,17 +46,7 @@ func EnabledScrapers() []Scraper {
 }
 
 func InitRegistry(app *kingpin.Application) {
-	// Lock registry for external use until command line is parsed.
-	globalRegistry.Lock()
-
 	globalRegistry.init(app)
-
-	// Only unlock once, so that command line can be re-parsed (for tests).
-	var once sync.Once
-	app.Action(func(*kingpin.ParseContext) error {
-		once.Do(globalRegistry.Unlock)
-		return nil
-	})
 }
 
 // LookupScraper returns the Scraper with the requested name, if found.
@@ -64,14 +54,20 @@ func LookupScraper(name string) (Scraper, bool) {
 	return globalRegistry.lookupScraper(name)
 }
 
-func initRegistry(app *kingpin.Application) {
-	globalRegistry.init(app)
+func deinitRegistry() {
+	globalRegistry.deinit()
 }
 
 func newRegistry() *registry {
 	return &registry{
 		scrapers: make(map[string]Scraper),
 	}
+}
+
+// deinit reverses changes made by init.
+func (r *registry) deinit() {
+	r.app = nil
+	r.scrapers = make(map[string]Scraper)
 }
 
 func onRegistryInit(initHook registryInitHook) {
@@ -101,11 +97,22 @@ func (r *registry) enabledScrapers() []Scraper {
 }
 
 func (r *registry) init(app *kingpin.Application) {
+	// Lock registry for external use until command line is parsed.
+	r.Lock()
+
 	// Use the provided kingpin app.
 	r.app = app
 
+	// Only unlock once, so that command line can be re-parsed (for
+	// tests).
+	var once sync.Once
+	app.Action(func(*kingpin.ParseContext) error {
+		once.Do(r.Unlock)
+		return nil
+	})
+
 	// Reset all scrapers. They will be re-registered by init hooks.
-	r.scrapers = make(map[string]Scraper, len(r.initHooks))
+	r.scrapers = make(map[string]Scraper)
 
 	// Register scrapers.
 	for _, hook := range r.initHooks {

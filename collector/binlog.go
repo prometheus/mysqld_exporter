@@ -37,6 +37,8 @@ const (
 
 // Metric descriptors.
 var (
+	binlogSize = "binlog_size"
+
 	binlogSizeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, binlog, "size_bytes"),
 		"Combined size of all registered binlog files.",
@@ -61,7 +63,7 @@ type ScrapeBinlogSize struct {
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeBinlogSize) Name() string {
-	return "binlog_size"
+	return binlogSize
 }
 
 // Help describes the role of the Scraper.

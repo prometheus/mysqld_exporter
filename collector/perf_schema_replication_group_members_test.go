@@ -25,6 +25,8 @@ import (
 )
 
 func TestScrapePerfReplicationGroupMembers(t *testing.T) {
+	s := ScrapePerfReplicationGroupMembers{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -76,6 +78,8 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false)
 }
 
 func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {

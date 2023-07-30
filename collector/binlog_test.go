@@ -25,7 +25,7 @@ import (
 )
 
 func TestScrapeBinlogSize(t *testing.T) {
-	s := &ScrapeBinlogSize{}
+	s := ScrapeBinlogSize{}
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -62,37 +62,10 @@ func TestScrapeBinlogSize(t *testing.T) {
 		}
 	})
 
-	convey.Convey("Registered scraper", t, func() {
-		testParseCommandLine(t)
-		s, ok := LookupScraper(binlogSize)
-
-		convey.Convey("Is found in global registry", func() {
-			convey.So(ok, convey.ShouldBeTrue)
-			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeBinlogSize{}).Name())
-		})
-
-		convey.Convey("Is disabled by default", func() {
-			convey.So(s.Enabled(), convey.ShouldBeFalse)
-		})
-
-		convey.Convey("Can be disabled/enabled by command line", func() {
-			testParseCommandLine(t, "--collect.binlog_size")
-			convey.So(s.Enabled(), convey.ShouldBeTrue)
-			testParseCommandLine(t, "--no-collect.binlog_size")
-			convey.So(s.Enabled(), convey.ShouldBeFalse)
-		})
-	})
-
-	convey.Convey("Disable and enabled", t, func() {
-		orig := s.Enabled()
-		s.SetEnabled(!orig)
-		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
-		s.SetEnabled(orig)
-		convey.So(s.Enabled(), convey.ShouldEqual, orig)
-	})
-
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false)
 }

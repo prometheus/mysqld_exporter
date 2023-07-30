@@ -26,6 +26,8 @@ import (
 )
 
 func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
+	s := ScrapeInfoSchemaInnodbTablespaces{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -47,7 +49,6 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapeInfoSchemaInnodbTablespaces{}
 		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
@@ -73,4 +74,6 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false)
 }

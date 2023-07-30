@@ -26,6 +26,8 @@ import (
 )
 
 func TestScrapePerfMemoryEvents(t *testing.T) {
+	s := ScrapePerfMemoryEvents{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -48,7 +50,6 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapePerfMemoryEvents{}
 		if err = s.Configure(defaultArgs(performanceSchemaMemoryEventsArgDefs)...); err != nil {
 			panic(fmt.Sprintf("failed to configure scraper defaults: %s", err))
 		}
@@ -83,4 +84,6 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false, performanceSchemaMemoryEventsArgDefs...)
 }

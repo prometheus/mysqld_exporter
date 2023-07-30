@@ -25,7 +25,7 @@ import (
 )
 
 func TestScrapeGlobalVariables(t *testing.T) {
-	s := &ScrapeGlobalVariables{}
+	s := ScrapeGlobalVariables{}
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -80,39 +80,12 @@ func TestScrapeGlobalVariables(t *testing.T) {
 		}
 	})
 
-	convey.Convey("Registered scraper", t, func() {
-		testParseCommandLine(t)
-		s, ok := LookupScraper(globalVariables)
-
-		convey.Convey("Is found in global registry", func() {
-			convey.So(ok, convey.ShouldBeTrue)
-			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeGlobalVariables{}).Name())
-		})
-
-		convey.Convey("Is enabled by default", func() {
-			convey.So(s.Enabled(), convey.ShouldBeTrue)
-		})
-
-		convey.Convey("Can be disabled/enabled by command line", func() {
-			testParseCommandLine(t, "--no-collect.global_variables")
-			convey.So(s.Enabled(), convey.ShouldBeFalse)
-			testParseCommandLine(t, "--collect.global_variables")
-			convey.So(s.Enabled(), convey.ShouldBeTrue)
-		})
-	})
-
-	convey.Convey("Disable and enabled", t, func() {
-		orig := s.Enabled()
-		s.SetEnabled(!orig)
-		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
-		s.SetEnabled(orig)
-		convey.So(s.Enabled(), convey.ShouldEqual, orig)
-	})
-
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
+
+	testScraperCommon(t, &s, true)
 }
 
 func TestParseWsrepProviderOptions(t *testing.T) {

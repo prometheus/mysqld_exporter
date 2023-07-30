@@ -41,7 +41,7 @@ func TestSanitizeTokudbMetric(t *testing.T) {
 }
 
 func TestScrapeEngineTokudbStatus(t *testing.T) {
-	s := &ScrapeEngineTokudbStatus{}
+	s := ScrapeEngineTokudbStatus{}
 
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -79,27 +79,6 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 		}
 	})
 
-	convey.Convey("Registered scraper", t, func() {
-		testParseCommandLine(t)
-		s, ok := LookupScraper(engineTokudbStatus)
-
-		convey.Convey("Is found in global registry", func() {
-			convey.So(ok, convey.ShouldBeTrue)
-			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeEngineTokudbStatus{}).Name())
-		})
-
-		convey.Convey("Is disabled by default", func() {
-			convey.So(s.Enabled(), convey.ShouldBeFalse)
-		})
-
-		convey.Convey("Can be disabled/enabled by command line", func() {
-			testParseCommandLine(t, "--collect.engine_tokudb_status")
-			convey.So(s.Enabled(), convey.ShouldBeTrue)
-			testParseCommandLine(t, "--no-collect.engine_tokudb_status")
-			convey.So(s.Enabled(), convey.ShouldBeFalse)
-		})
-	})
-
 	convey.Convey("Disable and enabled", t, func() {
 		orig := s.Enabled()
 		s.SetEnabled(!orig)
@@ -112,4 +91,6 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false)
 }

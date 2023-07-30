@@ -26,6 +26,8 @@ import (
 )
 
 func TestScrapePerfFileInstances(t *testing.T) {
+	s := ScrapePerfFileInstances{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -42,7 +44,6 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapePerfFileInstances{}
 		if err = s.Configure(defaultArgs(performanceSchemaFileInstancesArgDefs)...); err != nil {
 			panic(fmt.Sprintf("error configuring scraper defaults: %s", err))
 		}
@@ -83,4 +84,6 @@ func TestScrapePerfFileInstances(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false, performanceSchemaFileInstancesArgDefs...)
 }

@@ -14,10 +14,13 @@
 package collector
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/alecthomas/kingpin/v2"
+	"github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -28,6 +31,137 @@ func TestMain(m *testing.M) {
 	InitRegistry(testApp)
 	code := m.Run()
 	os.Exit(code)
+}
+
+func fakeValue(exampleValue interface{}) interface{} {
+	switch exampleValue.(type) {
+	case bool:
+		return !(exampleValue.(bool))
+	case int:
+		return (exampleValue.(int)) + 1337
+	case string:
+		return "fake_" + exampleValue.(string)
+	}
+	panic("bug: cannot produce fake value using example value of unknown type")
+
+}
+
+func valueToString(value interface{}) string {
+	switch v := value.(type) {
+	case bool:
+		return strconv.FormatBool(!v)
+	case int:
+		return strconv.FormatInt(int64(+1337), 10)
+	case string:
+		return v
+	}
+	panic("bug: cannot convert value of unknown type to string")
+}
+
+func testScraperCommon(t *testing.T, s Scraper, enabledByDefault bool, argDefs ...*argDef) {
+	t.Helper()
+
+	convey.Convey("Test registered scraper", t, func() {
+		testParseCommandLine(t)
+		rs, ok := LookupScraper(s.Name())
+
+		convey.Convey("Is found in global registry", func() {
+			convey.So(ok, convey.ShouldBeTrue)
+			convey.So(rs.Name(), convey.ShouldEqual, rs.Name())
+		})
+
+		msg := "Is enabled by default"
+		if !enabledByDefault {
+			msg = "Is disabled by default"
+		}
+		convey.Convey(msg, func() {
+			convey.So(rs.Enabled(), convey.ShouldEqual, enabledByDefault)
+		})
+
+		convey.Convey("Can be disabled/enabled by command line", func() {
+			if enabledByDefault {
+				testParseCommandLine(t, "--no-collect."+rs.Name())
+				convey.So(rs.Enabled(), convey.ShouldBeFalse)
+				testParseCommandLine(t, "--collect."+rs.Name())
+				convey.So(rs.Enabled(), convey.ShouldBeTrue)
+			} else {
+				testParseCommandLine(t, "--collect."+rs.Name())
+				convey.So(rs.Enabled(), convey.ShouldBeTrue)
+				testParseCommandLine(t, "--no-collect."+rs.Name())
+				convey.So(rs.Enabled(), convey.ShouldBeFalse)
+			}
+		})
+
+		if len(argDefs) > 0 {
+			convey.Convey("Is configurable", func() {
+				convey.So(rs, convey.ShouldImplement, (*Configurable)(nil))
+
+				cfg := rs.(Configurable)
+
+				for _, argDef := range argDefs {
+					convey.Convey(fmt.Sprintf("With an argument named %s", argDef.name), func() {
+						var match Arg
+						for _, arg := range cfg.Args() {
+							if argDef.name == arg.Name() {
+								match = arg
+							}
+						}
+
+						convey.SoMsg("But does not expose that argument", match, convey.ShouldNotBeNil)
+
+						value := fakeValue(match.Value())
+
+						cliFlag := fmt.Sprintf("--collect.%s.%s", rs.Name(), argDef.name)
+						boolValue, valueIsBool := argDef.defaultValue.(bool)
+						if valueIsBool && boolValue {
+							cliFlag = fmt.Sprintf("--no-collect.%s.%s", rs.Name(), argDef.name)
+						}
+
+						convey.Convey(fmt.Sprintf("Via %s flag", cliFlag), func() {
+							cliArgs := []string{cliFlag}
+							if !valueIsBool {
+								cliArgs = append(cliArgs, valueToString(value))
+							}
+							testParseCommandLine(t, cliArgs...)
+
+							for _, arg := range cfg.Args() {
+								if match.Name() == arg.Name() {
+									convey.So(arg.Value(), convey.ShouldEqual, value)
+								}
+							}
+						})
+
+						convey.Convey("Via Configure()", func() {
+							var match Arg
+							for _, arg := range cfg.Args() {
+								if argDef.name == arg.Name() {
+									match = arg
+								}
+							}
+
+							value := fakeValue(match.Value())
+							err := cfg.Configure(NewArg(match.Name(), value))
+							convey.So(err, convey.ShouldBeNil)
+
+							for _, arg := range cfg.Args() {
+								if match.Name() == arg.Name() {
+									convey.So(arg.Value(), convey.ShouldEqual, value)
+								}
+							}
+						})
+					})
+				}
+			})
+		}
+	})
+
+	convey.Convey("Disable and enabled", t, func() {
+		orig := s.Enabled()
+		s.SetEnabled(!orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
+		s.SetEnabled(orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, orig)
+	})
 }
 
 // testParseCommandLine is a helper to for testing different command line

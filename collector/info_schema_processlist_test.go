@@ -26,6 +26,8 @@ import (
 )
 
 func TestScrapeProcesslist(t *testing.T) {
+	s := ScrapeProcesslist{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -47,7 +49,6 @@ func TestScrapeProcesslist(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapeProcesslist{}
 		if err = s.Configure(defaultArgs(processlistArgDefs)...); err != nil {
 			t.Errorf("error configuring scraper defaults: %s", err)
 		}
@@ -89,4 +90,6 @@ func TestScrapeProcesslist(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
+
+	testScraperCommon(t, &s, false, processlistArgDefs...)
 }

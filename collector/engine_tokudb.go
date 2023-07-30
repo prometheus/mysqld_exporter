@@ -29,6 +29,8 @@ import (
 const (
 	// Subsystem.
 	tokudb = "engine_tokudb"
+	// Scraper name.
+	engineTokudbStatus = "engine_tokudb_status"
 	// Query.
 	engineTokudbStatusQuery = `SHOW ENGINE TOKUDB STATUS`
 )
@@ -41,7 +43,7 @@ type ScrapeEngineTokudbStatus struct {
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeEngineTokudbStatus) Name() string {
-	return "engine_tokudb_status"
+	return engineTokudbStatus
 }
 
 // Help describes the role of the Scraper.

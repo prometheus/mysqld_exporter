@@ -41,6 +41,8 @@ func TestSanitizeTokudbMetric(t *testing.T) {
 }
 
 func TestScrapeEngineTokudbStatus(t *testing.T) {
+	s := &ScrapeEngineTokudbStatus{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -59,7 +61,6 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapeEngineTokudbStatus{}
 		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
@@ -76,6 +77,35 @@ func TestScrapeEngineTokudbStatus(t *testing.T) {
 			got := readMetric(<-ch)
 			convey.So(got, convey.ShouldResemble, expect)
 		}
+	})
+
+	convey.Convey("Registered scraper", t, func() {
+		testParseCommandLine(t)
+		s, ok := LookupScraper(engineTokudbStatus)
+
+		convey.Convey("Is found in global registry", func() {
+			convey.So(ok, convey.ShouldBeTrue)
+			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeEngineTokudbStatus{}).Name())
+		})
+
+		convey.Convey("Is disabled by default", func() {
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+
+		convey.Convey("Can be disabled/enabled by command line", func() {
+			testParseCommandLine(t, "--collect.engine_tokudb_status")
+			convey.So(s.Enabled(), convey.ShouldBeTrue)
+			testParseCommandLine(t, "--no-collect.engine_tokudb_status")
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+	})
+
+	convey.Convey("Disable and enabled", t, func() {
+		orig := s.Enabled()
+		s.SetEnabled(!orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
+		s.SetEnabled(orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, orig)
 	})
 
 	// Ensure all SQL queries were executed

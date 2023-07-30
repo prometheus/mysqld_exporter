@@ -25,6 +25,8 @@ import (
 )
 
 func TestScrapeEngineInnodbStatus(t *testing.T) {
+	s := &ScrapeEngineInnodbStatus{}
+
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -155,7 +157,6 @@ END OF INNODB MONITOR OUTPUT
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		s := &ScrapeEngineInnodbStatus{}
 		if err = s.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
@@ -172,6 +173,35 @@ END OF INNODB MONITOR OUTPUT
 			got := readMetric(<-ch)
 			convey.So(got, convey.ShouldResemble, expect)
 		}
+	})
+
+	convey.Convey("Registered scraper", t, func() {
+		testParseCommandLine(t)
+		s, ok := LookupScraper(engineInnodbStatus)
+
+		convey.Convey("Is found in global registry", func() {
+			convey.So(ok, convey.ShouldBeTrue)
+			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeEngineInnodbStatus{}).Name())
+		})
+
+		convey.Convey("Is disabled by default", func() {
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+
+		convey.Convey("Can be disabled/enabled by command line", func() {
+			testParseCommandLine(t, "--collect.engine_innodb_status")
+			convey.So(s.Enabled(), convey.ShouldBeTrue)
+			testParseCommandLine(t, "--no-collect.engine_innodb_status")
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+	})
+
+	convey.Convey("Disable and enabled", t, func() {
+		orig := s.Enabled()
+		s.SetEnabled(!orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
+		s.SetEnabled(orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, orig)
 	})
 
 	// Ensure all SQL queries were executed

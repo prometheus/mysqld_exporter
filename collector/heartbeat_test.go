@@ -68,6 +68,8 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 }
 
 func TestScrapeHeartbeat(t *testing.T) {
+	s := ScrapeHeartbeat{}
+
 	for _, tt := range ScrapeHeartbeatTestCases {
 		keys := []string{}
 		for _, arg := range tt.Args {
@@ -86,7 +88,6 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			ch := make(chan prometheus.Metric)
 			go func() {
-				s := ScrapeHeartbeat{}
 				if err = s.Configure(defaultArgs(heartbeatArgDefs)...); err != nil {
 					t.Errorf("error configuring scraper defaults: %s", err)
 				}
@@ -116,4 +117,33 @@ func TestScrapeHeartbeat(t *testing.T) {
 			}
 		})
 	}
+
+	convey.Convey("Registered scraper", t, func() {
+		testParseCommandLine(t)
+		s, ok := LookupScraper(heartbeat)
+
+		convey.Convey("Is found in global registry", func() {
+			convey.So(ok, convey.ShouldBeTrue)
+			convey.So(s.Name(), convey.ShouldEqual, (&ScrapeHeartbeat{}).Name())
+		})
+
+		convey.Convey("Is disabled by default", func() {
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+
+		convey.Convey("Can be disabled/enabled by command line", func() {
+			testParseCommandLine(t, "--collect.heartbeat")
+			convey.So(s.Enabled(), convey.ShouldBeTrue)
+			testParseCommandLine(t, "--no-collect.heartbeat")
+			convey.So(s.Enabled(), convey.ShouldBeFalse)
+		})
+	})
+
+	convey.Convey("Disable and enabled", t, func() {
+		orig := s.Enabled()
+		s.SetEnabled(!orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, !orig)
+		s.SetEnabled(orig)
+		convey.So(s.Enabled(), convey.ShouldEqual, orig)
+	})
 }

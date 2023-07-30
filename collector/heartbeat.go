@@ -96,7 +96,7 @@ type ScrapeHeartbeat struct {
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeHeartbeat) Name() string {
-	return "heartbeat"
+	return heartbeat
 }
 
 // Help describes the role of the Scraper.

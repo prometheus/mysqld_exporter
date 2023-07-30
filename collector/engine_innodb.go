@@ -31,6 +31,8 @@ import (
 const (
 	// Subsystem.
 	innodb = "engine_innodb"
+	// Scraper name.
+	engineInnodbStatus = "engine_innodb_status"
 	// Query.
 	engineInnodbStatusQuery = `SHOW ENGINE INNODB STATUS`
 )
@@ -43,7 +45,7 @@ type ScrapeEngineInnodbStatus struct {
 
 // Name of the Scraper. Should be unique.
 func (*ScrapeEngineInnodbStatus) Name() string {
-	return "engine_innodb_status"
+	return engineInnodbStatus
 }
 
 // Help describes the role of the Scraper.

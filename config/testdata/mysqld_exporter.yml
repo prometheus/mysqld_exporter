@@ -1,0 +1,14 @@
+collect:
+- name: heartbeat
+  enabled: true
+  args:
+  - name: database
+    value: my_heartbeat
+  - name: utc
+    value: true
+- name: processlist
+  args:
+    - name: min_time
+      value: 10
+- name: slave_status
+  enabled: false

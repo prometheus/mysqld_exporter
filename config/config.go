@@ -45,8 +45,6 @@ var (
 		Help:      "Timestamp of the last successful configuration reload.",
 	})
 
-	cfg *ini.File
-
 	opts = ini.LoadOptions{
 		// Do not error on nonexistent file to allow empty string as filename input
 		Loose: true,
@@ -97,12 +95,13 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		}
 	}()
 
-	if cfg, err = ini.LoadSources(
+	cfg, err := ini.LoadSources(
 		opts,
 		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
 		filename,
-	); err != nil {
-		return fmt.Errorf("failed to load %s: %w", filename, err)
+	)
+	if err != nil {
+		return fmt.Errorf("failed to load config from %s: %w", filename, err)
 	}
 
 	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
@@ -133,12 +132,6 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 
 		mysqlcfg := &MySqlConfig{
 			TlsInsecureSkipVerify: tlsInsecureSkipVerify,
-		}
-
-		// FIXME: this error check seems orphaned
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to load config", "section", sectionName, "err", err)
-			continue
 		}
 
 		err = sec.StrictMapTo(mysqlcfg)

@@ -52,7 +52,7 @@ func (ScrapeEngineInnodbStatus) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	rows, err := db.QueryContext(ctx, engineInnodbStatusQuery)
 	if err != nil {
 		return err

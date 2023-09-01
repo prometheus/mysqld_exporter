@@ -23,7 +23,7 @@ import (
 )
 
 const perfReplicationApplierStatsByWorkerQuery = `
-	SELECT 
+	SELECT
 	    CHANNEL_NAME,
 		WORKER_ID,
 		LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP,
@@ -31,7 +31,7 @@ const perfReplicationApplierStatsByWorkerQuery = `
 		LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP,
 		LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP,
 		APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP,
-		APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP, 
+		APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP,
 	  	APPLYING_TRANSACTION_START_APPLY_TIMESTAMP
     FROM performance_schema.replication_applier_status_by_worker
 	`
@@ -101,7 +101,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapePerfReplicationApplierStatsByWorker) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	perfReplicationApplierStatsByWorkerRows, err := db.QueryContext(ctx, perfReplicationApplierStatsByWorkerQuery)
 	if err != nil {
 		return err

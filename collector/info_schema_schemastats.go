@@ -25,12 +25,12 @@ import (
 )
 
 const schemaStatQuery = `
-		SELECT 
-			TABLE_SCHEMA, 
-			SUM(ROWS_READ) AS ROWS_READ, 
-			SUM(ROWS_CHANGED) AS ROWS_CHANGED, 
-			SUM(ROWS_CHANGED_X_INDEXES) AS ROWS_CHANGED_X_INDEXES 
-		FROM information_schema.TABLE_STATISTICS 
+		SELECT
+			TABLE_SCHEMA,
+			SUM(ROWS_READ) AS ROWS_READ,
+			SUM(ROWS_CHANGED) AS ROWS_CHANGED,
+			SUM(ROWS_CHANGED_X_INDEXES) AS ROWS_CHANGED_X_INDEXES
+		FROM information_schema.TABLE_STATISTICS
 		GROUP BY TABLE_SCHEMA;
 		`
 
@@ -72,7 +72,7 @@ func (ScrapeSchemaStat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSchemaStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeSchemaStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	var varName, varVal string
 
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)

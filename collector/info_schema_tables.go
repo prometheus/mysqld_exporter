@@ -97,7 +97,7 @@ func (ScrapeTableSchema) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	var dbList []string
 	if *tableSchemaDatabases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)

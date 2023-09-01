@@ -84,7 +84,7 @@ func (ScrapeReplicaHost) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeReplicaHost) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger, semanticVersionIsNewer bool) error {
 	replicaHostRows, err := db.QueryContext(ctx, replicaHostQuery)
 	if err != nil {
 		if mysqlErr, ok := err.(*MySQL.MySQLError); ok { // Now the error number is accessible directly

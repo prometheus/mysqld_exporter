@@ -56,7 +56,7 @@ func TestScrapeProcesslist(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeProcesslist{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeProcesslist{}).Scrape(context.Background(), db, ch, log.NewNopLogger(), false); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

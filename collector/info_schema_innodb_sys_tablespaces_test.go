@@ -20,6 +20,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/log"
+	"github.com/hashicorp/go-version"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
@@ -47,7 +48,7 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), db, ch, log.NewNopLogger(), false); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -67,9 +68,98 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 			convey.So(expect, convey.ShouldResemble, got)
 		}
 	})
+}
+
+func TestScrapeInfoSchemaInnodbTablespacesWithoutSpaceType(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	columns := []string{"TABLE_NAME"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("INNODB_SYS_TABLESPACES")
+	mock.ExpectQuery(sanitizeQuery(innodbTablespacesTablenameQuery)).WillReturnRows(rows)
+
+	tablespacesTablename := "INNODB_SYS_TABLESPACES"
+	columns = []string{"SPACE", "NAME", "FILE_FORMAT", "ROW_FORMAT", "FILE_SIZE", "ALLOCATED_SIZE"}
+	rows = sqlmock.NewRows(columns).
+		AddRow(1, "sys/sys_config", "Barracuda", "Dynamic", 100, 100).
+		AddRow(2, "db/compressed", "Barracuda", "Compressed", 300, 200)
+	query := fmt.Sprintf(innodbTablespacesQueryMariadb, tablespacesTablename, tablespacesTablename)
+	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), db, ch, log.NewNopLogger(), true); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	expected := []MetricResult{
+		{labels: labelMap{"tablespace_name": "sys/sys_config", "file_format": "Barracuda", "row_format": "Dynamic", "space_type": ""}, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "sys/sys_config"}, value: 100, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "db/compressed", "file_format": "Barracuda", "row_format": "Compressed", "space_type": ""}, value: 2, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 300, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"tablespace_name": "db/compressed"}, value: 200, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range expected {
+			got := readMetric(<-ch)
+			convey.So(expect, convey.ShouldResemble, got)
+		}
+	})
 
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestSemanticVersionCheck(t *testing.T) {
+	tests := []struct {
+		serverversion    string
+		versionthreshold string
+		err              bool
+	}{
+		{"5.5.68", "10.5.0", true},
+		{"5.7.42", "10.5.0", true},
+		{"8.0.32", "10.5.0", true},
+		{"10.0.38", "10.5.0", true},
+		{"10.1.48", "10.5.0", true},
+		{"10.2.44", "10.5.0", true},
+		{"10.3.38", "10.5.0", true},
+		{"10.4.28", "10.5.0", true},
+		{"10.5.18", "10.5.0", false},
+		{"10.6.12", "10.5.0", false},
+		{"10.7.8", "10.5.0", false},
+		{"10.8.7", "10.5.0", false},
+		{"10.9.5", "10.5.0", false},
+		{"10.10.3", "10.5.0", false},
+		{"10.11.2", "10.5.0", false},
+	}
+
+	for _, testcase := range tests {
+		var (
+			v1, errV1 = version.NewVersion(testcase.serverversion)
+			v2, errV2 = version.NewVersion(testcase.versionthreshold)
+		)
+
+		if (errV1) != nil {
+			t.Errorf("err: serverversion '%s' parsing failed", errV1)
+		}
+
+		if (errV2) != nil {
+			t.Errorf("err: versionthreshold '%s' parsing failed", errV2)
+		}
+
+		testresult := v1.LessThan(v2)
+		if testresult != testcase.err {
+			t.Errorf("err: semantic version check between '%s' and '%s' failed", testcase.serverversion, testcase.versionthreshold)
+			continue
+		}
 	}
 }

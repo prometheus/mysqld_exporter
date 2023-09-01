@@ -47,7 +47,8 @@ const (
 )
 
 var (
-	versionRE = regexp.MustCompile(`^\d+\.\d+`)
+	versionRE    = regexp.MustCompile(`^\d+\.\d+`)
+	semversionRE = regexp.MustCompile(`^\d+\.\d+.\d+`)
 )
 
 // Tunable flags.
@@ -169,7 +170,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			if err := scraper.Scrape(ctx, db, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
+			if err := scraper.Scrape(ctx, db, ch, log.With(e.logger, "scraper", scraper.Name()), false); err != nil {
 				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}
@@ -202,6 +203,17 @@ func getMySQLVersion(db *sql.DB, logger log.Logger) float64 {
 	if versionNum == 0 {
 		level.Debug(logger).Log("msg", "Error parsing version string", "version", versionStr)
 		versionNum = 999
+	}
+	return versionNum
+}
+
+func getMySQLSemanticVersion(db *sql.DB, logger log.Logger) string {
+	var versionStr string
+	var versionNum string
+	if err := db.QueryRow(versionQuery).Scan(&versionStr); err == nil {
+		versionNum = semversionRE.FindString(versionStr)
+	} else {
+		level.Debug(logger).Log("msg", "Error querying version", "err", err)
 	}
 	return versionNum
 }

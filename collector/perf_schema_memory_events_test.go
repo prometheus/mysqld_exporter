@@ -27,7 +27,11 @@ import (
 )
 
 func TestScrapePerfMemoryEvents(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{})
+	scraper := ScrapePerfMemoryEvents{}
+
+	app := kingpin.New("TestScrapePerfMemoryEvents", "")
+	scraper.RegisterFlags(app)
+	_, err := app.Parse([]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +59,7 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfMemoryEvents{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+		if err = scraper.Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

@@ -54,7 +54,12 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfEventsStatements{}).Scrape(context.Background(), &instance{db: db}, ch, promslog.NewNopLogger()); err != nil {
+		scraper := ScrapePerfEventsStatements{
+			Limit:           250,
+			TimeLimit:       86400,
+			DigestTextLimit: 120,
+		}
+		if err = scraper.Scrape(context.Background(), &instance{db: db}, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -130,7 +135,12 @@ func TestScrapePerfEventsStatementsMySQL8028(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfEventsStatements{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+		scraper := ScrapePerfEventsStatements{
+			Limit:           250,
+			TimeLimit:       86400,
+			DigestTextLimit: 120,
+		}
+		if err = scraper.Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

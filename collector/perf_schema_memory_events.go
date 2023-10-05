@@ -32,14 +32,6 @@ const perfMemoryEventsQuery = `
 		where COUNT_ALLOC > 0;
 `
 
-// Tunable flags.
-var (
-	performanceSchemaMemoryEventsRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.memory_events.remove_prefix",
-		"Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
-	).Default("memory/").String()
-)
-
 // Metric descriptors.
 var (
 	performanceSchemaMemoryBytesAllocDesc = prometheus.NewDesc(
@@ -60,7 +52,9 @@ var (
 )
 
 // ScrapePerfMemoryEvents collects from `performance_schema.memory_summary_global_by_event_name`.
-type ScrapePerfMemoryEvents struct{}
+type ScrapePerfMemoryEvents struct {
+	RemovePrefix string
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfMemoryEvents) Name() string {
@@ -77,8 +71,16 @@ func (ScrapePerfMemoryEvents) Version() float64 {
 	return 5.7
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (s *ScrapePerfMemoryEvents) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.perf_schema.memory_events.remove_prefix",
+		"Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
+	).Default("memory/").StringVar(&s.RemovePrefix)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapePerfMemoryEvents) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	perfSchemaMemoryEventsRows, err := db.QueryContext(ctx, perfMemoryEventsQuery)
 	if err != nil {
@@ -100,7 +102,7 @@ func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, instance *instance, ch
 			return err
 		}
 
-		eventName := strings.TrimPrefix(eventName, *performanceSchemaMemoryEventsRemovePrefix)
+		eventName := strings.TrimPrefix(eventName, s.RemovePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaMemoryBytesAllocDesc, prometheus.CounterValue, float64(bytesAlloc), eventName,
 		)

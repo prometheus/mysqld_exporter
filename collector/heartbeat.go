@@ -36,21 +36,6 @@ const (
 	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
 )
 
-var (
-	collectHeartbeatDatabase = kingpin.Flag(
-		"collect.heartbeat.database",
-		"Database from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatTable = kingpin.Flag(
-		"collect.heartbeat.table",
-		"Table from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatUtc = kingpin.Flag(
-		"collect.heartbeat.utc",
-		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
-	).Bool()
-)
-
 // Metric descriptors.
 var (
 	HeartbeatStoredDesc = prometheus.NewDesc(
@@ -74,7 +59,11 @@ var (
 //	server_id             int unsigned NOT NULL PRIMARY KEY,
 //
 // );
-type ScrapeHeartbeat struct{}
+type ScrapeHeartbeat struct {
+	Database string
+	Table    string
+	UTC      bool
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeHeartbeat) Name() string {
@@ -91,18 +80,34 @@ func (ScrapeHeartbeat) Version() float64 {
 	return 5.1
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (s *ScrapeHeartbeat) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.heartbeat.database",
+		"Database from where to collect heartbeat data",
+	).Default("heartbeat").StringVar(&s.Database)
+	application.Flag(
+		"collect.heartbeat.table",
+		"Table from where to collect heartbeat data",
+	).Default("heartbeat").StringVar(&s.Table)
+	application.Flag(
+		"collect.heartbeat.utc",
+		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
+	).BoolVar(&s.UTC)
+}
+
 // nowExpr returns a current timestamp expression.
-func nowExpr() string {
-	if *collectHeartbeatUtc {
+func (s ScrapeHeartbeat) nowExpr() string {
+	if s.UTC {
 		return "UTC_TIMESTAMP(6)"
 	}
 	return "NOW(6)"
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeHeartbeat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapeHeartbeat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
-	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
+	query := fmt.Sprintf(heartbeatQuery, s.nowExpr(), s.Database, s.Table)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err

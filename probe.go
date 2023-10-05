@@ -25,7 +25,7 @@ import (
 	"github.com/prometheus/mysqld_exporter/collector"
 )
 
-func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerFunc {
+func handleProbe(scrapers []collector.Scraper, logger *slog.Logger, config collector.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -72,7 +72,7 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 		filteredScrapers := filterScrapers(scrapers, collectParams)
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger))
+		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger, config))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

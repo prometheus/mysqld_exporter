@@ -16,6 +16,7 @@ package collector
 import (
 	"context"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,4 +36,12 @@ type Scraper interface {
 
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
 	Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error
+}
+
+// ConfigurableScraper extends the Scraper interface by allowing it to be configured with flags.
+type ConfigurableScraper interface {
+	Scraper
+
+	// Register flags to configure a scraper against a given kingpin Application.
+	RegisterFlags(application *kingpin.Application)
 }

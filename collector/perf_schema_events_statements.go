@@ -69,22 +69,6 @@ const perfEventsStatementsQuery = `
 	  LIMIT %d
 	`
 
-// Tunable flags.
-var (
-	perfEventsStatementsLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.limit",
-		"Limit the number of events statements digests by response time",
-	).Default("250").Int()
-	perfEventsStatementsTimeLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.timelimit",
-		"Limit how old the 'last_seen' events statements can be, in seconds",
-	).Default("86400").Int()
-	perfEventsStatementsDigestTextLimit = kingpin.Flag(
-		"collect.perf_schema.eventsstatements.digest_text_limit",
-		"Maximum length of the normalized statement text",
-	).Default("120").Int()
-)
-
 // Metric descriptors.
 var (
 	performanceSchemaEventsStatementsDesc = prometheus.NewDesc(
@@ -150,7 +134,11 @@ var (
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
-type ScrapePerfEventsStatements struct{}
+type ScrapePerfEventsStatements struct {
+	Limit           int
+	TimeLimit       int
+	DigestTextLimit int
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfEventsStatements) Name() string {
@@ -167,13 +155,29 @@ func (ScrapePerfEventsStatements) Version() float64 {
 	return 5.6
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (c *ScrapePerfEventsStatements) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.perf_schema.eventsstatements.limit",
+		"Limit the number of events statements digests by response time",
+	).Default("250").IntVar(&c.Limit)
+	application.Flag(
+		"collect.perf_schema.eventsstatements.timelimit",
+		"Limit how old the 'last_seen' events statements can be, in seconds",
+	).Default("86400").IntVar(&c.TimeLimit)
+	application.Flag(
+		"collect.perf_schema.eventsstatements.digest_text_limit",
+		"Maximum length of the normalized statement text",
+	).Default("120").IntVar(&c.DigestTextLimit)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (c ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
-		*perfEventsStatementsDigestTextLimit,
-		*perfEventsStatementsTimeLimit,
-		*perfEventsStatementsLimit,
+		c.DigestTextLimit,
+		c.TimeLimit,
+		c.Limit,
 	)
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)

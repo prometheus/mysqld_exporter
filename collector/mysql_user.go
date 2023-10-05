@@ -69,14 +69,6 @@ const mysqlUserQuery = `
 		  FROM mysql.user
 		`
 
-// Tunable flags.
-var (
-	userPrivilegesFlag = kingpin.Flag(
-		"collect.mysql.user.privileges",
-		"Enable collecting user privileges from mysql.user",
-	).Default("false").Bool()
-)
-
 var (
 	labelNames = []string{"mysql_user", "hostmask"}
 )
@@ -102,7 +94,9 @@ var (
 )
 
 // ScrapeUser collects from `information_schema.processlist`.
-type ScrapeUser struct{}
+type ScrapeUser struct {
+	Privileges bool
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeUser) Name() string {
@@ -119,8 +113,16 @@ func (ScrapeUser) Version() float64 {
 	return 5.1
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (s *ScrapeUser) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.mysql.user.privileges",
+		"Enable collecting user privileges from mysql.user",
+	).Default("false").BoolVar(&s.Privileges)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var (
 		userRows *sql.Rows
 		err      error
@@ -213,7 +215,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 			return err
 		}
 
-		if *userPrivilegesFlag {
+		if s.Privileges {
 			userCols, err := userRows.Columns()
 			if err != nil {
 				return err

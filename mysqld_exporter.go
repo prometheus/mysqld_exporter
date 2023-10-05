@@ -68,41 +68,41 @@ var (
 
 // scrapers lists all possible collection methods and if they should be enabled by default.
 var scrapers = map[collector.Scraper]bool{
-	collector.ScrapeGlobalStatus{}:                        true,
-	collector.ScrapeGlobalVariables{}:                     true,
-	collector.ScrapeSlaveStatus{}:                         true,
-	collector.ScrapeProcesslist{}:                         false,
-	collector.ScrapeUser{}:                                false,
-	collector.ScrapeTableSchema{}:                         false,
-	collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
-	collector.ScrapeInnodbMetrics{}:                       false,
-	collector.ScrapeAutoIncrementColumns{}:                false,
-	collector.ScrapeBinlogSize{}:                          false,
-	collector.ScrapePerfTableIOWaits{}:                    false,
-	collector.ScrapePerfIndexIOWaits{}:                    false,
-	collector.ScrapePerfTableLockWaits{}:                  false,
-	collector.ScrapePerfEventsStatements{}:                false,
-	collector.ScrapePerfEventsStatementsSum{}:             false,
-	collector.ScrapePerfEventsWaits{}:                     false,
-	collector.ScrapePerfFileEvents{}:                      false,
-	collector.ScrapePerfFileInstances{}:                   false,
-	collector.ScrapePerfMemoryEvents{}:                    false,
-	collector.ScrapePerfReplicationGroupMembers{}:         false,
-	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
-	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
-	collector.ScrapeSysUserSummary{}:                      false,
-	collector.ScrapeUserStat{}:                            false,
-	collector.ScrapeClientStat{}:                          false,
-	collector.ScrapeTableStat{}:                           false,
-	collector.ScrapeSchemaStat{}:                          false,
-	collector.ScrapeInnodbCmp{}:                           true,
-	collector.ScrapeInnodbCmpMem{}:                        true,
-	collector.ScrapeQueryResponseTime{}:                   true,
-	collector.ScrapeEngineTokudbStatus{}:                  false,
-	collector.ScrapeEngineInnodbStatus{}:                  false,
-	collector.ScrapeHeartbeat{}:                           false,
-	collector.ScrapeSlaveHosts{}:                          false,
-	collector.ScrapeReplicaHost{}:                         false,
+	&collector.ScrapeGlobalStatus{}:                        true,
+	&collector.ScrapeGlobalVariables{}:                     true,
+	&collector.ScrapeSlaveStatus{}:                         true,
+	&collector.ScrapeProcesslist{}:                         false,
+	&collector.ScrapeUser{}:                                false,
+	&collector.ScrapeTableSchema{}:                         false,
+	&collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
+	&collector.ScrapeInnodbMetrics{}:                       false,
+	&collector.ScrapeAutoIncrementColumns{}:                false,
+	&collector.ScrapeBinlogSize{}:                          false,
+	&collector.ScrapePerfTableIOWaits{}:                    false,
+	&collector.ScrapePerfIndexIOWaits{}:                    false,
+	&collector.ScrapePerfTableLockWaits{}:                  false,
+	&collector.ScrapePerfEventsStatements{}:                false,
+	&collector.ScrapePerfEventsStatementsSum{}:             false,
+	&collector.ScrapePerfEventsWaits{}:                     false,
+	&collector.ScrapePerfFileEvents{}:                      false,
+	&collector.ScrapePerfFileInstances{}:                   false,
+	&collector.ScrapePerfMemoryEvents{}:                    false,
+	&collector.ScrapePerfReplicationGroupMembers{}:         false,
+	&collector.ScrapePerfReplicationGroupMemberStats{}:     false,
+	&collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
+	&collector.ScrapeSysUserSummary{}:                      false,
+	&collector.ScrapeUserStat{}:                            false,
+	&collector.ScrapeClientStat{}:                          false,
+	&collector.ScrapeTableStat{}:                           false,
+	&collector.ScrapeSchemaStat{}:                          false,
+	&collector.ScrapeInnodbCmp{}:                           true,
+	&collector.ScrapeInnodbCmpMem{}:                        true,
+	&collector.ScrapeQueryResponseTime{}:                   true,
+	&collector.ScrapeEngineTokudbStatus{}:                  false,
+	&collector.ScrapeEngineInnodbStatus{}:                  false,
+	&collector.ScrapeHeartbeat{}:                           false,
+	&collector.ScrapeSlaveHosts{}:                          false,
+	&collector.ScrapeReplicaHost{}:                         false,
 }
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
@@ -131,7 +131,7 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func newHandler(scrapers []collector.Scraper, logger log.Logger, config collector.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
@@ -179,8 +179,7 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 		filteredScrapers := filterScrapers(scrapers, collect)
 
 		registry := prometheus.NewRegistry()
-
-		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger))
+		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger, config))
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -206,10 +205,16 @@ func main() {
 			scraper.Help(),
 		).Default(defaultOn).Bool()
 
+		if cfgScraper, ok := scraper.(collector.ConfigurableScraper); ok {
+			cfgScraper.RegisterFlags(kingpin.CommandLine)
+		}
+
 		scraperFlags[scraper] = f
 	}
 
 	// Parse flags.
+	var collectorConfig collector.Config
+	collectorConfig.RegisterFlags(kingpin.CommandLine)
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("mysqld_exporter"))
@@ -234,7 +239,7 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
-	handlerFunc := newHandler(enabledScrapers, logger)
+	handlerFunc := newHandler(enabledScrapers, logger, collectorConfig)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
 		landingConfig := web.LandingConfig{
@@ -255,7 +260,7 @@ func main() {
 		}
 		http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
+	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger, collectorConfig))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "error", err)

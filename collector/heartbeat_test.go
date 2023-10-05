@@ -55,7 +55,12 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 func TestScrapeHeartbeat(t *testing.T) {
 	for _, tt := range ScrapeHeartbeatTestCases {
 		t.Run(fmt.Sprint(tt.Args), func(t *testing.T) {
-			_, err := kingpin.CommandLine.Parse(tt.Args)
+			scraper := ScrapeHeartbeat{}
+
+			app := kingpin.New("TestScrapeHeartbeat", "")
+			scraper.RegisterFlags(app)
+
+			_, err := app.Parse(tt.Args)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -72,7 +77,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			ch := make(chan prometheus.Metric)
 			go func() {
-				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+				if err = scraper.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 					t.Errorf("error calling function on test: %s", err)
 				}
 				close(ch)

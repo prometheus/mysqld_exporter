@@ -85,7 +85,7 @@
         },
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -169,7 +169,7 @@
         },
         "graphMode": "area",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -253,7 +253,7 @@
         },
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -3739,14 +3739,14 @@
           ]
         },
         "datasource": "$datasource",
-        "definition": "label_values(mysql_up, instance)",
+        "definition": "label_values(mysql_up{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
         "label": "instance",
         "multi": true,
         "name": "instance",
         "options": [],
-        "query": "label_values(mysql_up, instance)",
+        "query": "label_values(mysql_up{job=~\"$job\"}, instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -3795,7 +3795,7 @@
     "type": "timepicker"
   },
   "timezone": "",
-  "title": "MySQL",
+  "title": "MySQL overview",
   "uid": "549c2bf8936f7767ea6ac47c47b00f2a",
   "version": 1
 }

@@ -33,13 +33,6 @@ jobs:
       - run: docker-compose --version
       - run: make build
       - run: make test
-  codespell:
-    docker:
-      - image: cimg/python:3.11
-    steps:
-      - checkout
-      - run: pip install codespell
-      - run: codespell --skip=".git,./vendor,ttar,Makefile.common" -L uint,ist,keypair
   mixin:
     executor: golang
     steps:
@@ -84,10 +77,6 @@ workflows:
               only: /^(main|release-.*|.*build-all.*)$/
             tags:
               only: /^v.*/
-      - codespell:
-          filters:
-            tags:
-              only: /.*/
       - mixin:
           filters:
             tags:

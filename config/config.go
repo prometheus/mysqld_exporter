@@ -70,7 +70,7 @@ type MySqlConfig struct {
 	SslCa                 string `ini:"ssl-ca"`
 	SslCert               string `ini:"ssl-cert"`
 	SslKey                string `ini:"ssl-key"`
-	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"`
+	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"` //nolint:misspell
 	Tls                   string `ini:"tls"`
 }
 

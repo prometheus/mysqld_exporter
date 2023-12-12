@@ -9,6 +9,10 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.15.1 / 2023-12-12
+
+* Rebuild for dependency updates
+
 ## 0.15.0 / 2023-06-16
 
 BREAKING CHANGES:

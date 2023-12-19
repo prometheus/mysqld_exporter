@@ -79,7 +79,8 @@ var (
 	mysqlScrapeDurationSeconds = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
 		"Collector time duration.",
-		[]string{"collector"}, nil,
+		[]string{"collector"},
+		nil,
 	)
 )
 
@@ -149,7 +150,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	db.SetConnMaxLifetime(1 * time.Minute)
 
 	if err := db.PingContext(ctx); err != nil {
-		level.Error(e.logger).Log("msg", "Error pinging mysqld", "err", err)
+		level.Error(e.logger).Log("msg", "Error pinging mysqld", "target", e.getTargetFromDsn(), "err", err)
 		return 0.0
 	}
 

@@ -15,9 +15,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -264,8 +267,26 @@ func main() {
 		_, _ = w.Write([]byte(`ok`))
 	})
 	srv := &http.Server{}
-	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
+	go func() {
+		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
+			os.Exit(1)
+		}
+	}()
+	// graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	_quit := <-quit
+	level.Info(logger).Log("msg", "Received signal, exiting", "signal", _quit.String())
+	// Create a context with a timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown the HTTP server gracefully
+	if err := srv.Shutdown(ctx); err != nil {
+		level.Error(logger).Log("msg", "HTTP server shutdown failed", "err", err)
 		os.Exit(1)
 	}
+	level.Info(logger).Log("msg", "Server shutdown gracefully")
+
 }

@@ -284,7 +284,7 @@ func main() {
 
 	// Shutdown the HTTP server gracefully
 	if err := srv.Shutdown(ctx); err != nil {
-		level.Error(logger).Log("msg", "HTTP server shutdown failed", "err", err)
+		level.Error(logger).Log("msg", "Error shutting down HTTP server", "err", err)
 		os.Exit(1)
 	}
 	level.Info(logger).Log("msg", "Server shutdown gracefully")

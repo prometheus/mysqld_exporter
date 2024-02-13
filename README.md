@@ -186,7 +186,7 @@ ssl-cert=/path/to/ssl/client/cert
 
 ## Using Docker
 
-You can deploy this exporter using the [prom/mysqld-exporter](https://registry.hub.docker.com/r/prom/mysqld-exporter/) Docker image.
+You can deploy this exporter using the [prom/mysqld-exporter](https://hub.docker.com/r/prom/mysqld-exporter/) Docker image.
 
 For example:
 

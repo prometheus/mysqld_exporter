@@ -32,6 +32,8 @@ const perfEventsStatementsQuery = `
 	    LEFT(DIGEST_TEXT, %d) as DIGEST_TEXT,
 	    COUNT_STAR,
 	    SUM_TIMER_WAIT,
+	    SUM_LOCK_TIME,
+	    SUM_CPU_TIME,
 	    SUM_ERRORS,
 	    SUM_WARNINGS,
 	    SUM_ROWS_AFFECTED,
@@ -55,6 +57,8 @@ const perfEventsStatementsQuery = `
 	    Q.DIGEST_TEXT,
 	    Q.COUNT_STAR,
 	    Q.SUM_TIMER_WAIT,
+	    Q.SUM_LOCK_TIME,
+	    Q.SUM_CPU_TIME,
 	    Q.SUM_ERRORS,
 	    Q.SUM_WARNINGS,
 	    Q.SUM_ROWS_AFFECTED,
@@ -95,6 +99,16 @@ var (
 	performanceSchemaEventsStatementsTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_seconds_total"),
 		"The total time of events statements by digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
+	performanceSchemaEventsStatementsLockTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_lock_time_seconds_total"),
+		"The total lock time of events statements by digest.",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
+	performanceSchemaEventsStatementsCPUTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_cpu_time_seconds_total"),
+		"The total cpu time of events statements by digest.",
 		[]string{"schema", "digest", "digest_text"}, nil,
 	)
 	performanceSchemaEventsStatementsErrorsDesc = prometheus.NewDesc(
@@ -185,6 +199,7 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 	var (
 		schemaName, digest, digestText       string
 		count, queryTime, errors, warnings   uint64
+		lockTime, cpuTime                    uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
 		sortMergePasses, sortRows            uint64
@@ -192,7 +207,7 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 	)
 	for perfSchemaEventsStatementsRows.Next() {
 		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables, &sortMergePasses, &sortRows, &noIndexUsed,
+			&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpTables, &tmpDiskTables, &sortMergePasses, &sortRows, &noIndexUsed,
 		); err != nil {
 			return err
 		}
@@ -202,6 +217,14 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 		)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaEventsStatementsTimeDesc, prometheus.CounterValue, float64(queryTime)/picoSeconds,
+			schemaName, digest, digestText,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsLockTimeDesc, prometheus.CounterValue, float64(lockTime)/picoSeconds,
+			schemaName, digest, digestText,
+		)
+		ch <- prometheus.MustNewConstMetric(
+			performanceSchemaEventsStatementsCPUTimeDesc, prometheus.CounterValue, float64(cpuTime)/picoSeconds,
 			schemaName, digest, digestText,
 		)
 		ch <- prometheus.MustNewConstMetric(

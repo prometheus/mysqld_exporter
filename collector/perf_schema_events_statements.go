@@ -198,8 +198,8 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, db *sql.DB, ch cha
 
 	var (
 		schemaName, digest, digestText       string
-		count, queryTime, errors, warnings   uint64
-		lockTime, cpuTime                    uint64
+		count, queryTime, lockTime, cpuTime  uint64
+		errors, warnings                     uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
 		sortMergePasses, sortRows            uint64

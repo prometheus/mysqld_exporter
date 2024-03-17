@@ -50,6 +50,10 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		AddRow("Innodb_buffer_pool_pages_made_young", "15").
 		AddRow("Innodb_rows_read", "8").
 		AddRow("Performance_schema_users_lost", "9").
+		AddRow("Threads_cached", "7").
+		AddRow("Threads_connected", "18").
+		AddRow("Threads_created", "25").
+		AddRow("Threads_running", "1").
 		AddRow("Slave_running", "OFF").
 		AddRow("Ssl_version", "").
 		AddRow("Uptime", "10").
@@ -87,6 +91,10 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{"operation": "made_young"}, value: 15, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"operation": "read"}, value: 8, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"instrumentation": "users_lost"}, value: 9, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{"state": "cached"}, value: 7, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "connected"}, value: 18, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "created"}, value: 25, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"state": "running"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{}, value: 10, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{}, value: 11, metricType: dto.MetricType_UNTYPED},

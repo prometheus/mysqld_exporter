@@ -14,8 +14,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -52,6 +54,20 @@ func handleProbe(scrapers []collector.Scraper, logger log.Logger) http.HandlerFu
 			level.Error(logger).Log("msg", fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
 			http.Error(w, fmt.Sprintf("Error forming dsn from config section [%s]", authModule), http.StatusBadRequest)
 			return
+		}
+
+		// If a timeout is configured via the Prometheus header, add it to the context.
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, *timeoutOffset)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error getting timeout from Prometheus header", "err", err)
+		}
+		if timeoutSeconds > 0 {
+			// Create new timeout context with request context as parent.
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
+			defer cancel()
+			// Overwrite request with timeout context.
+			r = r.WithContext(ctx)
 		}
 
 		filteredScrapers := filterScrapers(scrapers, collectParams)

@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,6 +34,14 @@ func TestExporter(t *testing.T) {
 		t.Skip("-short is passed, skipping test")
 	}
 
+	var exporterConfig Config
+	kingpinApp := kingpin.New("TestExporter", "")
+	exporterConfig.RegisterFlags(kingpinApp)
+	_, err := kingpinApp.Parse([]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	exporter := New(
 		context.Background(),
 		dsn,
@@ -40,6 +49,7 @@ func TestExporter(t *testing.T) {
 			ScrapeGlobalStatus{},
 		},
 		log.NewNopLogger(),
+		exporterConfig,
 	)
 
 	convey.Convey("Metrics describing", t, func() {

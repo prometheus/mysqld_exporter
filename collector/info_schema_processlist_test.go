@@ -27,7 +27,11 @@ import (
 )
 
 func TestScrapeProcesslist(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{
+	scraper := ScrapeProcesslist{}
+	app := kingpin.New("TestScrapeProcesslist", "")
+	scraper.RegisterFlags(app)
+
+	_, err := app.Parse([]string{
 		"--collect.info_schema.processlist.processes_by_user",
 		"--collect.info_schema.processlist.processes_by_host",
 	})
@@ -56,7 +60,7 @@ func TestScrapeProcesslist(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeProcesslist{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = scraper.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -18,7 +18,6 @@ package collector
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strconv"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -33,7 +32,7 @@ const (
 	// timestamps. %s will be replaced by the database and table name.
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
-	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
+	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(?), server_id from ?.?"
 )
 
 var (
@@ -101,8 +100,7 @@ func nowExpr() string {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
-	heartbeatRows, err := db.QueryContext(ctx, query)
+	heartbeatRows, err := db.QueryContext(ctx, heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
 	if err != nil {
 		return err
 	}

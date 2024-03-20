@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"testing"
 
@@ -29,17 +30,17 @@ import (
 type ScrapeHeartbeatTestCase struct {
 	Args    []string
 	Columns []string
-	Query   string
+	SQLArgs []driver.Value
 }
 
 var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 	{
 		[]string{
 			"--collect.heartbeat.database", "heartbeat-test",
-			"--collect.heartbeat.table", "heartbeat-test",
+			"--collect.heartbeat.table", "heartbeat-test' OR 1=1;",
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
-		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+		[]driver.Value{"NOW(6)", "heartbeat-test", "heartbeat-test' OR 1=1;"},
 	},
 	{
 		[]string{
@@ -48,7 +49,7 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 			"--collect.heartbeat.utc",
 		},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},
-		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)), server_id from `heartbeat-test`.`heartbeat-test`",
+		[]driver.Value{"UTC_TIMESTAMP(6)", "heartbeat-test", "heartbeat-test"},
 	},
 }
 
@@ -68,7 +69,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			rows := sqlmock.NewRows(tt.Columns).
 				AddRow("1487597613.001320", "1487598113.448042", 1)
-			mock.ExpectQuery(sanitizeQuery(tt.Query)).WillReturnRows(rows)
+			mock.ExpectQuery("SELECT").WithArgs(tt.SQLArgs...).WillReturnRows(rows)
 
 			ch := make(chan prometheus.Metric)
 			go func() {

@@ -7,7 +7,7 @@ executors:
   # should also be updated.
   golang:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.22
 jobs:
   test:
     executor: golang
@@ -18,7 +18,7 @@ jobs:
           file: mysqld_exporter
   integration:
     docker:
-      - image: cimg/go:1.20
+      - image: cimg/go:1.22
       - image: << parameters.mysql_image >>
         environment:
           MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
@@ -53,13 +53,13 @@ workflows:
             parameters:
               mysql_image:
                 - percona:5.6
-                - mysql/mysql-server:5.7.33
-                - mysql/mysql-server:8.0
-                - mariadb:10.3
-                - mariadb:10.4
+                - mysql:5.7.33
+                - mysql:8.0
+                - mysql:8.4
                 - mariadb:10.5
                 - mariadb:10.6
                 - mariadb:10.11
+                - mariadb:11.2
       - prometheus/build:
           name: build
           parallelism: 3

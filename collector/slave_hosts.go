@@ -31,12 +31,13 @@ const (
 	// timestamps. %s will be replaced by the database and table name.
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
+	slaveHostsQuery   = "SHOW SLAVE HOSTS"
+	showReplicasQuery = "SHOW REPLICAS"
 )
 
 // Metric descriptors.
 var (
-	slaveHostsQueries = [2]string{"SHOW SLAVE HOSTS", "SHOW REPLICAS"}
-	SlaveHostsInfo    = prometheus.NewDesc(
+	SlaveHostsInfo = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, heartbeat, "mysql_slave_hosts_info"),
 		"Information about running slaves",
 		[]string{"server_id", "slave_host", "port", "master_id", "slave_uuid"}, nil,
@@ -68,14 +69,10 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 		err            error
 	)
 	// Try the both syntax for MySQL 8.0 and MySQL 8.4
-	for _, query := range slaveHostsQueries {
-		slaveHostsRows, err = db.QueryContext(ctx, query)
-		if err == nil {
-			break
+	if slaveHostsRows, err = db.QueryContext(ctx, slaveHostsQuery); err != nil {
+		if slaveHostsRows, err = db.QueryContext(ctx, showReplicasQuery); err != nil {
+			return err
 		}
-	}
-	if err != nil {
-		return err
 	}
 	defer slaveHostsRows.Close()
 

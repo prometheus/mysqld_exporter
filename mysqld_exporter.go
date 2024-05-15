@@ -25,6 +25,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -155,7 +156,7 @@ func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
 }
 
 func init() {
-	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
+	prometheus.MustRegister(versioncollector.NewCollector("mysqld_exporter"))
 }
 
 func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {

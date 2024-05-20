@@ -59,7 +59,7 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	case "non-primary", "disconnected":
 		return 0, true
 	}
-	if ts, err := time.Parse("Jan 02 15:04:05 2006 MST", string(data)); err == nil {
+	if ts, err := time.Parse("Jan _2 15:04:05 2006 MST", string(data)); err == nil {
 		return float64(ts.Unix()), true
 	}
 	if ts, err := time.Parse("2006-01-02 15:04:05", string(data)); err == nil {

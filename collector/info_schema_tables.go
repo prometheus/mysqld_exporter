@@ -51,14 +51,6 @@ const (
 		`
 )
 
-// Tunable flags.
-var (
-	tableSchemaDatabases = kingpin.Flag(
-		"collect.info_schema.tables.databases",
-		"The list of databases to collect table stats for, or '*' for all",
-	).Default("*").String()
-)
-
 // Metric descriptors.
 var (
 	infoSchemaTablesVersionDesc = prometheus.NewDesc(
@@ -79,7 +71,9 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-type ScrapeTableSchema struct{}
+type ScrapeTableSchema struct {
+	Databases string
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeTableSchema) Name() string {
@@ -96,10 +90,18 @@ func (ScrapeTableSchema) Version() float64 {
 	return 5.1
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (s *ScrapeTableSchema) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.info_schema.tables.databases",
+		"The list of databases to collect table stats for, or '*' for all",
+	).Default("*").StringVar(&s.Databases)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (s ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var dbList []string
-	if *tableSchemaDatabases == "*" {
+	if s.Databases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)
 		if err != nil {
 			return err
@@ -117,7 +119,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 			dbList = append(dbList, database)
 		}
 	} else {
-		dbList = strings.Split(*tableSchemaDatabases, ",")
+		dbList = strings.Split(s.Databases, ",")
 	}
 
 	for _, database := range dbList {

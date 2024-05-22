@@ -27,7 +27,11 @@ import (
 )
 
 func TestScrapePerfFileInstances(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{"--collect.perf_schema.file_instances.filter", ""})
+	scraper := ScrapePerfFileInstances{}
+
+	app := kingpin.New("TestScrapePerfFileInstances", "")
+	scraper.RegisterFlags(app)
+	_, err := app.Parse([]string{"--collect.perf_schema.file_instances.filter", ""})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +52,7 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = scraper.Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

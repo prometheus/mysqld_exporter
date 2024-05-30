@@ -62,7 +62,7 @@ func parseStatus(data sql.RawBytes) (float64, bool) {
 	if ts, err := time.Parse("Jan 02 15:04:05 2006 MST", string(data)); err == nil {
 		return float64(ts.Unix()), true
 	}
-	if ts, err := time.Parse("2006-01-02 15:04:05", string(data)); err == nil {
+	if ts, err := time.Parse(time.DateTime, string(data)); err == nil {
 		return float64(ts.Unix()), true
 	}
 	if logNum := logRE.Find(data); logNum != nil {

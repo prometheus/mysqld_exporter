@@ -247,7 +247,7 @@ func main() {
 	}
 
 	// Register only scrapers enabled by flag.
-	enabledScrapers := []collector.Scraper{}
+	var enabledScrapers []collector.Scraper
 	for scraper, enabled := range scraperFlags {
 		if *enabled {
 			level.Info(logger).Log("msg", "Scraper enabled", "scraper", scraper.Name())

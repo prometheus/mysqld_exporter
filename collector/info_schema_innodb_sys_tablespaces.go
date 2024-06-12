@@ -42,7 +42,6 @@ const innodbTablespacesQuery = `
 			  AND TABLE_NAME = ` + "'%s'" + `
 			  AND COLUMN_NAME = 'FILE_FORMAT' LIMIT 1), 'NONE') as FILE_FORMAT,
 	    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
-	    ifnull(SPACE_TYPE, 'NONE') as SPACE_TYPE,
 	    FILE_SIZE,
 	    ALLOCATED_SIZE
 	  FROM information_schema.` + "`%s`"
@@ -52,7 +51,7 @@ var (
 	infoSchemaInnodbTablesspaceInfoDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_space_info"),
 		"The Tablespace information and Space ID.",
-		[]string{"tablespace_name", "file_format", "row_format", "space_type"}, nil,
+		[]string{"tablespace_name", "file_format", "row_format"}, nil,
 	)
 	infoSchemaInnodbTablesspaceFileSizeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "innodb_tablespace_file_size_bytes"),
@@ -111,7 +110,6 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 		tableName     string
 		fileFormat    string
 		rowFormat     string
-		spaceType     string
 		fileSize      uint64
 		allocatedSize uint64
 	)
@@ -122,7 +120,6 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 			&tableName,
 			&fileFormat,
 			&rowFormat,
-			&spaceType,
 			&fileSize,
 			&allocatedSize,
 		)
@@ -131,7 +128,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB,
 		}
 		ch <- prometheus.MustNewConstMetric(
 			infoSchemaInnodbTablesspaceInfoDesc, prometheus.GaugeValue, float64(tableSpace),
-			tableName, fileFormat, rowFormat, spaceType,
+			tableName, fileFormat, rowFormat,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			infoSchemaInnodbTablesspaceFileSizeDesc, prometheus.GaugeValue, float64(fileSize),

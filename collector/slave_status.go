@@ -30,7 +30,7 @@ const (
 	slaveStatus = "slave_status"
 )
 
-var slaveStatusQueries = [2]string{"SHOW ALL SLAVES STATUS", "SHOW SLAVE STATUS"}
+var slaveStatusQueries = [3]string{"SHOW ALL SLAVES STATUS", "SHOW SLAVE STATUS", "SHOW REPLICA STATUS"}
 var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
 func columnIndex(slaveCols []string, colName string) int {
@@ -113,7 +113,13 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prome
 		}
 
 		masterUUID := columnValue(scanArgs, slaveCols, "Master_UUID")
+		if masterUUID == "" {
+			masterUUID = columnValue(scanArgs, slaveCols, "Source_UUID")
+		}
 		masterHost := columnValue(scanArgs, slaveCols, "Master_Host")
+		if masterHost == "" {
+			masterHost = columnValue(scanArgs, slaveCols, "Source_Host")
+		}
 		channelName := columnValue(scanArgs, slaveCols, "Channel_Name")       // MySQL & Percona
 		connectionName := columnValue(scanArgs, slaveCols, "Connection_name") // MariaDB
 

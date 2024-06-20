@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -127,8 +129,34 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 	return filteredScrapers
 }
 
+func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
+	var timeoutSeconds float64
+	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
+		var err error
+		timeoutSeconds, err = strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse timeout from Prometheus header: %v", err)
+		}
+	}
+	if timeoutSeconds == 0 {
+		return 0, nil
+	}
+	if timeoutSeconds < 0 {
+		return 0, fmt.Errorf("timeout value from Prometheus header is invalid: %f", timeoutSeconds)
+	}
+
+	if offset >= timeoutSeconds {
+		// Ignore timeout offset if it doesn't leave time to scrape.
+		return 0, fmt.Errorf("timeout offset (%f) should be lower than prometheus scrape timeout (%f)", offset, timeoutSeconds)
+	} else {
+		// Subtract timeout offset from timeout.
+		timeoutSeconds -= offset
+	}
+	return timeoutSeconds, nil
+}
+
 func init() {
-	prometheus.MustRegister(version.NewCollector("mysqld_exporter"))
+	prometheus.MustRegister(versioncollector.NewCollector("mysqld_exporter"))
 }
 
 func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
@@ -155,25 +183,17 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
-			timeoutSeconds, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				level.Error(logger).Log("msg", "Failed to parse timeout from Prometheus header", "err", err)
-			} else {
-				if *timeoutOffset >= timeoutSeconds {
-					// Ignore timeout offset if it doesn't leave time to scrape.
-					level.Error(logger).Log("msg", "Timeout offset should be lower than prometheus scrape timeout", "offset", *timeoutOffset, "prometheus_scrape_timeout", timeoutSeconds)
-				} else {
-					// Subtract timeout offset from timeout.
-					timeoutSeconds -= *timeoutOffset
-				}
-				// Create new timeout context with request context as parent.
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
-				defer cancel()
-				// Overwrite request with timeout context.
-				r = r.WithContext(ctx)
-			}
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, *timeoutOffset)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error getting timeout from Prometheus header", "err", err)
+		}
+		if timeoutSeconds > 0 {
+			// Create new timeout context with request context as parent.
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds*float64(time.Second)))
+			defer cancel()
+			// Overwrite request with timeout context.
+			r = r.WithContext(ctx)
 		}
 
 		filteredScrapers := filterScrapers(scrapers, collect)

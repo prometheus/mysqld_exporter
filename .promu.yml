@@ -1,11 +1,10 @@
 go:
     # Whenever the Go version is updated here, .circle/config.yml should also
     # be updated.
-    version: 1.20
+    version: 1.22
 repository:
     path: github.com/prometheus/mysqld_exporter
 build:
-    flags: -a -tags netgo
     ldflags: |
         -X github.com/prometheus/common/version.Version={{.Version}}
         -X github.com/prometheus/common/version.Revision={{.Revision}}

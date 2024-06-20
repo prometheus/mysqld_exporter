@@ -72,3 +72,9 @@ groups:
       description: The innodb logs are waiting for disk at a rate of {{$value}} /
         second
       summary: MySQL innodb log writes stalling.
+  - alert: MysqlSlaveBehindMaster
+    expr: rate(mysql_slave_status_seconds_behind_master{asserts_env!=""}[5m]) > 30
+    labels:
+      asserts_severity: warning
+      asserts_entity_type: Service
+      asserts_alert_category: failure

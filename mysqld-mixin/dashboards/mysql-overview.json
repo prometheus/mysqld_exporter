@@ -4097,13 +4097,8 @@
         "multi": true,
         "name": "instance",
         "options": [],
-<<<<<<< HEAD
         "query": "label_values(mysql_up{job=~\"$job\"},instance)",
         "refresh": 1,
-=======
-        "query": "label_values(mysql_up, instance)",
-        "refresh": 2,
->>>>>>> master
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,

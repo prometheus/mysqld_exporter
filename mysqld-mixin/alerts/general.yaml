@@ -49,7 +49,7 @@ groups:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} has insufficient binary log cache size.'
       summary: MySQL binary log cache size insufficient.
   - alert: InsufficientBinLogStmtCacheSize
-    expr: mysql_global_status_binlog_stmt_cache_disk_use{ / mysql_global_status_binlog_stmt_cache_use > 0.2
+    expr: mysql_global_status_binlog_stmt_cache_disk_use / mysql_global_status_binlog_stmt_cache_use > 0.2
     for: 5m
     labels:
       severity: warning

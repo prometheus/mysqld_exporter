@@ -9,14 +9,14 @@ groups:
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} is not up.'
       summary: MySQL not up.
-  - alert: MysqlRestarted
+  - alert: MySQLRestarted
     expr: mysql_global_status_uptime < 60
     labels:
       severity: critical
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} restarted less than a minute ago.'
       summary: MySQL restarted.
-  - alert: MysqlSlowQueries
+  - alert: MySQLSlowQueries
     expr: rate(mysql_global_status_slow_queries[5m]) * 60 > 0
     for: 2m
     labels:
@@ -40,7 +40,7 @@ groups:
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} has insufficient temp table size.'
       summary: MySQL temp table size insufficient.
-  - alert: InsufficientBinLogCacheSize
+  - alert: MySQLInsufficientBinLogCacheSize
     expr: mysql_global_status_binlog_cache_disk_use / mysql_global_status_binlog_cache_use > 0.2
     for: 5m
     labels:
@@ -48,7 +48,7 @@ groups:
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} has insufficient binary log cache size.'
       summary: MySQL binary log cache size insufficient.
-  - alert: InsufficientBinLogStmtCacheSize
+  - alert: MySQLInsufficientBinLogStmtCacheSize
     expr: mysql_global_status_binlog_stmt_cache_disk_use / mysql_global_status_binlog_stmt_cache_use > 0.2
     for: 5m
     labels:
@@ -118,7 +118,7 @@ groups:
       description: The innodb logs are waiting for disk at a rate of {{$value}} /
         second
       summary: MySQL innodb log writes stalling.
-  - alert: MysqlSlaveBehindMaster
+  - alert: MySQLSlaveBehindMaster
     expr: rate(mysql_slave_status_seconds_behind_master[5m]) > 30
     labels:
       severity: warning

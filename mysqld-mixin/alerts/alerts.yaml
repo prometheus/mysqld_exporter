@@ -24,7 +24,7 @@ groups:
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} is facing slow queries.'
       summary: MySQL slow queries.
-  - alert: TuneThreadCacheSize
+  - alert: MySQLTuneThreadCacheSize
     expr: mysql_global_status_threads_created / mysql_global_status_connections > 0.5
     for: 5m
     labels:

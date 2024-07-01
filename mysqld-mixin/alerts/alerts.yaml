@@ -32,7 +32,7 @@ groups:
     annotations:
       description: 'MySQL {{$labels.job}} on {{$labels.instance}} thread cache needs tuning.'
       summary: MySQL thread cache needs tuning.
-  - alert: InsufficientTempTableSize
+  - alert: MySQLInsufficientTempTableSize
     expr: mysql_global_status_created_tmp_disk_tables / mysql_global_status_created_tmp_tables > 0.2
     for: 5m
     labels:

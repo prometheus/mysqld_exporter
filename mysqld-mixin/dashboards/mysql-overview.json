@@ -4098,7 +4098,7 @@
         "name": "instance",
         "options": [],
         "query": "label_values(mysql_up{job=~\"$job\"},instance)",
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,

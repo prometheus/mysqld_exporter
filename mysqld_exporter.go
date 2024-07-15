@@ -254,6 +254,12 @@ func main() {
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
+	extras, err := collector.NewExtras(logger)
+	if err != nil {
+		level.Info(logger).Log("msg", "Error configuring extras", "err", err)
+		os.Exit(1)
+	}
+	enabledScrapers = append(enabledScrapers, extras)
 	handlerFunc := newHandler(enabledScrapers, logger)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
@@ -276,6 +282,7 @@ func main() {
 		http.Handle("/", landingPage)
 	}
 	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
+	http.Handle("/-/extras", extras)
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "error", err)

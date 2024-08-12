@@ -15,10 +15,7 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -38,16 +35,10 @@ const (
 
 // SQL queries and parameters.
 const (
-	versionQuery = `SELECT @@version`
-
 	// System variable params formatting.
 	// See: https://github.com/go-sql-driver/mysql#system-variables
 	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
 	timeoutParam         = `lock_wait_timeout=%d`
-)
-
-var (
-	versionRE = regexp.MustCompile(`^\d+\.\d+`)
 )
 
 // Tunable flags.
@@ -92,6 +83,7 @@ type Exporter struct {
 	logger   log.Logger
 	dsn      string
 	scrapers []Scraper
+	instance *instance
 }
 
 // New returns a new MySQL exporter for the provided DSN.
@@ -135,27 +127,23 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) float64 {
 	var err error
 	scrapeTime := time.Now()
-	db, err := sql.Open("mysql", e.dsn)
+	instance, err := newInstance(e.dsn)
 	if err != nil {
 		level.Error(e.logger).Log("msg", "Error opening connection to database", "err", err)
 		return 0.0
 	}
-	defer db.Close()
+	defer instance.Close()
+	e.instance = instance
 
-	// By design exporter should use maximum one connection per request.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	// Set max lifetime for a connection.
-	db.SetConnMaxLifetime(1 * time.Minute)
-
-	if err := db.PingContext(ctx); err != nil {
+	if err := instance.Ping(); err != nil {
 		level.Error(e.logger).Log("msg", "Error pinging mysqld", "err", err)
 		return 0.0
 	}
 
 	ch <- prometheus.MustNewConstMetric(mysqlScrapeDurationSeconds, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "connection")
 
-	version := getMySQLVersion(db, e.logger)
+	version := instance.versionMajorMinor
+
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for _, scraper := range e.scrapers {
@@ -169,7 +157,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			if err := scraper.Scrape(ctx, db, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
+			if err := scraper.Scrape(ctx, instance, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
 				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}
@@ -188,20 +176,4 @@ func (e *Exporter) getTargetFromDsn() string {
 		return ""
 	}
 	return dsnConfig.Addr
-}
-
-func getMySQLVersion(db *sql.DB, logger log.Logger) float64 {
-	var versionStr string
-	var versionNum float64
-	if err := db.QueryRow(versionQuery).Scan(&versionStr); err == nil {
-		versionNum, _ = strconv.ParseFloat(versionRE.FindString(versionStr), 64)
-	} else {
-		level.Debug(logger).Log("msg", "Error querying version", "err", err)
-	}
-	// If we can't match/parse the version, set it some big value that matches all versions.
-	if versionNum == 0 {
-		level.Debug(logger).Log("msg", "Error parsing version string", "version", versionStr)
-		versionNum = 999
-	}
-	return versionNum
 }

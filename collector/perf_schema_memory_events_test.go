@@ -37,6 +37,7 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{
 		"EVENT_NAME",
@@ -54,7 +55,7 @@ func TestScrapePerfMemoryEvents(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfMemoryEvents{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapePerfMemoryEvents{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

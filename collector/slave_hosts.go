@@ -63,11 +63,12 @@ func (ScrapeSlaveHosts) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeSlaveHosts) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var (
 		slaveHostsRows *sql.Rows
 		err            error
 	)
+	db := instance.getDB()
 	// Try the both syntax for MySQL 8.0 and MySQL 8.4
 	if slaveHostsRows, err = db.QueryContext(ctx, slaveHostsQuery); err != nil {
 		if slaveHostsRows, err = db.QueryContext(ctx, showReplicasQuery); err != nil {

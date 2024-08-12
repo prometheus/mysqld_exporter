@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -80,7 +79,8 @@ func (ScrapePerfFileInstances) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileInstances) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapePerfFileInstances) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+	db := instance.getDB()
 	// Timers here are returned in picoseconds.
 	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
 	if err != nil {

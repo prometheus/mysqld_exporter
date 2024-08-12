@@ -15,7 +15,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
@@ -35,5 +34,5 @@ type Scraper interface {
 	Version() float64
 
 	// Scrape collects data from database connection and sends it over channel as prometheus metric.
-	Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error
+	Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error
 }

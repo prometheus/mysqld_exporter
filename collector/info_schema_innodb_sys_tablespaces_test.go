@@ -31,6 +31,7 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"TABLE_NAME"}
 	rows := sqlmock.NewRows(columns).
@@ -47,7 +48,7 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

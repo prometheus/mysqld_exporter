@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/blang/semver/v4"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -31,7 +32,8 @@ const innodbTablespacesTablenameQuery = `
 	  WHERE table_name = 'INNODB_SYS_TABLESPACES'
 	    OR table_name = 'INNODB_TABLESPACES'
 	`
-const innodbTablespacesQuery = `
+
+const innodbTablespacesQueryMySQL = `
 	SELECT
 	    SPACE,
 	    NAME,
@@ -42,6 +44,21 @@ const innodbTablespacesQuery = `
 			  AND COLUMN_NAME = 'FILE_FORMAT' LIMIT 1), 'NONE') as FILE_FORMAT,
 	    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
 	    ifnull(SPACE_TYPE, 'NONE') as SPACE_TYPE,
+	    FILE_SIZE,
+	    ALLOCATED_SIZE
+	  FROM information_schema.` + "`%s`"
+
+// SPACE_TYPE has been removed in MariaDB 10.5 https://jira.mariadb.org/browse/MDEV-19940
+const innodbTablespacesQueryMariaDB = `
+	SELECT
+	    SPACE,
+	    NAME,
+	    ifnull((SELECT column_name
+			FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = 'information_schema'
+			  AND TABLE_NAME = ` + "'%s'" + `
+			  AND COLUMN_NAME = 'FILE_FORMAT' LIMIT 1), 'NONE') as FILE_FORMAT,
+	    ifnull(ROW_FORMAT, 'NONE') as ROW_FORMAT,
 	    FILE_SIZE,
 	    ALLOCATED_SIZE
 	  FROM information_schema.` + "`%s`"
@@ -88,6 +105,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *i
 	var tablespacesTablename string
 	var query string
 	db := instance.getDB()
+
 	err := db.QueryRowContext(ctx, innodbTablespacesTablenameQuery).Scan(&tablespacesTablename)
 	if err != nil {
 		return err
@@ -95,7 +113,10 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *i
 
 	switch tablespacesTablename {
 	case "INNODB_SYS_TABLESPACES", "INNODB_TABLESPACES":
-		query = fmt.Sprintf(innodbTablespacesQuery, tablespacesTablename, tablespacesTablename)
+		query = fmt.Sprintf(innodbTablespacesQueryMySQL, tablespacesTablename, tablespacesTablename)
+		if instance.flavor == FlavorMariaDB && instance.version.GTE(semver.MustParse("10.5.0")) {
+			query = fmt.Sprintf(innodbTablespacesQueryMariaDB, tablespacesTablename, tablespacesTablename)
+		}
 	default:
 		return errors.New("Couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema.")
 	}
@@ -117,15 +138,28 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *i
 	)
 
 	for tablespacesRows.Next() {
-		err = tablespacesRows.Scan(
-			&tableSpace,
-			&tableName,
-			&fileFormat,
-			&rowFormat,
-			&spaceType,
-			&fileSize,
-			&allocatedSize,
-		)
+		var err error
+		if instance.flavor == FlavorMariaDB && instance.version.GTE(semver.MustParse("10.5.0")) {
+			err = tablespacesRows.Scan(
+				&tableSpace,
+				&tableName,
+				&fileFormat,
+				&rowFormat,
+				&fileSize,
+				&allocatedSize,
+			)
+		} else {
+			err = tablespacesRows.Scan(
+				&tableSpace,
+				&tableName,
+				&fileFormat,
+				&rowFormat,
+				&spaceType,
+				&fileSize,
+				&allocatedSize,
+			)
+		}
+
 		if err != nil {
 			return err
 		}

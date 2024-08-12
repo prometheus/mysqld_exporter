@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -72,9 +71,10 @@ func (ScrapeSchemaStat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSchemaStat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeSchemaStat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var varName, varVal string
 
+	db := instance.getDB()
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
 		level.Debug(logger).Log("msg", "Detailed schema stats are not available.")

@@ -31,6 +31,8 @@ func TestScrapeBinlogSize(t *testing.T) {
 	}
 	defer db.Close()
 
+	inst := &instance{db: db}
+
 	mock.ExpectQuery(logbinQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
 
 	columns := []string{"Log_name", "File_size"}
@@ -42,7 +44,7 @@ func TestScrapeBinlogSize(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeBinlogSize{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeBinlogSize{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

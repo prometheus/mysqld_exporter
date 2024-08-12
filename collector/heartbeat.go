@@ -100,7 +100,8 @@ func nowExpr() string {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeHeartbeat) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeHeartbeat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+	db := instance.getDB()
 	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {

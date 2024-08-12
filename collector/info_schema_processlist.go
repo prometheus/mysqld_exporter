@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"reflect"
 	"sort"
@@ -97,11 +96,12 @@ func (ScrapeProcesslist) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
 		*processlistMinTime,
 	)
+	db := instance.getDB()
 	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
 		return err

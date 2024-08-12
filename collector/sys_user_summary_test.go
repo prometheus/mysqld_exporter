@@ -16,14 +16,15 @@ package collector
 import (
 	"context"
 	"database/sql/driver"
+	"regexp"
+	"strconv"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"regexp"
-	"strconv"
-	"testing"
 )
 
 func TestScrapeSysUserSummary(t *testing.T) {
@@ -33,6 +34,7 @@ func TestScrapeSysUserSummary(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{
 		"user",
@@ -111,7 +113,7 @@ func TestScrapeSysUserSummary(t *testing.T) {
 	ch := make(chan prometheus.Metric)
 
 	go func() {
-		if err = (ScrapeSysUserSummary{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSysUserSummary{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

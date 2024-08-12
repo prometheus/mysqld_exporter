@@ -30,6 +30,7 @@ func TestScrapeReplicaHost(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"SERVER_ID", "ROLE", "CPU", "MASTER_SLAVE_LATENCY_IN_MICROSECONDS", "REPLICA_LAG_IN_MILLISECONDS", "LOG_STREAM_SPEED_IN_KiB_PER_SECOND", "CURRENT_REPLAY_LATENCY_IN_MICROSECONDS"}
 	rows := sqlmock.NewRows(columns).
@@ -39,7 +40,7 @@ func TestScrapeReplicaHost(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeReplicaHost{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeReplicaHost{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

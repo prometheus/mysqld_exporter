@@ -30,6 +30,7 @@ func TestScrapeGlobalVariables(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"Variable_name", "Value"}
 	rows := sqlmock.NewRows(columns).
@@ -52,7 +53,7 @@ func TestScrapeGlobalVariables(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeGlobalVariables{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeGlobalVariables{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -31,6 +31,7 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	enabledColumnName := []string{"COLUMN_NAME"}
 	rows := sqlmock.NewRows(enabledColumnName).
@@ -53,7 +54,7 @@ func TestScrapeInnodbMetrics(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInnodbMetrics{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeInnodbMetrics{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

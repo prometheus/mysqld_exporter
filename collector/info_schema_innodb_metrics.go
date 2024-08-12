@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
@@ -93,10 +92,11 @@ func (ScrapeInnodbMetrics) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbMetrics) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var enabledColumnName string
 	var query string
 
+	db := instance.getDB()
 	err := db.QueryRowContext(ctx, infoSchemaInnodbMetricsEnabledColumnQuery).Scan(&enabledColumnName)
 	if err != nil {
 		return err

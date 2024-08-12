@@ -152,10 +152,10 @@ END OF INNODB MONITOR OUTPUT
 	rows := sqlmock.NewRows(columns).AddRow("InnoDB", "", sample)
 
 	mock.ExpectQuery(sanitizeQuery(engineInnodbStatusQuery)).WillReturnRows(rows)
-
+	inst := &instance{db: db}
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeEngineInnodbStatus{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeEngineInnodbStatus{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -69,11 +69,12 @@ func (ScrapeSlaveStatus) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveStatus) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var (
 		slaveStatusRows *sql.Rows
 		err             error
 	)
+	db := instance.getDB()
 	// Try the both syntax for MySQL/Percona and MariaDB
 	for _, query := range slaveStatusQueries {
 		slaveStatusRows, err = db.QueryContext(ctx, query)

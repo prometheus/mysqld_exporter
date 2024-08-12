@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -85,9 +84,10 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var tablespacesTablename string
 	var query string
+	db := instance.getDB()
 	err := db.QueryRowContext(ctx, innodbTablespacesTablenameQuery).Scan(&tablespacesTablename)
 	if err != nil {
 		return err

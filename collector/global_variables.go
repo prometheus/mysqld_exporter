@@ -153,6 +153,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 		"version":                "",
 		"version_comment":        "",
 		"wsrep_cluster_name":     "",
+		"wsrep_start_position":   "",
 		"wsrep_provider_options": "",
 		"tx_isolation":           "",
 		"transaction_isolation":  "",
@@ -193,8 +194,8 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 	if textItems["wsrep_cluster_name"] != "" {
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(prometheus.BuildFQName(namespace, "galera", "variables_info"), "PXC/Galera variables information.",
-				[]string{"wsrep_cluster_name"}, nil),
-			prometheus.GaugeValue, 1, textItems["wsrep_cluster_name"],
+				[]string{"wsrep_cluster_name", "wsrep_start_position"}, nil),
+			prometheus.GaugeValue, 1, textItems["wsrep_cluster_name"], textItems["wsrep_start_position"],
 		)
 	}
 

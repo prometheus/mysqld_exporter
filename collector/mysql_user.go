@@ -21,10 +21,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
+
+// mysqlSubsystem used for metric names.
+const mysqlSubsystem = "mysql"
 
 const mysqlUserQuery = `
 		  SELECT
@@ -81,19 +84,19 @@ var (
 // Metric descriptors.
 var (
 	userMaxQuestionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_questions"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_questions"),
 		"The number of max_questions by user.",
 		labelNames, nil)
 	userMaxUpdatesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_updates"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_updates"),
 		"The number of max_updates by user.",
 		labelNames, nil)
 	userMaxConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_connections"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_connections"),
 		"The number of max_connections by user.",
 		labelNames, nil)
 	userMaxUserConnectionsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, mysql, "max_user_connections"),
+		prometheus.BuildFQName(namespace, mysqlSubsystem, "max_user_connections"),
 		"The number of max_user_connections by user.",
 		labelNames, nil)
 )
@@ -103,7 +106,7 @@ type ScrapeUser struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeUser) Name() string {
-	return mysql + ".user"
+	return mysqlSubsystem + ".user"
 }
 
 // Help describes the role of the Scraper.
@@ -117,7 +120,8 @@ func (ScrapeUser) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeUser) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+	db := instance.getDB()
 	var (
 		userRows *sql.Rows
 		err      error
@@ -229,7 +233,7 @@ func (ScrapeUser) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.M
 				if value, ok := parsePrivilege(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
 					ch <- prometheus.MustNewConstMetric(
 						prometheus.NewDesc(
-							prometheus.BuildFQName(namespace, mysql, strings.ToLower(col)),
+							prometheus.BuildFQName(namespace, mysqlSubsystem, strings.ToLower(col)),
 							col+" by user.",
 							labelNames,
 							nil,

@@ -15,12 +15,13 @@ package collector
 
 import (
 	"context"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func TestScrapePerfReplicationGroupMembers(t *testing.T) {
@@ -29,6 +30,7 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{
 		"CHANNEL_NAME",
@@ -49,7 +51,7 @@ func TestScrapePerfReplicationGroupMembers(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfReplicationGroupMembers{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapePerfReplicationGroupMembers{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -82,6 +84,7 @@ func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{
 		"CHANNEL_NAME",
@@ -100,7 +103,7 @@ func TestScrapePerfReplicationGroupMembersMySQL57(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfReplicationGroupMembers{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapePerfReplicationGroupMembers{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

@@ -19,11 +19,11 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func TestScrapeProcesslist(t *testing.T) {
@@ -40,6 +40,7 @@ func TestScrapeProcesslist(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	query := fmt.Sprintf(infoSchemaProcesslistQuery, 0)
 	columns := []string{"user", "host", "command", "state", "processes", "seconds"}
@@ -56,7 +57,7 @@ func TestScrapeProcesslist(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeProcesslist{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeProcesslist{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

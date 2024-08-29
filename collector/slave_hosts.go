@@ -20,8 +20,8 @@ import (
 	"database/sql"
 
 	"github.com/go-kit/log"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/satori/go.uuid"
 )
 
 const (
@@ -31,7 +31,8 @@ const (
 	// timestamps. %s will be replaced by the database and table name.
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
-	slaveHostsQuery = "SHOW SLAVE HOSTS"
+	slaveHostsQuery   = "SHOW SLAVE HOSTS"
+	showReplicasQuery = "SHOW REPLICAS"
 )
 
 // Metric descriptors.
@@ -62,10 +63,17 @@ func (ScrapeSlaveHosts) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
-	slaveHostsRows, err := db.QueryContext(ctx, slaveHostsQuery)
-	if err != nil {
-		return err
+func (ScrapeSlaveHosts) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+	var (
+		slaveHostsRows *sql.Rows
+		err            error
+	)
+	db := instance.getDB()
+	// Try the both syntax for MySQL 8.0 and MySQL 8.4
+	if slaveHostsRows, err = db.QueryContext(ctx, slaveHostsQuery); err != nil {
+		if slaveHostsRows, err = db.QueryContext(ctx, showReplicasQuery); err != nil {
+			return err
+		}
 	}
 	defer slaveHostsRows.Close()
 
@@ -105,7 +113,7 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 		if len(columnNames) == 5 {
 			// Check to see if slaveUuidOrMasterId resembles a UUID or not
 			// to find out if we are using an old version of MySQL
-			if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
+			if _, err = uuid.Parse(slaveUuidOrMasterId); err != nil {
 				// We are running an older version of MySQL with no slave UUID
 				slaveUuid = ""
 				masterId = slaveUuidOrMasterId

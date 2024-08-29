@@ -19,11 +19,11 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/smartystreets/goconvey/convey"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 type ScrapeHeartbeatTestCase struct {
@@ -65,6 +65,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 				t.Fatalf("error opening a stub database connection: %s", err)
 			}
 			defer db.Close()
+			inst := &instance{db: db}
 
 			rows := sqlmock.NewRows(tt.Columns).
 				AddRow("1487597613.001320", "1487598113.448042", 1)
@@ -72,7 +73,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			ch := make(chan prometheus.Metric)
 			go func() {
-				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 					t.Errorf("error calling function on test: %s", err)
 				}
 				close(ch)

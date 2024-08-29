@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -53,7 +52,7 @@ var (
 	)
 )
 
-// ScrapeBinlogSize colects from `SHOW BINARY LOGS`.
+// ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
 type ScrapeBinlogSize struct{}
 
 // Name of the Scraper. Should be unique.
@@ -72,8 +71,9 @@ func (ScrapeBinlogSize) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeBinlogSize) Scrape(ctx context.Context, db *sql.DB, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeBinlogSize) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
 	var logBin uint8
+	db := instance.getDB()
 	err := db.QueryRowContext(ctx, logbinQuery).Scan(&logBin)
 	if err != nil {
 		return err

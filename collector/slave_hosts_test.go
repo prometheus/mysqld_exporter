@@ -30,6 +30,7 @@ func TestScrapeSlaveHostsOldFormat(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"Server_id", "Host", "Port", "Rpl_recovery_rank", "Master_id"}
 	rows := sqlmock.NewRows(columns).
@@ -39,7 +40,7 @@ func TestScrapeSlaveHostsOldFormat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -68,6 +69,7 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"Server_id", "Host", "Port", "Master_id", "Slave_UUID"}
 	rows := sqlmock.NewRows(columns).
@@ -77,7 +79,7 @@ func TestScrapeSlaveHostsNewFormat(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -106,6 +108,7 @@ func TestScrapeSlaveHostsWithoutSlaveUuid(t *testing.T) {
 		t.Fatalf("error opening a stub database connection: %s", err)
 	}
 	defer db.Close()
+	inst := &instance{db: db}
 
 	columns := []string{"Server_id", "Host", "Port", "Master_id"}
 	rows := sqlmock.NewRows(columns).
@@ -115,7 +118,7 @@ func TestScrapeSlaveHostsWithoutSlaveUuid(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), db, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSlaveHosts{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

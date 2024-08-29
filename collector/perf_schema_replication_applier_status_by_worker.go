@@ -96,7 +96,7 @@ func (ScrapePerfReplicationApplierStatsByWorker) Help() string {
 
 // Version of MySQL from which scraper is available.
 func (ScrapePerfReplicationApplierStatsByWorker) Version() float64 {
-	return 5.7
+	return 8.0
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.

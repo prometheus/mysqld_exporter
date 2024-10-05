@@ -160,7 +160,16 @@ func init() {
 }
 
 func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+	processing := false
 	return func(w http.ResponseWriter, r *http.Request) {
+		if processing {
+			log.Info("Received metrics request while previous still in progress: returning 429 Too Many Requests")
+			http.Error(w, "429 Too Many Requests", http.StatusTooManyRequests)
+			return
+		}
+		processing = true
+		defer func() { processing = false }()
+
 		var dsn string
 		var err error
 		target := ""

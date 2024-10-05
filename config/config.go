@@ -50,6 +50,8 @@ var (
 		Loose: true,
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
+		// Allow comment characters inside values.
+		SpaceBeforeInlineComment: true,
 	}
 
 	err error

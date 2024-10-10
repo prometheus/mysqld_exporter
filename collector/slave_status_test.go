@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -39,7 +39,7 @@ func TestScrapeSlaveStatus(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

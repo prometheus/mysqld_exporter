@@ -18,8 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-kit/log"
-
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -28,7 +27,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -60,7 +59,7 @@ func TestValidateConfig(t *testing.T) {
 		c := MySqlConfigHandler{
 			Config: &Config{},
 		}
-		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		cfg := c.GetConfig()
@@ -73,7 +72,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("", "testhost:5000", "testuser", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("", "testhost:5000", "testuser", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -90,7 +89,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		err := c.ReloadConfig("", "testhost", "testuser", true, log.NewNopLogger())
+		err := c.ReloadConfig("", "testhost", "testuser", true, promslog.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldBeError,
@@ -102,7 +101,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "fakeuser", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "fakeuser", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -117,7 +116,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost:3306", "", true, log.NewNopLogger())
+		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost:3306", "", true, promslog.NewNopLogger())
 		convey.So(
 			err,
 			convey.ShouldResemble,
@@ -130,7 +129,7 @@ func TestValidateConfig(t *testing.T) {
 			Config: &Config{},
 		}
 		os.Clearenv()
-		if err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 
@@ -151,7 +150,7 @@ func TestFormDSN(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", false, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {
@@ -191,7 +190,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn with tls skip verify", t, func() {
-		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Default Client", func() {
@@ -223,7 +222,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 	)
 
 	convey.Convey("Host exporter dsn with custom tls", t, func() {
-		if err := c.ReloadConfig("testdata/client_custom_tls.cnf", "localhost:3306", "", false, log.NewNopLogger()); err != nil {
+		if err := c.ReloadConfig("testdata/client_custom_tls.cnf", "localhost:3306", "", false, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
 		}
 		convey.Convey("Target tls enabled", func() {

@@ -17,8 +17,8 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -93,7 +93,7 @@ func (ScrapePerfTableLockWaits) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfTableLockWaits) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapePerfTableLockWaits) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	perfSchemaTableLockWaitsRows, err := db.QueryContext(ctx, perfTableLockWaitsQuery)
 	if err != nil {

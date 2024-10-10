@@ -16,19 +16,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
+	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
@@ -159,7 +158,7 @@ func init() {
 	prometheus.MustRegister(versioncollector.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFunc {
+func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var dsn string
 		var err error
@@ -172,10 +171,10 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 		cfg := c.GetConfig()
 		cfgsection, ok := cfg.Sections["client"]
 		if !ok {
-			level.Error(logger).Log("msg", "Failed to parse section [client] from config file", "err", err)
+			logger.Error("Failed to parse section [client] from config file", "err", err)
 		}
 		if dsn, err = cfgsection.FormDSN(target); err != nil {
-			level.Error(logger).Log("msg", "Failed to form dsn from section [client]", "err", err)
+			logger.Error("Failed to form dsn from section [client]", "err", err)
 		}
 
 		collect := q["collect[]"]
@@ -185,7 +184,7 @@ func newHandler(scrapers []collector.Scraper, logger log.Logger) http.HandlerFun
 		// If a timeout is configured via the Prometheus header, add it to the context.
 		timeoutSeconds, err := getScrapeTimeoutSeconds(r, *timeoutOffset)
 		if err != nil {
-			level.Error(logger).Log("msg", "Error getting timeout from Prometheus header", "err", err)
+			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}
 		if timeoutSeconds > 0 {
 			// Create new timeout context with request context as parent.
@@ -230,19 +229,19 @@ func main() {
 	}
 
 	// Parse flags.
-	promlogConfig := &promlog.Config{}
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
+	promslogConfig := &promslog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promslogConfig)
 	kingpin.Version(version.Print("mysqld_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
-	logger := promlog.New(promlogConfig)
+	logger := promslog.New(promslogConfig)
 
-	level.Info(logger).Log("msg", "Starting mysqld_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+	logger.Info("Starting mysqld_exporter", "version", version.Info())
+	logger.Info("Build context", "build_context", version.BuildContext())
 
 	var err error
 	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
-		level.Info(logger).Log("msg", "Error parsing host config", "file", *configMycnf, "err", err)
+		logger.Info("Error parsing host config", "file", *configMycnf, "err", err)
 		os.Exit(1)
 	}
 
@@ -250,7 +249,7 @@ func main() {
 	enabledScrapers := []collector.Scraper{}
 	for scraper, enabled := range scraperFlags {
 		if *enabled {
-			level.Info(logger).Log("msg", "Scraper enabled", "scraper", scraper.Name())
+			logger.Info("Scraper enabled", "scraper", scraper.Name())
 			enabledScrapers = append(enabledScrapers, scraper)
 		}
 	}
@@ -270,7 +269,7 @@ func main() {
 		}
 		landingPage, err := web.NewLandingPage(landingConfig)
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			logger.Error("Error creating landing page", "err", err)
 			os.Exit(1)
 		}
 		http.Handle("/", landingPage)
@@ -278,14 +277,14 @@ func main() {
 	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
-			level.Warn(logger).Log("msg", "Error reloading host config", "file", *configMycnf, "error", err)
+			logger.Warn("Error reloading host config", "file", *configMycnf, "error", err)
 			return
 		}
 		_, _ = w.Write([]byte(`ok`))
 	})
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("msg", "Error starting HTTP server", "err", err)
+		logger.Error("Error starting HTTP server", "err", err)
 		os.Exit(1)
 	}
 }

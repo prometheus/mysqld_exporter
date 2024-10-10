@@ -17,9 +17,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -36,7 +36,7 @@ func TestExporter(t *testing.T) {
 		[]Scraper{
 			ScrapeGlobalStatus{},
 		},
-		log.NewNopLogger(),
+		promslog.NewNopLogger(),
 	)
 
 	convey.Convey("Metrics describing", t, func() {

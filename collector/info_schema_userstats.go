@@ -18,10 +18,9 @@ package collector
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -156,16 +155,16 @@ func (ScrapeUserStat) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUserStat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeUserStat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	var varName, varVal string
 	db := instance.getDB()
 	err := db.QueryRowContext(ctx, userstatCheckQuery).Scan(&varName, &varVal)
 	if err != nil {
-		level.Debug(logger).Log("msg", "Detailed user stats are not available.")
+		logger.Debug("Detailed user stats are not available.")
 		return nil
 	}
 	if varVal == "OFF" {
-		level.Debug(logger).Log("msg", "MySQL variable is OFF.", "var", varName)
+		logger.Debug("MySQL variable is OFF.", "var", varName)
 		return nil
 	}
 

@@ -16,13 +16,12 @@ package collector
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -80,14 +79,14 @@ var _ prometheus.Collector = (*Exporter)(nil)
 // Exporter collects MySQL metrics. It implements prometheus.Collector.
 type Exporter struct {
 	ctx      context.Context
-	logger   log.Logger
+	logger   *slog.Logger
 	dsn      string
 	scrapers []Scraper
 	instance *instance
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(ctx context.Context, dsn string, scrapers []Scraper, logger log.Logger) *Exporter {
+func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
 	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
 
@@ -129,14 +128,14 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	scrapeTime := time.Now()
 	instance, err := newInstance(e.dsn)
 	if err != nil {
-		level.Error(e.logger).Log("msg", "Error opening connection to database", "err", err)
+		e.logger.Error("Error opening connection to database", "err", err)
 		return 0.0
 	}
 	defer instance.Close()
 	e.instance = instance
 
 	if err := instance.Ping(); err != nil {
-		level.Error(e.logger).Log("msg", "Error pinging mysqld", "err", err)
+		e.logger.Error("Error pinging mysqld", "err", err)
 		return 0.0
 	}
 
@@ -157,8 +156,8 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			if err := scraper.Scrape(ctx, instance, ch, log.With(e.logger, "scraper", scraper.Name())); err != nil {
-				level.Error(e.logger).Log("msg", "Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
+			if err := scraper.Scrape(ctx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
+				e.logger.Error("Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}
 			ch <- prometheus.MustNewConstMetric(mysqlScrapeCollectorSuccess, prometheus.GaugeValue, collectorSuccess, label)
@@ -172,7 +171,7 @@ func (e *Exporter) getTargetFromDsn() string {
 	// Get target from DSN.
 	dsnConfig, err := mysql.ParseDSN(e.dsn)
 	if err != nil {
-		level.Error(e.logger).Log("msg", "Error parsing DSN", "err", err)
+		e.logger.Error("Error parsing DSN", "err", err)
 		return ""
 	}
 	return dsnConfig.Addr

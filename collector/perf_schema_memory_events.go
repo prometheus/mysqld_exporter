@@ -17,10 +17,10 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -78,7 +78,7 @@ func (ScrapePerfMemoryEvents) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapePerfMemoryEvents) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	perfSchemaMemoryEventsRows, err := db.QueryContext(ctx, perfMemoryEventsQuery)
 	if err != nil {

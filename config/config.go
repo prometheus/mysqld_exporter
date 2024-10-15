@@ -14,6 +14,7 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -26,6 +27,9 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/hashicorp/vault-client-go"
+	"github.com/hashicorp/vault-client-go/schema"
 
 	"gopkg.in/ini.v1"
 )
@@ -93,13 +97,9 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		}
 	}()
 
-	cfg, err := ini.LoadSources(
-		opts,
-		[]byte("[client]\npassword = ${MYSQLD_EXPORTER_PASSWORD}\n"),
-		filename,
-	)
+	cfg, err := PutPasswordInConfig(filename, logger)
 	if err != nil {
-		return fmt.Errorf("failed to load config from %s: %w", filename, err)
+		return fmt.Errorf("failed to put password in config file: %w", err)
 	}
 
 	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
@@ -233,4 +233,64 @@ func (m MySqlConfig) CustomizeTLS() error {
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
 	mysql.RegisterTLSConfig("custom", &tlsCfg)
 	return nil
+}
+
+func PutPasswordInConfig(filename string, logger *slog.Logger) (cfg *ini.File, err error) {
+	cfg, err = ini.LoadSources(opts, filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config file %s: %w", filename, err)
+	}
+
+	clientSection := cfg.Section("client")
+	if clientSection == nil {
+		logger.Error("msg", "no section 'client' in config", "err", err)
+		return nil, fmt.Errorf("error: %w", err)
+	}
+
+	password := "${MYSQLD_EXPORTER_PASSWORD}"
+
+	if clientSection.Key("use_vault").MustBool() {
+		client, err := vault.New(vault.WithAddress(clientSection.Key("vault_address").String()))
+		if err != nil {
+			logger.Error("msg", "failed to create vault client", "err", err)
+			return nil, fmt.Errorf("error: %w", err)
+		}
+		ctx := context.Background()
+		resp, err := client.Auth.AppRoleLogin(
+			ctx,
+			schema.AppRoleLoginRequest{
+				RoleId:   clientSection.Key("vault_role_id").String(),
+				SecretId: clientSection.Key("vault_secret_id").String(),
+			},
+		)
+		if err != nil {
+			logger.Error("msg", "failed to login to vault", "err", err)
+			return nil, fmt.Errorf("error: %w", err)
+		}
+		if err := client.SetToken(resp.Auth.ClientToken); err != nil {
+			logger.Error("msg", "failed to set vault token", "err", err)
+			return nil, fmt.Errorf("error: %w", err)
+		}
+		data, err := client.Secrets.KvV2Read(
+			ctx,
+			clientSection.Key("vault_secret_path").String(),
+			vault.WithMountPath(clientSection.Key("vault_secret_mount_path").String()),
+		)
+		if err != nil {
+			logger.Error("msg", "failed to get data", "err", err)
+			return nil, fmt.Errorf("error: %w", err)
+		}
+
+		password = data.Data.Data[clientSection.Key("credential_name_in_vault_secret").String()].(string)
+	}
+
+	cfg, err = ini.LoadSources(
+		opts,
+		[]byte("[client]\npassword = "+password+"\n"),
+		filename,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load %s: %w", filename, err)
+	}
+	return cfg, nil
 }

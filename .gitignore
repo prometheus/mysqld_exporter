@@ -9,3 +9,5 @@
 .idea
 *.iml
 /vendor
+
+.my.cnf

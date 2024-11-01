@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.20.4
 	github.com/prometheus/client_model v0.6.1
-	github.com/prometheus/common v0.60.0
+	github.com/prometheus/common v0.60.1
 	github.com/prometheus/exporter-toolkit v0.13.0
 	github.com/smartystreets/goconvey v1.8.1
 	gopkg.in/ini.v1 v1.67.0

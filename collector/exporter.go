@@ -91,7 +91,7 @@ func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logge
 	dsnParams := []string{}
 
 	// Only set lock_wait_timeout if it is positive
-	if (*exporterLockTimeout >= 0) {
+	if *exporterLockTimeout >= 0 {
 		dsnParams = append(dsnParams, fmt.Sprintf(timeoutParam, *exporterLockTimeout))
 	}
 	

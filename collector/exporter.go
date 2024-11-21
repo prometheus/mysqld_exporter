@@ -87,9 +87,14 @@ type Exporter struct {
 
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger) *Exporter {
-	// Setup extra params for the DSN, default to having a lock timeout.
-	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
+	// Setup extra params for the DSN
+	dsnParams := []string{}
 
+	// Only set lock_wait_timeout if it is positive
+	if (*exporterLockTimeout >= 0) {
+		dsnParams = append(dsnParams, fmt.Sprintf(timeoutParam, *exporterLockTimeout))
+	}
+	
 	if *slowLogFilter {
 		dsnParams = append(dsnParams, sessionSettingsParam)
 	}

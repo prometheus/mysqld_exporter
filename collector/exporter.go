@@ -94,7 +94,7 @@ func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logge
 	if *exporterLockTimeout >= 0 {
 		dsnParams = append(dsnParams, fmt.Sprintf(timeoutParam, *exporterLockTimeout))
 	}
-	
+
 	if *slowLogFilter {
 		dsnParams = append(dsnParams, sessionSettingsParam)
 	}

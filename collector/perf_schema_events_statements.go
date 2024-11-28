@@ -166,19 +166,9 @@ var (
 		"The total number of statements that used full table scans by digest.",
 		[]string{"schema", "digest", "digest_text"}, nil,
 	)
-	performanceSchemaEventsStatementsQuantile95 = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_quantile_95"),
-		"The 95th percentile of the statement latency, in picoseconds.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsQuantile99 = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_quantile_99"),
-		"The 99th percentile of the statement latency, in picoseconds.",
-		[]string{"schema", "digest", "digest_text"}, nil,
-	)
-	performanceSchemaEventsStatementsQuantile999 = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_quantile_999"),
-		"The 99.9th percentile of the statement latency, in picoseconds.",
+	performanceSchemaEventsStatementsLatency = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_latency"),
+		"A summary of statement latency by digest",
 		[]string{"schema", "digest", "digest_text"}, nil,
 	)
 )
@@ -289,18 +279,11 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 			performanceSchemaEventsStatementsNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
 			schemaName, digest, digestText,
 		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsQuantile95, prometheus.CounterValue, float64(quantile95),
-			schemaName, digest, digestText,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsQuantile99, prometheus.CounterValue, float64(quantile99),
-			schemaName, digest, digestText,
-		)
-		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsQuantile999, prometheus.CounterValue, float64(quantile999),
-			schemaName, digest, digestText,
-		)
+		ch <- prometheus.MustNewConstSummary(performanceSchemaEventsStatementsLatency, count, float64(queryTime)/picoSeconds, map[float64]float64{
+			95:  float64(quantile95) / picoSeconds,
+			99:  float64(quantile99) / picoSeconds,
+			999: float64(quantile999) / picoSeconds,
+		}, schemaName, digest, digestText)
 	}
 	return nil
 }

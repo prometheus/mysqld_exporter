@@ -42,7 +42,10 @@ const perfEventsStatementsQuery = `
 	    SUM_CREATED_TMP_TABLES,
 	    SUM_SORT_MERGE_PASSES,
 	    SUM_SORT_ROWS,
-	    SUM_NO_INDEX_USED
+	    SUM_NO_INDEX_USED,
+	    QUANTILE_95,
+	    QUANTILE_99,
+	    QUANTILE_999
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
@@ -67,7 +70,10 @@ const perfEventsStatementsQuery = `
 	    Q.SUM_CREATED_TMP_TABLES,
 	    Q.SUM_SORT_MERGE_PASSES,
 	    Q.SUM_SORT_ROWS,
-	    Q.SUM_NO_INDEX_USED
+	    Q.SUM_NO_INDEX_USED,
+	    Q.QUANTILE_95,
+	    Q.QUANTILE_99,
+	    Q.QUANTILE_999
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`
@@ -160,6 +166,11 @@ var (
 		"The total number of statements that used full table scans by digest.",
 		[]string{"schema", "digest", "digest_text"}, nil,
 	)
+	performanceSchemaEventsStatementsLatency = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, performanceSchema, "events_statements_latency"),
+		"A summary of statement latency by digest",
+		[]string{"schema", "digest", "digest_text"}, nil,
+	)
 )
 
 // ScrapePerfEventsStatements collects from `performance_schema.events_statements_summary_by_digest`.
@@ -204,10 +215,11 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 		tmpTables, tmpDiskTables             uint64
 		sortMergePasses, sortRows            uint64
 		noIndexUsed                          uint64
+		quantile95, quantile99, quantile999  uint64
 	)
 	for perfSchemaEventsStatementsRows.Next() {
 		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed,
+			&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
 		); err != nil {
 			return err
 		}
@@ -267,6 +279,11 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 			performanceSchemaEventsStatementsNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
 			schemaName, digest, digestText,
 		)
+		ch <- prometheus.MustNewConstSummary(performanceSchemaEventsStatementsLatency, count, float64(queryTime)/picoSeconds, map[float64]float64{
+			95:  float64(quantile95) / picoSeconds,
+			99:  float64(quantile99) / picoSeconds,
+			999: float64(quantile999) / picoSeconds,
+		}, schemaName, digest, digestText)
 	}
 	return nil
 }

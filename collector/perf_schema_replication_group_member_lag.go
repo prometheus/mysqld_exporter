@@ -25,7 +25,7 @@ const perfReplicationGroupMemberLagQuery = `
 	SELECT IF(
 						applier_coordinator_status.SERVICE_STATE = 'OFF'
 					OR conn_status.SERVICE_STATE = 'OFF',
-						9999,
+						99999999,
 						IF(
 										GTID_SUBTRACT(conn_status.LAST_QUEUED_TRANSACTION,
 														applier_status.LAST_APPLIED_TRANSACTION) = ''

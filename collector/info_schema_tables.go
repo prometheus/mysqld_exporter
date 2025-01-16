@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -40,7 +39,7 @@ const (
 		    ifnull(DATA_FREE, '0') as DATA_FREE,
 		    ifnull(CREATE_OPTIONS, 'NONE') as CREATE_OPTIONS
 		  FROM information_schema.tables
-		  WHERE TABLE_SCHEMA = '%s'
+		  WHERE TABLE_SCHEMA = ?
 		`
 	dbListQuery = `
 		SELECT
@@ -121,7 +120,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan
 	}
 
 	for _, database := range dbList {
-		tableSchemaRows, err := db.QueryContext(ctx, fmt.Sprintf(tableSchemaQuery, database))
+		tableSchemaRows, err := db.QueryContext(ctx, tableSchemaQuery, database)
 		if err != nil {
 			return err
 		}

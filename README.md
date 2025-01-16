@@ -131,6 +131,7 @@ collect.perf_schema.tablelocks                               | 5.6           | C
 collect.perf_schema.replication_group_members                | 5.7           | Collect metrics from performance_schema.replication_group_members.
 collect.perf_schema.replication_group_member_stats           | 5.7           | Collect metrics from performance_schema.replication_group_member_stats.
 collect.perf_schema.replication_applier_status_by_worker     | 5.7           | Collect metrics from performance_schema.replication_applier_status_by_worker.
+collect.perf_schema.replication_group_member_lag             | 5.7           | Collect group member lag from performance_schema.
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).

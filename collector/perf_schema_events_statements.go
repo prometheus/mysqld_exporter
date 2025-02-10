@@ -21,6 +21,7 @@ import (
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
+	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -31,8 +32,6 @@ const perfEventsStatementsQuery = `
 	    LEFT(DIGEST_TEXT, %d) as DIGEST_TEXT,
 	    COUNT_STAR,
 	    SUM_TIMER_WAIT,
-	    SUM_LOCK_TIME,
-	    SUM_CPU_TIME,
 	    SUM_ERRORS,
 	    SUM_WARNINGS,
 	    SUM_ROWS_AFFECTED,
@@ -46,6 +45,7 @@ const perfEventsStatementsQuery = `
 	    QUANTILE_95,
 	    QUANTILE_99,
 	    QUANTILE_999
+	    %s
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
@@ -59,8 +59,6 @@ const perfEventsStatementsQuery = `
 	    Q.DIGEST_TEXT,
 	    Q.COUNT_STAR,
 	    Q.SUM_TIMER_WAIT,
-	    Q.SUM_LOCK_TIME,
-	    Q.SUM_CPU_TIME,
 	    Q.SUM_ERRORS,
 	    Q.SUM_WARNINGS,
 	    Q.SUM_ROWS_AFFECTED,
@@ -74,6 +72,7 @@ const perfEventsStatementsQuery = `
 	    Q.QUANTILE_95,
 	    Q.QUANTILE_99,
 	    Q.QUANTILE_999
+	    %s
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`
@@ -193,12 +192,24 @@ func (ScrapePerfEventsStatements) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	additionalColumns := ""
+	additionalGroupBy := ""
+	useAdditionalColumns := false
+	if instance.flavor == FlavorMySQL && instance.version.GTE(semver.MustParse("8.0.28")) {
+		additionalColumns = ", SUM_LOCK_TIME, SUM_CPU_TIME"
+		additionalGroupBy = ", Q.SUM_LOCK_TIME, Q.SUM_CPU_TIME"
+		useAdditionalColumns = true
+	}
+
 	perfQuery := fmt.Sprintf(
 		perfEventsStatementsQuery,
 		*perfEventsStatementsDigestTextLimit,
+		additionalColumns,
 		*perfEventsStatementsTimeLimit,
+		additionalGroupBy,
 		*perfEventsStatementsLimit,
 	)
+
 	db := instance.getDB()
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)
@@ -209,18 +220,27 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 
 	var (
 		schemaName, digest, digestText       string
-		count, queryTime, lockTime, cpuTime  uint64
+		count, queryTime                     uint64
 		errors, warnings                     uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
 		sortMergePasses, sortRows            uint64
 		noIndexUsed                          uint64
 		quantile95, quantile99, quantile999  uint64
+		lockTime, cpuTime                    uint64
 	)
 	for perfSchemaEventsStatementsRows.Next() {
-		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
-		); err != nil {
+		var err error
+		if useAdditionalColumns {
+			err = perfSchemaEventsStatementsRows.Scan(
+				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999, &lockTime, &cpuTime,
+			)
+		} else {
+			err = perfSchemaEventsStatementsRows.Scan(
+				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
+			)
+		}
+		if err != nil {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(

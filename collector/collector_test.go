@@ -41,6 +41,9 @@ func readMetric(m prometheus.Metric) MetricResult {
 	if pb.Counter != nil {
 		return MetricResult{labels: labels, value: pb.GetCounter().GetValue(), metricType: dto.MetricType_COUNTER}
 	}
+	if pb.Summary != nil {
+		return MetricResult{labels: labels, value: pb.GetSummary().GetSampleSum(), metricType: dto.MetricType_SUMMARY}
+	}
 	if pb.Untyped != nil {
 		return MetricResult{labels: labels, value: pb.GetUntyped().GetValue(), metricType: dto.MetricType_UNTYPED}
 	}

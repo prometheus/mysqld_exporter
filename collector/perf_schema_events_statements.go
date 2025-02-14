@@ -17,7 +17,6 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -45,7 +44,6 @@ const perfEventsStatementsQuery = `
 	    QUANTILE_95,
 	    QUANTILE_99,
 	    QUANTILE_999
-	    %s
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
@@ -72,7 +70,60 @@ const perfEventsStatementsQuery = `
 	    Q.QUANTILE_95,
 	    Q.QUANTILE_99,
 	    Q.QUANTILE_999
-	    %s
+	  ORDER BY SUM_TIMER_WAIT DESC
+	  LIMIT %d
+	`
+
+const perfEventsStatementsQueryMySQL = `
+	SELECT
+	    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
+	    DIGEST,
+	    LEFT(DIGEST_TEXT, %d) as DIGEST_TEXT,
+	    COUNT_STAR,
+	    SUM_TIMER_WAIT,
+	    SUM_LOCK_TIME,
+	    SUM_CPU_TIME,
+	    SUM_ERRORS,
+	    SUM_WARNINGS,
+	    SUM_ROWS_AFFECTED,
+	    SUM_ROWS_SENT,
+	    SUM_ROWS_EXAMINED,
+	    SUM_CREATED_TMP_DISK_TABLES,
+	    SUM_CREATED_TMP_TABLES,
+	    SUM_SORT_MERGE_PASSES,
+	    SUM_SORT_ROWS,
+	    SUM_NO_INDEX_USED,
+	    QUANTILE_95,
+	    QUANTILE_99,
+	    QUANTILE_999
+	  FROM (
+	    SELECT *
+	    FROM performance_schema.events_statements_summary_by_digest
+	    WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
+	    ORDER BY LAST_SEEN DESC
+	  )Q
+	  GROUP BY
+	    Q.SCHEMA_NAME,
+	    Q.DIGEST,
+	    Q.DIGEST_TEXT,
+	    Q.COUNT_STAR,
+	    Q.SUM_TIMER_WAIT,
+	    Q.SUM_LOCK_TIME,
+	    Q.SUM_CPU_TIME,
+	    Q.SUM_ERRORS,
+	    Q.SUM_WARNINGS,
+	    Q.SUM_ROWS_AFFECTED,
+	    Q.SUM_ROWS_SENT,
+	    Q.SUM_ROWS_EXAMINED,
+	    Q.SUM_CREATED_TMP_DISK_TABLES,
+	    Q.SUM_CREATED_TMP_TABLES,
+	    Q.SUM_SORT_MERGE_PASSES,
+	    Q.SUM_SORT_ROWS,
+	    Q.SUM_NO_INDEX_USED,
+	    Q.QUANTILE_95,
+	    Q.QUANTILE_99,
+	    Q.QUANTILE_999
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`
@@ -192,23 +243,12 @@ func (ScrapePerfEventsStatements) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
-	additionalColumns := ""
-	additionalGroupBy := ""
-	useAdditionalColumns := false
-	if instance.flavor == FlavorMySQL && instance.version.GTE(semver.MustParse("8.0.28")) {
-		additionalColumns = ", SUM_LOCK_TIME, SUM_CPU_TIME"
-		additionalGroupBy = ", Q.SUM_LOCK_TIME, Q.SUM_CPU_TIME"
-		useAdditionalColumns = true
-	}
+	mysqlVersion8028 := instance.flavor == FlavorMySQL && instance.version.GTE(semver.MustParse("8.0.28"))
 
-	perfQuery := fmt.Sprintf(
-		perfEventsStatementsQuery,
-		*perfEventsStatementsDigestTextLimit,
-		additionalColumns,
-		*perfEventsStatementsTimeLimit,
-		additionalGroupBy,
-		*perfEventsStatementsLimit,
-	)
+	perfQuery := perfEventsStatementsQuery
+	if mysqlVersion8028 {
+		perfQuery = perfEventsStatementsQueryMySQL
+	}
 
 	db := instance.getDB()
 	// Timers here are returned in picoseconds.
@@ -220,20 +260,19 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 
 	var (
 		schemaName, digest, digestText       string
-		count, queryTime                     uint64
+		count, queryTime, lockTime, cpuTime  uint64
 		errors, warnings                     uint64
 		rowsAffected, rowsSent, rowsExamined uint64
 		tmpTables, tmpDiskTables             uint64
 		sortMergePasses, sortRows            uint64
 		noIndexUsed                          uint64
 		quantile95, quantile99, quantile999  uint64
-		lockTime, cpuTime                    uint64
 	)
 	for perfSchemaEventsStatementsRows.Next() {
 		var err error
-		if useAdditionalColumns {
+		if mysqlVersion8028 {
 			err = perfSchemaEventsStatementsRows.Scan(
-				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999, &lockTime, &cpuTime,
+				&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
 			)
 		} else {
 			err = perfSchemaEventsStatementsRows.Scan(

@@ -56,6 +56,7 @@ Sample config file for multiple configurations
 On the prometheus side you can set a scrape config as follows
 
         - job_name: mysql # To get metrics about the mysql exporter’s targets
+          metrics_path: /probe
           params:
             # Not required. Will match value to child in config file. Default value is `client`.
             auth_module: [client.servers]

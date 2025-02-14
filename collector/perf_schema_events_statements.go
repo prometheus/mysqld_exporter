@@ -17,14 +17,64 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
+	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const perfEventsStatementsQuery = `
+	SELECT
+	    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
+	    DIGEST,
+	    LEFT(DIGEST_TEXT, %d) as DIGEST_TEXT,
+	    COUNT_STAR,
+	    SUM_TIMER_WAIT,
+	    SUM_ERRORS,
+	    SUM_WARNINGS,
+	    SUM_ROWS_AFFECTED,
+	    SUM_ROWS_SENT,
+	    SUM_ROWS_EXAMINED,
+	    SUM_CREATED_TMP_DISK_TABLES,
+	    SUM_CREATED_TMP_TABLES,
+	    SUM_SORT_MERGE_PASSES,
+	    SUM_SORT_ROWS,
+	    SUM_NO_INDEX_USED,
+	    QUANTILE_95,
+	    QUANTILE_99,
+	    QUANTILE_999
+	  FROM (
+	    SELECT *
+	    FROM performance_schema.events_statements_summary_by_digest
+	    WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
+	    ORDER BY LAST_SEEN DESC
+	  )Q
+	  GROUP BY
+	    Q.SCHEMA_NAME,
+	    Q.DIGEST,
+	    Q.DIGEST_TEXT,
+	    Q.COUNT_STAR,
+	    Q.SUM_TIMER_WAIT,
+	    Q.SUM_ERRORS,
+	    Q.SUM_WARNINGS,
+	    Q.SUM_ROWS_AFFECTED,
+	    Q.SUM_ROWS_SENT,
+	    Q.SUM_ROWS_EXAMINED,
+	    Q.SUM_CREATED_TMP_DISK_TABLES,
+	    Q.SUM_CREATED_TMP_TABLES,
+	    Q.SUM_SORT_MERGE_PASSES,
+	    Q.SUM_SORT_ROWS,
+	    Q.SUM_NO_INDEX_USED,
+	    Q.QUANTILE_95,
+	    Q.QUANTILE_99,
+	    Q.QUANTILE_999
+	  ORDER BY SUM_TIMER_WAIT DESC
+	  LIMIT %d
+	`
+
+const perfEventsStatementsQueryMySQL = `
 	SELECT
 	    ifnull(SCHEMA_NAME, 'NONE') as SCHEMA_NAME,
 	    DIGEST,
@@ -193,12 +243,13 @@ func (ScrapePerfEventsStatements) Version() float64 {
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
 func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
-	perfQuery := fmt.Sprintf(
-		perfEventsStatementsQuery,
-		*perfEventsStatementsDigestTextLimit,
-		*perfEventsStatementsTimeLimit,
-		*perfEventsStatementsLimit,
-	)
+	mysqlVersion8028 := instance.flavor == FlavorMySQL && instance.version.GTE(semver.MustParse("8.0.28"))
+
+	perfQuery := perfEventsStatementsQuery
+	if mysqlVersion8028 {
+		perfQuery = perfEventsStatementsQueryMySQL
+	}
+
 	db := instance.getDB()
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)
@@ -218,9 +269,17 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 		quantile95, quantile99, quantile999  uint64
 	)
 	for perfSchemaEventsStatementsRows.Next() {
-		if err := perfSchemaEventsStatementsRows.Scan(
-			&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
-		); err != nil {
+		var err error
+		if mysqlVersion8028 {
+			err = perfSchemaEventsStatementsRows.Scan(
+				&schemaName, &digest, &digestText, &count, &queryTime, &lockTime, &cpuTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
+			)
+		} else {
+			err = perfSchemaEventsStatementsRows.Scan(
+				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
+			)
+		}
+		if err != nil {
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(

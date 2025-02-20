@@ -46,6 +46,10 @@ var (
 		"exporter.lock_wait_timeout",
 		"Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking.",
 	).Default("2").Int()
+	disableExporterLockTimeout = kingpin.Flag(
+		"exporter.disable_lock_wait_timeout",
+		"Disable the lock_wait_timeout MySQL connection parameter.",
+	).Default("false").Bool()
 	slowLogFilter = kingpin.Flag(
 		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
@@ -90,8 +94,8 @@ func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logge
 	// Setup extra params for the DSN
 	dsnParams := []string{}
 
-	// Only set lock_wait_timeout if it is positive
-	if *exporterLockTimeout >= 0 {
+	// Only set lock_wait_timeout if it is not disabled
+	if !*disableExporterLockTimeout {
 		dsnParams = append(dsnParams, fmt.Sprintf(timeoutParam, *exporterLockTimeout))
 	}
 

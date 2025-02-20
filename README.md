@@ -56,6 +56,7 @@ Sample config file for multiple configurations
 On the prometheus side you can set a scrape config as follows
 
         - job_name: mysql # To get metrics about the mysql exporter’s targets
+          metrics_path: /probe
           params:
             # Not required. Will match value to child in config file. Default value is `client`.
             auth_module: [client.servers]
@@ -139,7 +140,7 @@ collect.sys.user_summary                                     | 5.7           | C
 ### General Flags
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
-mysqld.address                             | Hostname and port used for connecting to MySQL server, format: `host:port`. (default: `locahost:3306`)
+mysqld.address                             | Hostname and port used for connecting to MySQL server, format: `host:port`. (default: `localhost:3306`)
 mysqld.username                            | Username to be used for connecting to MySQL Server
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)

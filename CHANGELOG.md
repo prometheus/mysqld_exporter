@@ -9,6 +9,12 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.17.1 / 2025-02-21
+
+Changes:
+
+* [BUGFIX] Fix query on perf_schema.events_statements_summary_by_digest #920
+
 ## 0.17.0 / 2025-02-19
 
 Changes:

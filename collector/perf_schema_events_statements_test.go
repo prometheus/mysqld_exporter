@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -50,7 +51,8 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 			100, 1,
 			100, 150, 200)
 
-	mock.ExpectQuery(sanitizeQuery(perfEventsStatementsQuery)).WillReturnRows(rows)
+	query := fmt.Sprintf(perfEventsStatementsQuery, 120, 86400, 250)
+	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
@@ -125,7 +127,8 @@ func TestScrapePerfEventsStatementsMySQL8028(t *testing.T) {
 			100, 1,
 			100, 150, 200)
 
-	mock.ExpectQuery(sanitizeQuery(perfEventsStatementsQueryMySQL)).WillReturnRows(rows)
+	query := fmt.Sprintf(perfEventsStatementsQueryMySQL, 120, 86400, 250)
+	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {

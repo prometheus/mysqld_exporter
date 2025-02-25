@@ -9,6 +9,12 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.17.2 / 2025-02-25
+
+Changes:
+
+* [BUGFIX] Fix query on events_statements_summary_by_digest for mariadb #922
+
 ## 0.17.1 / 2025-02-21
 
 Changes:

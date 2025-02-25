@@ -41,10 +41,7 @@ const perfEventsStatementsQuery = `
 	    SUM_CREATED_TMP_TABLES,
 	    SUM_SORT_MERGE_PASSES,
 	    SUM_SORT_ROWS,
-	    SUM_NO_INDEX_USED,
-	    QUANTILE_95,
-	    QUANTILE_99,
-	    QUANTILE_999
+	    SUM_NO_INDEX_USED
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest

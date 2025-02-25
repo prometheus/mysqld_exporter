@@ -39,7 +39,6 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 		"SUM_ROWS_AFFECTED", "SUM_ROWS_SENT", "SUM_ROWS_EXAMINED",
 		"SUM_CREATED_TMP_DISK_TABLES", "SUM_CREATED_TMP_TABLES", "SUM_SORT_MERGE_PASSES",
 		"SUM_SORT_ROWS", "SUM_NO_INDEX_USED",
-		"QUANTILE_95", "QUANTILE_99", "QUANTILE_999",
 	}
 
 	rows := sqlmock.NewRows(columns).
@@ -48,8 +47,7 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 			100, 1000, 1, 2,
 			50, 100, 150,
 			1, 2, 3,
-			100, 1,
-			100, 150, 200)
+			100, 1)
 
 	query := fmt.Sprintf(perfEventsStatementsQuery, 120, 86400, 250)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)

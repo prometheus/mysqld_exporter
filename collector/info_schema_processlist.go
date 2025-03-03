@@ -41,22 +41,6 @@ const infoSchemaProcesslistQuery = `
 		  GROUP BY user, host, command, state
 	`
 
-// Tunable flags.
-var (
-	processlistMinTime = kingpin.Flag(
-		"collect.info_schema.processlist.min_time",
-		"Minimum time a thread must be in each state to be counted",
-	).Default("0").Int()
-	processesByUserFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_user",
-		"Enable collecting the number of processes by user",
-	).Default("true").Bool()
-	processesByHostFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_host",
-		"Enable collecting the number of processes by host",
-	).Default("true").Bool()
-)
-
 // Metric descriptors.
 var (
 	processlistCountDesc = prometheus.NewDesc(
@@ -78,7 +62,11 @@ var (
 )
 
 // ScrapeProcesslist collects from `information_schema.processlist`.
-type ScrapeProcesslist struct{}
+type ScrapeProcesslist struct {
+	ProcessListMinTime  int
+	ProcessesByUserFlag bool
+	ProcessesByHostFlag bool
+}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeProcesslist) Name() string {
@@ -95,11 +83,27 @@ func (ScrapeProcesslist) Version() float64 {
 	return 5.1
 }
 
+// RegisterFlags adds flags to configure the Scraper.
+func (s *ScrapeProcesslist) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
+		"collect.info_schema.processlist.min_time",
+		"Minimum time a thread must be in each state to be counted",
+	).Default("0").IntVar(&s.ProcessListMinTime)
+	application.Flag(
+		"collect.info_schema.processlist.processes_by_user",
+		"Enable collecting the number of processes by user",
+	).Default("true").BoolVar(&s.ProcessesByUserFlag)
+	application.Flag(
+		"collect.info_schema.processlist.processes_by_host",
+		"Enable collecting the number of processes by host",
+	).Default("true").BoolVar(&s.ProcessesByHostFlag)
+}
+
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	processQuery := fmt.Sprintf(
 		infoSchemaProcesslistQuery,
-		*processlistMinTime,
+		s.ProcessListMinTime,
 	)
 	db := instance.getDB()
 	processlistRows, err := db.QueryContext(ctx, processQuery)
@@ -162,12 +166,13 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan
 		}
 	}
 
-	if *processesByHostFlag {
+	if s.ProcessesByHostFlag {
 		for _, host := range sortedMapKeys(stateHostCounts) {
 			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(stateHostCounts[host]), host)
 		}
 	}
-	if *processesByUserFlag {
+
+	if s.ProcessesByUserFlag {
 		for _, user := range sortedMapKeys(stateUserCounts) {
 			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(stateUserCounts[user]), user)
 		}

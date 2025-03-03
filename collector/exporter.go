@@ -40,17 +40,23 @@ const (
 	timeoutParam         = `lock_wait_timeout=%d`
 )
 
-// Tunable flags.
-var (
-	exporterLockTimeout = kingpin.Flag(
+// Config holds configuration options for the exporter.
+type Config struct {
+	LockTimeout   int
+	SlowLogFilter bool
+}
+
+// RegisterFlags adds flags to configure the exporter.
+func (c *Config) RegisterFlags(application *kingpin.Application) {
+	application.Flag(
 		"exporter.lock_wait_timeout",
 		"Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking.",
-	).Default("2").Int()
-	slowLogFilter = kingpin.Flag(
+	).Default("2").IntVar(&c.LockTimeout)
+	application.Flag(
 		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
-	).Default("false").Bool()
-)
+	).Default("false").BoolVar(&c.SlowLogFilter)
+}
 
 // metric definition
 var (
@@ -86,11 +92,11 @@ type Exporter struct {
 }
 
 // New returns a new MySQL exporter for the provided DSN.
-func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger) *Exporter {
+func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, cfg Config) *Exporter {
 	// Setup extra params for the DSN, default to having a lock timeout.
-	dsnParams := []string{fmt.Sprintf(timeoutParam, *exporterLockTimeout)}
+	dsnParams := []string{fmt.Sprintf(timeoutParam, cfg.LockTimeout)}
 
-	if *slowLogFilter {
+	if cfg.SlowLogFilter {
 		dsnParams = append(dsnParams, sessionSettingsParam)
 	}
 

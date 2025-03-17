@@ -48,6 +48,10 @@ var (
 		Loose: true,
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
+		// Ignore the # character in the line to avoid password parsing failure when the MySQL password contains the # symbol
+		IgnoreInlineComment: true,
+		// Remove the first and last quotation marks
+		UnescapeValueDoubleQuotes: true,
 	}
 
 	err error

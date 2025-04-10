@@ -32,6 +32,13 @@ const (
 	engineInnodbStatusQuery = `SHOW ENGINE INNODB STATUS`
 )
 
+var (
+	// 0 queries inside InnoDB, 0 queries in queue
+	// 0 read views open inside InnoDB
+	rQueries = regexp.MustCompile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
+	rViews   = regexp.MustCompile(`(\d+) read views open inside InnoDB`)
+)
+
 // ScrapeEngineInnodbStatus scrapes from `SHOW ENGINE INNODB STATUS`.
 type ScrapeEngineInnodbStatus struct{}
 
@@ -66,11 +73,6 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 			return err
 		}
 	}
-
-	// 0 queries inside InnoDB, 0 queries in queue
-	// 0 read views open inside InnoDB
-	rQueries, _ := regexp.Compile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
-	rViews, _ := regexp.Compile(`(\d+) read views open inside InnoDB`)
 
 	for _, line := range strings.Split(statusCol, "\n") {
 		if data := rQueries.FindStringSubmatch(line); data != nil {

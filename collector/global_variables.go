@@ -34,6 +34,9 @@ const (
 )
 
 var (
+	promNameRe         = regexp.MustCompile("([^a-zA-Z0-9_])")
+	wsrespGcacheSizeRe = regexp.MustCompile(`gcache.size = (\d+)([MG]?);`)
+
 	// Map known global variables to help strings. Unknown will be mapped to generic gauges.
 	globalVariablesHelp = map[string]string{
 		// https://github.com/facebook/mysql-5.6/wiki/New-MySQL-RocksDB-Server-Variables
@@ -148,7 +151,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 
 	var key string
 	var val sql.RawBytes
-	var textItems = map[string]string{
+	textItems := map[string]string{
 		"innodb_version":         "",
 		"version":                "",
 		"version_comment":        "",
@@ -226,13 +229,12 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 
 // parseWsrepProviderOptions parse wsrep_provider_options to get gcache.size in bytes.
 func parseWsrepProviderOptions(opts string) float64 {
-	var val float64
-	r, _ := regexp.Compile(`gcache.size = (\d+)([MG]?);`)
-	data := r.FindStringSubmatch(opts)
+	data := wsrespGcacheSizeRe.FindStringSubmatch(opts)
 	if data == nil {
 		return 0
 	}
 
+	var val float64
 	val, _ = strconv.ParseFloat(data[1], 64)
 	switch data[2] {
 	case "M":
@@ -245,8 +247,7 @@ func parseWsrepProviderOptions(opts string) float64 {
 }
 
 func validPrometheusName(s string) string {
-	nameRe := regexp.MustCompile("([^a-zA-Z0-9_])")
-	s = nameRe.ReplaceAllString(s, "_")
+	s = promNameRe.ReplaceAllString(s, "_")
 	s = strings.ToLower(s)
 	return s
 }

@@ -107,7 +107,7 @@ func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch ch
 	case "ENABLED":
 		query = fmt.Sprintf(infoSchemaInnodbMetricsQuery, "enabled", "1")
 	default:
-		return errors.New("Couldn't find column STATUS or ENABLED in innodb_metrics table.")
+		return errors.New("couldn't find column STATUS or ENABLED in innodb_metrics table")
 	}
 
 	innodbMetricsRows, err := db.QueryContext(ctx, query)

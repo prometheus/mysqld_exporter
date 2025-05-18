@@ -90,7 +90,7 @@ func sanitizeTokudbMetric(metricName string) string {
 		"/": "and",
 	}
 	for r := range replacements {
-		metricName = strings.Replace(metricName, r, replacements[r], -1)
+		metricName = strings.ReplaceAll(metricName, r, replacements[r])
 	}
 	return metricName
 }

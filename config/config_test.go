@@ -63,7 +63,7 @@ func TestValidateConfig(t *testing.T) {
 			t.Error(err)
 		}
 		cfg := c.GetConfig()
-		section, _ := cfg.Sections["client.server1"]
+		section := cfg.Sections["client.server1"]
 		convey.So(section.Password, convey.ShouldEqual, "abc")
 	})
 

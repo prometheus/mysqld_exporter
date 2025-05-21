@@ -118,7 +118,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *i
 			query = fmt.Sprintf(innodbTablespacesQueryMariaDB, tablespacesTablename, tablespacesTablename)
 		}
 	default:
-		return errors.New("Couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema.")
+		return errors.New("couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema")
 	}
 
 	tablespacesRows, err := db.QueryContext(ctx, query)

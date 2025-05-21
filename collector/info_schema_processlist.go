@@ -202,7 +202,7 @@ func sanitizeState(state string) string {
 		"-": "_",
 	}
 	for r := range replacements {
-		state = strings.Replace(state, r, replacements[r], -1)
+		state = strings.ReplaceAll(state, r, replacements[r])
 	}
 	return state
 }

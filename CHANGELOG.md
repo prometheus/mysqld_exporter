@@ -9,6 +9,28 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.17.2 / 2025-02-25
+
+Changes:
+
+* [BUGFIX] Fix query on events_statements_summary_by_digest for mariadb #922
+
+## 0.17.1 / 2025-02-21
+
+Changes:
+
+* [BUGFIX] Fix query on perf_schema.events_statements_summary_by_digest #920
+
+## 0.17.0 / 2025-02-19
+
+Changes:
+* [FEATURE] Add perf_schema quantile columns to collector #897
+* [BUGFIX] Update Mixin dashboard to "editable: false" #911
+* [BUGFIX] Fix typo for "locahost" #914
+* [BUGFIX] Fix database quoting problem in collector 'info_schema.tables' #908
+* [BUGFIX] Use SUM_LOCK_TIME and SUM_CPU_TIME with mysql >= 8.0.28 #916
+* [BUGFIX] Add missing metrics_path to multi-target example #899
+
 ## 0.16.0 / 2024-11-08
 
 Changes:

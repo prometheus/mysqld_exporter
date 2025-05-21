@@ -17,6 +17,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -40,10 +41,7 @@ const perfEventsStatementsQuery = `
 	    SUM_CREATED_TMP_TABLES,
 	    SUM_SORT_MERGE_PASSES,
 	    SUM_SORT_ROWS,
-	    SUM_NO_INDEX_USED,
-	    QUANTILE_95,
-	    QUANTILE_99,
-	    QUANTILE_999
+	    SUM_NO_INDEX_USED
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
@@ -66,10 +64,7 @@ const perfEventsStatementsQuery = `
 	    Q.SUM_CREATED_TMP_TABLES,
 	    Q.SUM_SORT_MERGE_PASSES,
 	    Q.SUM_SORT_ROWS,
-	    Q.SUM_NO_INDEX_USED,
-	    Q.QUANTILE_95,
-	    Q.QUANTILE_99,
-	    Q.QUANTILE_999
+	    Q.SUM_NO_INDEX_USED
 	  ORDER BY SUM_TIMER_WAIT DESC
 	  LIMIT %d
 	`
@@ -250,6 +245,13 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 		perfQuery = perfEventsStatementsQueryMySQL
 	}
 
+	perfQuery = fmt.Sprintf(
+		perfQuery,
+		*perfEventsStatementsDigestTextLimit,
+		*perfEventsStatementsTimeLimit,
+		*perfEventsStatementsLimit,
+	)
+
 	db := instance.getDB()
 	// Timers here are returned in picoseconds.
 	perfSchemaEventsStatementsRows, err := db.QueryContext(ctx, perfQuery)
@@ -276,7 +278,7 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 			)
 		} else {
 			err = perfSchemaEventsStatementsRows.Scan(
-				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed, &quantile95, &quantile99, &quantile999,
+				&schemaName, &digest, &digestText, &count, &queryTime, &errors, &warnings, &rowsAffected, &rowsSent, &rowsExamined, &tmpDiskTables, &tmpTables, &sortMergePasses, &sortRows, &noIndexUsed,
 			)
 		}
 		if err != nil {

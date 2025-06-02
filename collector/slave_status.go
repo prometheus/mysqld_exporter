@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -139,8 +140,45 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 				)
 			}
 		}
+
+		ScrapeMariaDBGtid(scanArgs, slaveCols, "Gtid_IO_Pos", ch, masterHost, masterUUID, channelName, connectionName)
+		ScrapeMariaDBGtid(scanArgs, slaveCols, "Gtid_Slave_Pos", ch, masterHost, masterUUID, channelName, connectionName)
 	}
 	return nil
+}
+
+func ScrapeMariaDBGtid(scanArgs []interface{}, slaveCols []string, name string, ch chan<- prometheus.Metric, masterHost string, masterUUID string, channelName string, connectionName string) {
+	value := columnValue(scanArgs, slaveCols, name)
+	if value == "" {
+		return
+	}
+
+	for _, gtid := range strings.Split(value, ",") {
+		parts := strings.Split(gtid, "-")
+		if len(parts) != 3 {
+			continue
+		}
+
+		domainID := parts[0]
+		serverID := parts[1]
+
+		sequence_num, err := strconv.ParseUint(parts[2], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(name)),
+				fmt.Sprintf("%s metric from SHOW SLAVE STATUS.", name),
+				[]string{"master_host", "master_uuid", "channel_name", "connection_name", "domain_id", "server_id"},
+				nil,
+			),
+			prometheus.GaugeValue,
+			float64(sequence_num),
+			masterHost, masterUUID, channelName, connectionName, domainID, serverID,
+		)
+	}
 }
 
 // check interface

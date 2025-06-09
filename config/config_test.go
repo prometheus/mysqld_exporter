@@ -138,6 +138,28 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.User, convey.ShouldEqual, "abc")
 		convey.So(section.Password, convey.ShouldEqual, "")
 	})
+
+	convey.Convey("Comment characters in password", t, func() {
+		c := MySqlConfigHandler{
+			Config: &Config{},
+		}
+		if err := c.ReloadConfig("testdata/comment_char_in_password.cnf", "localhost:3306", "", true, log.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+		cfg := c.GetConfig()
+		convey.Convey("hash", func() {
+			section := cfg.Sections["client.hash"]
+			convey.So(section.Password, convey.ShouldEqual, "abc#xyz")
+		})
+		convey.Convey("semicolon", func() {
+			section := cfg.Sections["client.semicolon"]
+			convey.So(section.Password, convey.ShouldEqual, "abc;xyz")
+		})
+		convey.Convey("hash and semicolon", func() {
+			section := cfg.Sections["client.both"]
+			convey.So(section.Password, convey.ShouldEqual, "abc#xyz;pqr")
+		})
+	})
 }
 
 func TestFormDSN(t *testing.T) {

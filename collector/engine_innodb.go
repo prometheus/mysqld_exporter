@@ -75,7 +75,7 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 	}
 
 	for _, line := range strings.Split(statusCol, "\n") {
-		if data := rQueries.FindStringSubmatch(line); data != nil {
+		if data := queriesRe.FindStringSubmatch(line); data != nil {
 			value, _ := strconv.ParseFloat(data[1], 64)
 			ch <- prometheus.MustNewConstMetric(
 				newDesc(innodb, "queries_inside_innodb", "Queries inside InnoDB."),
@@ -88,7 +88,7 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 				prometheus.GaugeValue,
 				value,
 			)
-		} else if data := rViews.FindStringSubmatch(line); data != nil {
+		} else if data := viewsRe.FindStringSubmatch(line); data != nil {
 			value, _ := strconv.ParseFloat(data[1], 64)
 			ch <- prometheus.MustNewConstMetric(
 				newDesc(innodb, "read_views_open_inside_innodb", "Read views open inside InnoDB."),

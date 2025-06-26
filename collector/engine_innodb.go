@@ -35,8 +35,8 @@ const (
 var (
 	// 0 queries inside InnoDB, 0 queries in queue
 	// 0 read views open inside InnoDB
-	rQueries = regexp.MustCompile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
-	rViews   = regexp.MustCompile(`(\d+) read views open inside InnoDB`)
+	queriesRe = regexp.MustCompile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
+	viewsRe   = regexp.MustCompile(`(\d+) read views open inside InnoDB`)
 )
 
 // ScrapeEngineInnodbStatus scrapes from `SHOW ENGINE INNODB STATUS`.

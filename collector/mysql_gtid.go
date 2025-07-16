@@ -46,7 +46,7 @@ type ScrapeGtidExecuted struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeGtidExecuted) Name() string {
-	return "gtid_executed_transactions_scraper"
+	return "gtid_transactions"
 }
 
 // Help describes the role of the Scraper.

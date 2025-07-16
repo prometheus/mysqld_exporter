@@ -1,6 +1,6 @@
 module github.com/prometheus/mysqld_exporter
 
-go 1.23.0
+go 1.23.3
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -31,6 +31,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/sjmudd/mysqlgtid v0.1.0 // indirect
 	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect

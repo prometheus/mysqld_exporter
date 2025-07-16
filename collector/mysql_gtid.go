@@ -19,7 +19,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sjmudd/mysqlgtid"
 )
@@ -27,18 +26,13 @@ import (
 const (
 	// transactions is the Metric subsystem we use.
 	prometheusSubsystem = "gtid"
-	prometheusName = "transactions"
+	prometheusName      = "transactions"
 	// gtidTransactionCountQuery is the query used to fetch gtid_executed.
 	// With this value we can convert it to an incremental transaction counter.
 	gtidTransactionCountQuery = "SELECT @@gtid_executed"
 )
 
 var (
-	collectGtidTransactionCount = kingpin.Flag(
-		"collect.gtid_transactions",
-		"collect the transaction count from @@gtid_executed",
-	).Default("true").Bool()
-
 	// Metric descriptors.
 	GtidTransactionCounterDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, prometheusSubsystem, prometheusName),
@@ -52,7 +46,7 @@ type ScrapeGtidExecuted struct{}
 
 // Name of the Scraper. Should be unique.
 func (ScrapeGtidExecuted) Name() string {
-	return "gtid_transactions"
+	return "gtid_executed_transactions_scraper"
 }
 
 // Help describes the role of the Scraper.

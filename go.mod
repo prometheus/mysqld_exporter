@@ -13,6 +13,7 @@ require (
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.65.0
 	github.com/prometheus/exporter-toolkit v0.13.2
+	github.com/sjmudd/mysqlgtid v0.1.0
 	github.com/smartystreets/goconvey v1.8.1
 	gopkg.in/ini.v1 v1.67.0
 )
@@ -31,7 +32,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/sjmudd/mysqlgtid v0.1.0 // indirect
 	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect

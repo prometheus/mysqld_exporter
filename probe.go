@@ -72,7 +72,11 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 		filteredScrapers := filterScrapers(scrapers, collectParams)
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger))
+		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger,
+			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
+			collector.SetLockWaitTimeout(*exporterLockTimeout),
+			collector.SetSlowLogFilter(*slowLogFilter),
+		))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

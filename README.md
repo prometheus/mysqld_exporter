@@ -96,6 +96,7 @@ collect.engine_innodb_status                                 | 5.1           | C
 collect.engine_tokudb_status                                 | 5.6           | Collect from SHOW ENGINE TOKUDB STATUS.
 collect.global_status                                        | 5.1           | Collect from SHOW GLOBAL STATUS (Enabled by default)
 collect.global_variables                                     | 5.1           | Collect from SHOW GLOBAL VARIABLES (Enabled by default)
+collect.gtid_transactions                                    | 5.6           | Collect a transaction count from @gtid_executed.
 collect.heartbeat                                            | 5.1           | Collect from [heartbeat](#heartbeat).
 collect.heartbeat.database                                   | 5.1           | Database from where to collect heartbeat data. (default: heartbeat)
 collect.heartbeat.table                                      | 5.1           | Table from where to collect heartbeat data. (default: heartbeat)

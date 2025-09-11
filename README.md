@@ -206,6 +206,30 @@ docker run -d \
   prom/mysqld-exporter
 ```
 
+## Docker Compose integration test
+
+A self-contained test harness is included to validate collectors against a local MySQL:
+
+- Spins up **MySQL 8.4** with `performance_schema` on
+- Seeds basic workload so `sys` summaries have data
+- Builds and runs your **local** exporter image per collector flag
+- Captures exporter logs per test under `_testlogs/`
+- Verifies metrics via in-network HTTP (no host port binding)
+
+**Prereqs:** Docker & Docker Compose v2.
+
+**Files:**
+- `docker-compose.yml` (MySQL service + one-shot seeder)
+- `mysql/conf.d/perf-schema.cnf` (ensures P_S consumers on)
+- `mysql/initdb/01-users.sql` (creates `exporter` & `app`; grants)
+- `seed/seed.sh` (simple INSERT/SELECT/UPDATE/SLEEP loop)
+- `test_compose_collectors.sh` (runner)
+
+**Run:**
+```bash
+./test_compose_collectors.sh
+```
+
 ## heartbeat
 
 With `collect.heartbeat` enabled, mysqld_exporter will scrape replication delay

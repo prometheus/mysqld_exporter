@@ -1,0 +1,6 @@
+[mysqld]
+performance_schema=ON
+# The following consumers are typically on by default in 8.x; keeping explicit for clarity.
+performance_schema_consumer_events_statements_history=ON
+performance_schema_consumer_events_statements_history_long=ON
+performance_schema_consumer_events_statements_current=ON

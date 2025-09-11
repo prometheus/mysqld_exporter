@@ -100,8 +100,8 @@ func TestScrapeSysUserSummary(t *testing.T) {
 				value = value / picoSeconds
 			}
 			if (i == 9 || i == 10) && value < 0 {
-		                value = 0
-	                }
+				value = 0
+			}
 			expectedMetrics = append(expectedMetrics, MetricResult{
 				labels:     labelMap{"user": user.(string)},
 				value:      value,

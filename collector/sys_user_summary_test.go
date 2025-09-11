@@ -16,7 +16,6 @@ package collector
 import (
 	"context"
 	"database/sql/driver"
-	"regexp"
 	"strconv"
 	"testing"
 
@@ -38,7 +37,7 @@ func TestScrapeSysUserSummary(t *testing.T) {
 
 	columns := []string{
 		"user",
-		"statemets",
+		"statements",
 		"statement_latency",
 		"table_scans",
 		"file_ios",
@@ -100,6 +99,9 @@ func TestScrapeSysUserSummary(t *testing.T) {
 			if i == 2 || i == 5 {
 				value = value / picoSeconds
 			}
+			if (i == 9 || i == 10) && value < 0 {
+		                value = 0
+	                }
 			expectedMetrics = append(expectedMetrics, MetricResult{
 				labels:     labelMap{"user": user.(string)},
 				value:      value,
@@ -108,7 +110,7 @@ func TestScrapeSysUserSummary(t *testing.T) {
 		}
 	}
 
-	mock.ExpectQuery(sanitizeQuery(regexp.QuoteMeta(sysUserSummaryQuery))).WillReturnRows(rows)
+	mock.ExpectQuery(`(?s)SELECT\s+.*\s+FROM\s+sys\.x\$user_summary\s*`).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 

@@ -136,6 +136,8 @@ collect.perf_schema.replication_applier_status_by_worker     | 5.7           | C
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).
+collect.sys.user_summary_by_statement_latency                | 5.7           | Collect metrics from sys.x$user_summary_by_statement_latency (disabled by default).
+collect.sys.user_summary_by_statement_type                   | 5.7           | Collects metrics from sys.x$user_summary_by_statement_type (disabled by default).
 
 
 ### General Flags

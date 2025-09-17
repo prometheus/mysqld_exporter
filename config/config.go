@@ -17,14 +17,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,6 +48,10 @@ var (
 		Loose: true,
 		// MySQL ini file can have boolean keys.
 		AllowBooleanKeys: true,
+		// Ignore the # character in the line to avoid password parsing failure when the MySQL password contains the # symbol
+		IgnoreInlineComment: true,
+		// Remove the first and last quotation marks
+		UnescapeValueDoubleQuotes: true,
 	}
 
 	err error
@@ -84,7 +86,7 @@ func (ch *MySqlConfigHandler) GetConfig() *Config {
 	return ch.Config
 }
 
-func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger log.Logger) error {
+func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) error {
 	var host, port string
 	defer func() {
 		if err != nil {
@@ -136,11 +138,11 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 
 		err = sec.StrictMapTo(mysqlcfg)
 		if err != nil {
-			level.Error(logger).Log("msg", "failed to parse config", "section", sectionName, "err", err)
+			logger.Error("failed to parse config", "section", sectionName, "err", err)
 			continue
 		}
 		if err := mysqlcfg.validateConfig(); err != nil {
-			level.Error(logger).Log("msg", "failed to validate config", "section", sectionName, "err", err)
+			logger.Error("failed to validate config", "section", sectionName, "err", err)
 			continue
 		}
 

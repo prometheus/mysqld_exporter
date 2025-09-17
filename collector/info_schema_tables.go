@@ -17,11 +17,10 @@ package collector
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -40,13 +39,13 @@ const (
 		    ifnull(DATA_FREE, '0') as DATA_FREE,
 		    ifnull(CREATE_OPTIONS, 'NONE') as CREATE_OPTIONS
 		  FROM information_schema.tables
-		  WHERE TABLE_SCHEMA = '%s'
+		  WHERE TABLE_SCHEMA = ?
 		`
 	dbListQuery = `
 		SELECT
 		    SCHEMA_NAME
 		  FROM information_schema.schemata
-		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+		  WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema', 'sys')
 		`
 )
 
@@ -96,7 +95,7 @@ func (ScrapeTableSchema) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	var dbList []string
 	db := instance.getDB()
 	if *tableSchemaDatabases == "*" {
@@ -121,7 +120,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan
 	}
 
 	for _, database := range dbList {
-		tableSchemaRows, err := db.QueryContext(ctx, fmt.Sprintf(tableSchemaQuery, database))
+		tableSchemaRows, err := db.QueryContext(ctx, tableSchemaQuery, database)
 		if err != nil {
 			return err
 		}

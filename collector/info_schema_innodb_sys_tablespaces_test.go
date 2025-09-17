@@ -20,9 +20,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/blang/semver/v4"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -52,7 +52,7 @@ func TestScrapeInfoSchemaInnodbTablespaces(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -101,7 +101,7 @@ func TestScrapeInfoSchemaInnodbTablespacesWithoutSpaceType(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeInfoSchemaInnodbTablespaces{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

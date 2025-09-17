@@ -19,9 +19,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/blang/semver/v4"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -101,7 +101,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	var tablespacesTablename string
 	var query string
 	db := instance.getDB()
@@ -118,7 +118,7 @@ func (ScrapeInfoSchemaInnodbTablespaces) Scrape(ctx context.Context, instance *i
 			query = fmt.Sprintf(innodbTablespacesQueryMariaDB, tablespacesTablename, tablespacesTablename)
 		}
 	default:
-		return errors.New("Couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema.")
+		return errors.New("couldn't find INNODB_SYS_TABLESPACES or INNODB_TABLESPACES in information_schema")
 	}
 
 	tablespacesRows, err := db.QueryContext(ctx, query)

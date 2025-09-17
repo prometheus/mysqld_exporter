@@ -17,11 +17,11 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -30,6 +30,13 @@ const (
 	innodb = "engine_innodb"
 	// Query.
 	engineInnodbStatusQuery = `SHOW ENGINE INNODB STATUS`
+)
+
+var (
+	// 0 queries inside InnoDB, 0 queries in queue
+	// 0 read views open inside InnoDB
+	queriesRe = regexp.MustCompile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
+	viewsRe   = regexp.MustCompile(`(\d+) read views open inside InnoDB`)
 )
 
 // ScrapeEngineInnodbStatus scrapes from `SHOW ENGINE INNODB STATUS`.
@@ -51,7 +58,7 @@ func (ScrapeEngineInnodbStatus) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	rows, err := db.QueryContext(ctx, engineInnodbStatusQuery)
 	if err != nil {
@@ -67,13 +74,8 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 		}
 	}
 
-	// 0 queries inside InnoDB, 0 queries in queue
-	// 0 read views open inside InnoDB
-	rQueries, _ := regexp.Compile(`(\d+) queries inside InnoDB, (\d+) queries in queue`)
-	rViews, _ := regexp.Compile(`(\d+) read views open inside InnoDB`)
-
 	for _, line := range strings.Split(statusCol, "\n") {
-		if data := rQueries.FindStringSubmatch(line); data != nil {
+		if data := queriesRe.FindStringSubmatch(line); data != nil {
 			value, _ := strconv.ParseFloat(data[1], 64)
 			ch <- prometheus.MustNewConstMetric(
 				newDesc(innodb, "queries_inside_innodb", "Queries inside InnoDB."),
@@ -86,7 +88,7 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 				prometheus.GaugeValue,
 				value,
 			)
-		} else if data := rViews.FindStringSubmatch(line); data != nil {
+		} else if data := viewsRe.FindStringSubmatch(line); data != nil {
 			value, _ := strconv.ParseFloat(data[1], 64)
 			ch <- prometheus.MustNewConstMetric(
 				newDesc(innodb, "read_views_open_inside_innodb", "Read views open inside InnoDB."),

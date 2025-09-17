@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -32,14 +32,14 @@ func TestScrapeSlaveStatus(t *testing.T) {
 	defer db.Close()
 	inst := &instance{db: db}
 
-	columns := []string{"Master_Host", "Read_Master_Log_Pos", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master"}
+	columns := []string{"Master_Host", "Read_Master_Log_Pos", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master", "Gtid_IO_Pos"}
 	rows := sqlmock.NewRows(columns).
-		AddRow("127.0.0.1", "1", "Connecting", "Yes", "2")
+		AddRow("127.0.0.1", "1", "Connecting", "Yes", "2", "0-1-2,3-4-5")
 	mock.ExpectQuery(sanitizeQuery("SHOW SLAVE STATUS")).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, log.NewNopLogger()); err != nil {
+		if err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -50,6 +50,8 @@ func TestScrapeSlaveStatus(t *testing.T) {
 		{labels: labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 0, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 1, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": ""}, value: 2, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": "", "domain_id": "0", "server_id": "1"}, value: 2, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": "", "domain_id": "3", "server_id": "4"}, value: 5, metricType: dto.MetricType_GAUGE},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range counterExpected {

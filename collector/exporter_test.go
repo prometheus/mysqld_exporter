@@ -17,9 +17,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -36,7 +36,7 @@ func TestExporter(t *testing.T) {
 		[]Scraper{
 			ScrapeGlobalStatus{},
 		},
-		log.NewNopLogger(),
+		promslog.NewNopLogger(),
 	)
 
 	convey.Convey("Metrics describing", t, func() {
@@ -63,5 +63,82 @@ func TestExporter(t *testing.T) {
 				convey.So(got.value, convey.ShouldEqual, 1)
 			}
 		}
+	})
+}
+
+func TestExporterWithOpts(t *testing.T) {
+	convey.Convey("DSN changes with options", t, func() {
+		convey.Convey("without any option", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?")
+		})
+
+		convey.Convey("SetSlowLogFilter enabled", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				SetSlowLogFilter(true),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+		})
+
+		convey.Convey("EnableLockWaitTimeout enabled and SetLockWaitTimeout", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				EnableLockWaitTimeout(true),
+				SetLockWaitTimeout(30),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?lock_wait_timeout=30")
+		})
+
+		convey.Convey("EnableLockWaitTimeout disabled", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				EnableLockWaitTimeout(false),
+				SetLockWaitTimeout(30),
+				SetSlowLogFilter(true),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+		})
+
+		convey.Convey("All options enabled", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				EnableLockWaitTimeout(true),
+				SetLockWaitTimeout(30),
+				SetSlowLogFilter(true),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+		})
+
+		convey.Convey("All options with existing query parameter", func() {
+			dsnWithParams := "root@/mysql?parseTime=true"
+			exporter := New(
+				context.Background(),
+				dsnWithParams,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				EnableLockWaitTimeout(true),
+				SetLockWaitTimeout(30),
+				SetSlowLogFilter(true),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?parseTime=true&lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+		})
 	})
 }

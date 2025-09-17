@@ -17,9 +17,8 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	MySQL "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -83,14 +82,14 @@ func (ScrapeReplicaHost) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeReplicaHost) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeReplicaHost) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	replicaHostRows, err := db.QueryContext(ctx, replicaHostQuery)
 	if err != nil {
 		if mysqlErr, ok := err.(*MySQL.MySQLError); ok { // Now the error number is accessible directly
 			// Check for error 1109: Unknown table
 			if mysqlErr.Number == 1109 {
-				level.Debug(logger).Log("msg", "information_schema.replica_host_status is not available.")
+				logger.Debug("information_schema.replica_host_status is not available.")
 				return nil
 			}
 		}

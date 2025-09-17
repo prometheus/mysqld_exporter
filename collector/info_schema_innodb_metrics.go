@@ -19,10 +19,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -92,7 +91,7 @@ func (ScrapeInnodbMetrics) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	var enabledColumnName string
 	var query string
 
@@ -108,7 +107,7 @@ func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch ch
 	case "ENABLED":
 		query = fmt.Sprintf(infoSchemaInnodbMetricsQuery, "enabled", "1")
 	default:
-		return errors.New("Couldn't find column STATUS or ENABLED in innodb_metrics table.")
+		return errors.New("couldn't find column STATUS or ENABLED in innodb_metrics table")
 	}
 
 	innodbMetricsRows, err := db.QueryContext(ctx, query)
@@ -132,7 +131,7 @@ func (ScrapeInnodbMetrics) Scrape(ctx context.Context, instance *instance, ch ch
 		if subsystem == "buffer_page_io" {
 			match := bufferPageRE.FindStringSubmatch(name)
 			if len(match) != 3 {
-				level.Warn(logger).Log("msg", "innodb_metrics subsystem buffer_page_io returned an invalid name", "name", name)
+				logger.Warn("innodb_metrics subsystem buffer_page_io returned an invalid name", "name", name)
 				continue
 			}
 			switch match[1] {

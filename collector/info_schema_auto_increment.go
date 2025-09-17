@@ -17,8 +17,8 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -69,7 +69,7 @@ func (ScrapeAutoIncrementColumns) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapeAutoIncrementColumns) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	autoIncrementRows, err := db.QueryContext(ctx, infoSchemaAutoIncrementQuery)
 	if err != nil {

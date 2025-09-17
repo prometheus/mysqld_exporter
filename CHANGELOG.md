@@ -9,6 +9,49 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.17.2 / 2025-02-25
+
+Changes:
+
+* [BUGFIX] Fix query on events_statements_summary_by_digest for mariadb #922
+
+## 0.17.1 / 2025-02-21
+
+Changes:
+
+* [BUGFIX] Fix query on perf_schema.events_statements_summary_by_digest #920
+
+## 0.17.0 / 2025-02-19
+
+Changes:
+* [FEATURE] Add perf_schema quantile columns to collector #897
+* [BUGFIX] Update Mixin dashboard to "editable: false" #911
+* [BUGFIX] Fix typo for "locahost" #914
+* [BUGFIX] Fix database quoting problem in collector 'info_schema.tables' #908
+* [BUGFIX] Use SUM_LOCK_TIME and SUM_CPU_TIME with mysql >= 8.0.28 #916
+* [BUGFIX] Add missing metrics_path to multi-target example #899
+
+## 0.16.0 / 2024-11-08
+
+Changes:
+
+* [CHANGE] Replace logging library go-kit/log with slog #875
+* [FEATURE] Support for prometheus scrape timeout in probe endpoint #828
+* [ENHANCEMENT] Support MySQL 8.4 replicas syntax #837
+* [ENHANCEMENT] Fetch lock time and cpu time from performance schema #862
+* [ENHANCEMENT] Add the instance struct to handle connections #859
+* [ENHANCEMENT] Optimize code by using built-in constants in the standard lib #844
+* [BUGFIX] Fix fetching tmpTables vs tmpDiskTables from performance_schema #853
+* [BUGFIX] Skip SPACE_TYPE column for MariaDB >=10.5 #860
+* [BUGFIX] Fixed parsing of timestamps with non-zero padded days #841
+* [BUGFIX] Fix auto_increment metric collection errors caused by using collation in INFORMATION_SCHEMA searches #833
+* [BUGFIX] Fix race condition in ReloadConfig #760
+* [BUGFIX] Change processlist query to support ONLY_FULL_GROUP_BY sql_mode #684
+* [BUGFIX] replication_applier_status_by_worker requires mysql 8.0 #683
+* [BUGFIX] Update docker registry link in README.md #813
+* [BUGFIX] Fix Docker run command and update documentation for cnf file handling #843
+* [BUGFIX] info_schema_tables: do not collect the sys schema #879
+
 ## 0.15.1 / 2023-12-12
 
 * Rebuild for dependency updates

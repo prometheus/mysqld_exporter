@@ -16,9 +16,9 @@ package collector
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"strings"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -45,7 +45,7 @@ func (ScrapePerfReplicationGroupMembers) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger log.Logger) error {
+func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	perfReplicationGroupMembersRows, err := db.QueryContext(ctx, perfReplicationGroupMembersQuery)
 	if err != nil {

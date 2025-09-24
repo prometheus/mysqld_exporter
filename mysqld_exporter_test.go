@@ -175,14 +175,16 @@ label {
       </div>
       
       
+      
       <div id="pprof">
       Download a detailed report of resource usage (pprof format, from the Go runtime):
       <ul>
-        <li><a href="debug/pprof/heap">heap usage (memory)</a>
-        <li><a href="debug/pprof/profile?seconds=60">CPU usage (60 second profile)</a>
+        <li><a href="/debug/pprof/heap">heap usage (memory)</a>
+        <li><a href="/debug/pprof/profile?seconds=60">CPU usage (60 second profile)</a>
       </ul>
-      To visualize and share profiles you can upload to <a href="https://pprof.me" target="_blank">pprof.me</a>
+      To visualize and share profiles you can upload to <a href="https://pprof.me" target="_blank" rel="noopener noreferrer">pprof.me</a>
       </div>
+      
     </main>
   </body>
 </html>

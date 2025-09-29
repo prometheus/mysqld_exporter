@@ -136,6 +136,8 @@ collect.perf_schema.replication_applier_status_by_worker     | 5.7           | C
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).
+collect.sys.user_summary_by_statement_latency                | 5.7           | Collect metrics from sys.x$user_summary_by_statement_latency (disabled by default).
+collect.sys.user_summary_by_statement_type                   | 5.7           | Collects metrics from sys.x$user_summary_by_statement_type (disabled by default).
 
 
 ### General Flags
@@ -202,6 +204,30 @@ docker run -d \
   -v /home/user/user_my.cnf:/.my.cnf \
   --network my-mysql-network  \
   prom/mysqld-exporter
+```
+
+## Docker Compose integration test
+
+A self-contained test harness is included to validate collectors against a local MySQL:
+
+- Spins up **MySQL 8.4** with `performance_schema` on
+- Seeds basic workload so `sys` summaries have data
+- Builds and runs your **local** exporter image per collector flag
+- Captures exporter logs per test under `_testlogs/`
+- Verifies metrics via in-network HTTP (no host port binding)
+
+**Prereqs:** Docker & Docker Compose v2.
+
+**Files:**
+- `docker-compose.yml` (MySQL service + one-shot seeder)
+- `mysql/conf.d/perf-schema.cnf` (ensures P_S consumers on)
+- `mysql/initdb/01-users.sql` (creates `exporter` & `app`; grants)
+- `seed/seed.sh` (simple INSERT/SELECT/UPDATE/SLEEP loop)
+- `test_compose_collectors.sh` (runner)
+
+**Run:**
+```bash
+./test_compose_collectors.sh
 ```
 
 ## heartbeat

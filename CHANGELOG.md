@@ -9,6 +9,18 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.18.0 / 2025-09-25
+
+Changes:
+
+* [FEATURE] Add RocksDB context metrics #931
+* [FEATURE] Add command line option to explicitly disable `lock_wait_timeout` #896
+* [FEATURE] Add support for MariaDB GTID in slave status #958
+* [ENHANCEMENT] Review regex declarations in innodb and global variables collectors #941
+* [ENHANCEMENT] Mixin: Use `std.parseYaml` instead of Tanka native function #935
+* [ENHANCEMENT] Move exporter flags to main package #967
+* [BUGFIX] Fixed the issue of authentication failure when the password contains the `#` symbol #937
+
 ## 0.17.2 / 2025-02-25
 
 Changes:

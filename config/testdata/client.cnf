@@ -5,3 +5,7 @@ host = server2
 [client.server1]
 user = test
 password = foo
+[client.cleartextPlugin]
+user = test
+password = foo
+enable-cleartext-plugin = true

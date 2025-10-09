@@ -67,6 +67,7 @@ type MySqlConfig struct {
 	Host                  string `ini:"host"`
 	Port                  int    `ini:"port"`
 	Socket                string `ini:"socket"`
+	EnableCleartextPlugin bool   `ini:"enable-cleartext-plugin"`
 	SslCa                 string `ini:"ssl-ca"`
 	SslCert               string `ini:"ssl-cert"`
 	SslKey                string `ini:"ssl-key"`
@@ -207,6 +208,10 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 			}
 			config.TLSConfig = "custom"
 		}
+	}
+
+	if m.EnableCleartextPlugin {
+		config.AllowCleartextPasswords = true
 	}
 
 	return config.FormatDSN(), nil

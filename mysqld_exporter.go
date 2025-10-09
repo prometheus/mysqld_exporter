@@ -104,6 +104,8 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
 	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
 	collector.ScrapeSysUserSummary{}:                      false,
+	collector.ScrapeSysUserSummaryByStatementLatency{}:    false,
+	collector.ScrapeSysUserSummaryByStatementType{}:       false,
 	collector.ScrapeUserStat{}:                            false,
 	collector.ScrapeClientStat{}:                          false,
 	collector.ScrapeTableStat{}:                           false,

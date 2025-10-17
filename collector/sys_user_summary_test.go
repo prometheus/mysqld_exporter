@@ -77,6 +77,19 @@ func TestScrapeSysUserSummary(t *testing.T) {
 			"210",
 			"211",
 		},
+		{
+			"user3",
+			"310",
+			"320",
+			"340",
+			"350",
+			"360",
+			"370",
+			"380",
+			"390",
+			"-16360",
+			"411",
+		},
 	}
 	expectedMetrics := []MetricResult{}
 	// Register the query results with mock SQL driver and assemble expected metric results list

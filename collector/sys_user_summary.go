@@ -118,7 +118,7 @@ func (ScrapeSysUserSummary) Scrape(ctx context.Context, instance *instance, ch c
 		current_connections    uint64
 		total_connections      uint64
 		unique_hosts           uint64
-		current_memory         uint64
+		current_memory         int64
 		total_memory_allocated uint64
 	)
 

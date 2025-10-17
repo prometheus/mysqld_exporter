@@ -14,6 +14,7 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -24,6 +25,8 @@ import (
 	"strings"
 	"sync"
 
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	rdsAuth "github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -73,6 +76,8 @@ type MySqlConfig struct {
 	SslKey                string `ini:"ssl-key"`
 	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"` //nolint:misspell
 	Tls                   string `ini:"tls"`
+	AwsIamAuth            bool   `ini:"aws-iam-auth"`
+	AwsRegion             string `ini:"aws-region"`
 }
 
 type MySqlConfigHandler struct {
@@ -208,6 +213,21 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 			}
 			config.TLSConfig = "custom"
 		}
+	}
+	if m.AwsIamAuth {
+		if m.AwsRegion == "" {
+			return "", fmt.Errorf("aws region must be specified for IAM authentication")
+		}
+		awsCfg, err := awsConfig.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return "", fmt.Errorf("failed to load AWS config for IAM authentication: %w", err)
+		}
+		authToken, err := rdsAuth.BuildAuthToken(
+			context.TODO(), config.Addr, m.AwsRegion, m.User, awsCfg.Credentials)
+		if err != nil {
+			return "", fmt.Errorf("failed to build auth token for IAM authentication: %w", err)
+		}
+		config.Passwd = authToken
 	}
 
 	if m.EnableCleartextPlugin {

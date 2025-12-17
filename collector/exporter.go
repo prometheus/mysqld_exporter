@@ -35,8 +35,9 @@ const (
 const (
 	// System variable params formatting.
 	// See: https://github.com/go-sql-driver/mysql#system-variables
-	sessionSettingsParam = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
-	timeoutParam         = `lock_wait_timeout=%d`
+	sessionSettingsParam         = `log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27`
+	timeoutParam                 = `lock_wait_timeout=%d`
+	informationSchemaStatsExpiry = `information_schema_stats_expiry=%d`
 )
 
 // metric definition
@@ -71,9 +72,10 @@ type Exporter struct {
 	scrapers []Scraper
 	instance *instance
 
-	enableLockWaitTimeout bool
-	lockWaitTimeout       int
-	slowLogFilter         bool
+	enableLockWaitTimeout        bool
+	lockWaitTimeout              int
+	informationSchemaStatsExpiry int
+	slowLogFilter                bool
 }
 
 type ExporterOpt func(*Exporter)
@@ -90,6 +92,12 @@ func SetLockWaitTimeout(timeout int) ExporterOpt {
 	}
 }
 
+func SetInformationSchemaStatsExpiry(seconds int) ExporterOpt {
+	return func(e *Exporter) {
+		e.informationSchemaStatsExpiry = seconds
+	}
+}
+
 func SetSlowLogFilter(b bool) ExporterOpt {
 	return func(e *Exporter) {
 		e.slowLogFilter = b
@@ -99,9 +107,10 @@ func SetSlowLogFilter(b bool) ExporterOpt {
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
-		ctx:      ctx,
-		logger:   logger,
-		scrapers: scrapers,
+		ctx:                          ctx,
+		logger:                       logger,
+		scrapers:                     scrapers,
+		informationSchemaStatsExpiry: 86400,
 	}
 
 	for _, opt := range opts {
@@ -118,6 +127,10 @@ func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logge
 
 	if e.slowLogFilter {
 		dsnParams = append(dsnParams, sessionSettingsParam)
+	}
+
+	if e.informationSchemaStatsExpiry != 86400 {
+		dsnParams = append(dsnParams, fmt.Sprintf(informationSchemaStatsExpiry, e.informationSchemaStatsExpiry))
 	}
 
 	if strings.Contains(dsn, "?") {

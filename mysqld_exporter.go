@@ -69,6 +69,10 @@ var (
 		"exporter.enable_lock_wait_timeout",
 		"Enable the lock_wait_timeout MySQL connection parameter.",
 	).Default("true").Bool()
+	informationSchemaStatsExpiry = kingpin.Flag(
+		"exporter.information_schema_stats_expiry",
+		"Set the information_schema_stats_expiry (in seconds) on the connection to control how often the server refreshes table statistics.",
+	).Default("86400").Int()
 	slowLogFilter = kingpin.Flag(
 		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
@@ -215,6 +219,7 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger,
 			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
 			collector.SetLockWaitTimeout(*exporterLockTimeout),
+			collector.SetInformationSchemaStatsExpiry(*informationSchemaStatsExpiry),
 			collector.SetSlowLogFilter(*slowLogFilter),
 		))
 

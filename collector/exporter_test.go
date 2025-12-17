@@ -114,6 +114,17 @@ func TestExporterWithOpts(t *testing.T) {
 			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
 		})
 
+		convey.Convey("SetInformationSchemaStatsExpiry", func() {
+			exporter := New(
+				context.Background(),
+				dsn,
+				[]Scraper{},
+				promslog.NewNopLogger(),
+				SetInformationSchemaStatsExpiry(120),
+			)
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?information_schema_stats_expiry=120")
+		})
+
 		convey.Convey("All options enabled", func() {
 			exporter := New(
 				context.Background(),
@@ -123,8 +134,9 @@ func TestExporterWithOpts(t *testing.T) {
 				EnableLockWaitTimeout(true),
 				SetLockWaitTimeout(30),
 				SetSlowLogFilter(true),
+				SetInformationSchemaStatsExpiry(0),
 			)
-			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27&information_schema_stats_expiry=0")
 		})
 
 		convey.Convey("All options with existing query parameter", func() {
@@ -137,8 +149,9 @@ func TestExporterWithOpts(t *testing.T) {
 				EnableLockWaitTimeout(true),
 				SetLockWaitTimeout(30),
 				SetSlowLogFilter(true),
+				SetInformationSchemaStatsExpiry(0),
 			)
-			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?parseTime=true&lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
+			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?parseTime=true&lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27&information_schema_stats_expiry=0")
 		})
 	})
 }

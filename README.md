@@ -143,7 +143,6 @@ Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
 mysqld.address                             | Hostname and port used for connecting to MySQL server, format: `host:port`. (default: `localhost:3306`)
 mysqld.username                            | Username to be used for connecting to MySQL Server
-mysqld.socket                              | Path to mysql socket (overrides mysqld.address)
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)

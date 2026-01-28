@@ -1,0 +1,43 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    command: ["--performance_schema=ON"]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -prootpass || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - ./test-files/mysql/conf.d:/etc/mysql/conf.d:ro
+      - ./test-files/mysql/initdb:/docker-entrypoint-initdb.d:ro
+    networks:
+      mysql-test:
+        aliases:
+          - mysql   # ensure 'mysql' DNS name exists on this network
+
+  seed:
+    image: mysql:8.4
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_DATABASE: testdb
+    volumes:
+      - ./test-files/seed/seed.sh:/seed/seed.sh:ro
+    entrypoint: ["/bin/bash", "/seed/seed.sh"]
+    networks: [mysql-test]
+
+networks:
+  mysql-test:
+    name: mysql-test
+    driver: bridge
+    external: true
+

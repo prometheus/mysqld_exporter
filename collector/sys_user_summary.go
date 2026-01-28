@@ -31,8 +31,8 @@ const sysUserSummaryQuery = `
 		current_connections,
 		total_connections,
 		unique_hosts,
-		current_memory,
-		total_memory_allocated
+		GREATEST(current_memory, 0)         AS current_memory,
+		GREATEST(total_memory_allocated, 0) AS total_memory_allocated
 	FROM
 		` + sysSchema + `.x$user_summary
 `

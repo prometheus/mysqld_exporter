@@ -107,16 +107,24 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		return fmt.Errorf("failed to load config from %s: %w", filename, err)
 	}
 
-	if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
-		return fmt.Errorf("failed to parse address: %w", err)
-	}
-
 	if clientSection := cfg.Section("client"); clientSection != nil {
-		if cfgHost := clientSection.Key("host"); cfgHost.String() == "" {
-			cfgHost.SetValue(host)
-		}
-		if cfgPort := clientSection.Key("port"); cfgPort.String() == "" {
-			cfgPort.SetValue(port)
+		// Check if mysqldAddress is a unix socket
+		if prefix := "unix://"; strings.HasPrefix(mysqldAddress, prefix) {
+			socketPath := mysqldAddress[len(prefix):]
+			if cfgSocket := clientSection.Key("socket"); cfgSocket.String() == "" {
+				cfgSocket.SetValue(socketPath)
+			}
+		} else {
+			// Parse as TCP address (host:port)
+			if host, port, err = net.SplitHostPort(mysqldAddress); err != nil {
+				return fmt.Errorf("failed to parse address: %w", err)
+			}
+			if cfgHost := clientSection.Key("host"); cfgHost.String() == "" {
+				cfgHost.SetValue(host)
+			}
+			if cfgPort := clientSection.Key("port"); cfgPort.String() == "" {
+				cfgPort.SetValue(port)
+			}
 		}
 		if cfgUser := clientSection.Key("user"); cfgUser.String() == "" {
 			cfgUser.SetValue(mysqldUser)

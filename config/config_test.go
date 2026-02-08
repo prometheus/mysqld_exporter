@@ -153,6 +153,57 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "foo")
 		convey.So(section.EnableCleartextPlugin, convey.ShouldBeTrue)
 	})
+
+	convey.Convey("Expand variables", t, func() {
+		c := MySqlConfigHandler{
+			Config: &Config{},
+		}
+		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
+		if err := c.ReloadConfig("testdata/expand_variables.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+
+		cfg := c.GetConfig()
+		section := cfg.Sections["client.server1"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "foo")
+
+		section = cfg.Sections["client.env"]
+		convey.So(section.User, convey.ShouldEqual, "test2")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+
+		section = cfg.Sections["client.notExpandEnv"]
+		convey.So(section.User, convey.ShouldEqual, "mysql_exporter")
+		convey.So(section.Password, convey.ShouldEqual, "SECRET_PA$SWORD")
+
+		section = cfg.Sections["client.envNotExists"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "")
+
+		section = cfg.Sections["client.envEscaped"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$MYSQLD_EXPORTER_PASSWORD")
+
+		section = cfg.Sections["client.password$$Escaped"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$$MYSQLD_EXPORTER_PASSWORD")
+
+		section = cfg.Sections["client.password$$$Env"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+
+		section = cfg.Sections["client.password$$$Escaped"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$$$MYSQLD_EXPORTER_PASSWORD")
+
+		section = cfg.Sections["client.password$$$$Escaped"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$$$$MYSQLD_EXPORTER_PASSWORD")
+
+		section = cfg.Sections["client.password$$$$$Env"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+	})
 }
 
 func TestFormDSN(t *testing.T) {

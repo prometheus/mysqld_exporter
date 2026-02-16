@@ -38,7 +38,7 @@ const infoSchemaProcesslistQuery = `
 		  FROM information_schema.processlist
 		  WHERE ID != connection_id()
 		    AND TIME >= %d
-		  GROUP BY user, host, command, state
+		  GROUP BY user, SUBSTRING_INDEX(host, ':', 1), COALESCE(command, ''), COALESCE(state, '')
 	`
 
 // Tunable flags.

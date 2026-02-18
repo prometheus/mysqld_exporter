@@ -62,7 +62,7 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *i
 	for i := range scanArgs {
 		scanArgs[i] = &sql.RawBytes{}
 	}
-
+	memberStateValue := float64(0)
 	for perfReplicationGroupMembersRows.Next() {
 		if err := perfReplicationGroupMembersRows.Scan(scanArgs...); err != nil {
 			return err
@@ -73,6 +73,9 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *i
 		for i, columnName := range columnNames {
 			labelNames[i] = strings.ToLower(columnName)
 			values[i] = string(*scanArgs[i].(*sql.RawBytes))
+			if labelNames[i] == "member_state" && values[i] == "ONLINE" {
+				memberStateValue = 1
+			}
 		}
 
 		var performanceSchemaReplicationGroupMembersMemberDesc = prometheus.NewDesc(
@@ -84,7 +87,7 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *i
 		)
 
 		ch <- prometheus.MustNewConstMetric(performanceSchemaReplicationGroupMembersMemberDesc,
-			prometheus.GaugeValue, 1, values...)
+			prometheus.GaugeValue, memberStateValue, values...)
 	}
 	return nil
 

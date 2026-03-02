@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/blang/semver/v4"
@@ -45,7 +47,7 @@ const perfEventsStatementsQuery = `
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
-	    WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+	    WHERE SCHEMA_NAME NOT IN (%s)
 	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
 	    ORDER BY LAST_SEEN DESC
 	  )Q
@@ -94,7 +96,7 @@ const perfEventsStatementsQueryMySQL = `
 	  FROM (
 	    SELECT *
 	    FROM performance_schema.events_statements_summary_by_digest
-	    WHERE SCHEMA_NAME NOT IN ('mysql', 'performance_schema', 'information_schema')
+	    WHERE SCHEMA_NAME NOT IN (%s)
 	      AND LAST_SEEN > DATE_SUB(NOW(), INTERVAL %d SECOND)
 	    ORDER BY LAST_SEEN DESC
 	  )Q
@@ -137,7 +139,13 @@ var (
 		"collect.perf_schema.eventsstatements.digest_text_limit",
 		"Maximum length of the normalized statement text",
 	).Default("120").Int()
+	perfEventsStatementsExcludeSchemas = kingpin.Flag(
+		"collect.perf_schema.eventsstatements.exclude_schemas",
+		"Comma-separated list of additional schema names to exclude (always excludes mysql, performance_schema, information_schema)",
+	).Default("").String()
 )
+
+var defaultExcludedSchemas = []string{"'mysql'", "'performance_schema'", "'information_schema'"}
 
 // Metric descriptors.
 var (
@@ -245,9 +253,12 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 		perfQuery = perfEventsStatementsQueryMySQL
 	}
 
+	excludeSchemasList := buildExcludedSchemasList(*perfEventsStatementsExcludeSchemas)
+
 	perfQuery = fmt.Sprintf(
 		perfQuery,
 		*perfEventsStatementsDigestTextLimit,
+		excludeSchemasList,
 		*perfEventsStatementsTimeLimit,
 		*perfEventsStatementsLimit,
 	)
@@ -347,6 +358,24 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 		}, schemaName, digest, digestText)
 	}
 	return nil
+}
+
+func buildExcludedSchemasList(extraSchemas string) string {
+	if len(extraSchemas) == 0 {
+		return strings.Join(defaultExcludedSchemas, ", ")
+	}
+
+	excludedSchemas := slices.Clone(defaultExcludedSchemas)
+	for s := range strings.SplitSeq(extraSchemas, ",") {
+		if trimmed := strings.TrimSpace(s); trimmed != "" {
+			escaped := "'" + strings.ReplaceAll(trimmed, "'", "''") + "'"
+			if !slices.Contains(excludedSchemas, escaped) {
+				excludedSchemas = append(excludedSchemas, escaped)
+			}
+		}
+	}
+
+	return strings.Join(excludedSchemas, ", ")
 }
 
 // check interface

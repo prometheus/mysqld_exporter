@@ -142,7 +142,7 @@ var (
 	perfEventsStatementsExcludeSchemas = kingpin.Flag(
 		"collect.perf_schema.eventsstatements.exclude_schemas",
 		"Comma-separated list of additional schema names to exclude (always excludes mysql, performance_schema, information_schema)",
-	).Default("").String()
+	).Default("").Strings()
 )
 
 var defaultExcludedSchemas = []string{"'mysql'", "'performance_schema'", "'information_schema'"}
@@ -360,18 +360,16 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 	return nil
 }
 
-func buildExcludedSchemasList(extraSchemas string) string {
+func buildExcludedSchemasList(extraSchemas []string) string {
 	if len(extraSchemas) == 0 {
 		return strings.Join(defaultExcludedSchemas, ", ")
 	}
 
 	excludedSchemas := slices.Clone(defaultExcludedSchemas)
-	for s := range strings.SplitSeq(extraSchemas, ",") {
-		if trimmed := strings.TrimSpace(s); trimmed != "" {
-			escaped := "'" + strings.ReplaceAll(trimmed, "'", "''") + "'"
-			if !slices.Contains(excludedSchemas, escaped) {
-				excludedSchemas = append(excludedSchemas, escaped)
-			}
+	for _, s := range extraSchemas {
+		escaped := "'" + strings.ReplaceAll(s, "'", "''") + "'"
+		if !slices.Contains(excludedSchemas, escaped) {
+			excludedSchemas = append(excludedSchemas, escaped)
 		}
 	}
 

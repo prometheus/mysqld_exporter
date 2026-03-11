@@ -141,7 +141,7 @@ var (
 	).Default("120").Int()
 	perfEventsStatementsExcludeSchemas = kingpin.Flag(
 		"collect.perf_schema.eventsstatements.exclude_schemas",
-		"Comma-separated list of additional schema names to exclude (always excludes mysql, performance_schema, information_schema)",
+		"Additional schema name to exclude (always excludes mysql, performance_schema, information_schema). Repeatable",
 	).Default("").Strings()
 )
 

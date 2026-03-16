@@ -361,10 +361,6 @@ func (ScrapePerfEventsStatements) Scrape(ctx context.Context, instance *instance
 }
 
 func buildExcludedSchemasList(extraSchemas []string) string {
-	if len(extraSchemas) == 0 {
-		return strings.Join(defaultExcludedSchemas, ", ")
-	}
-
 	excludedSchemas := slices.Clone(defaultExcludedSchemas)
 	for _, s := range extraSchemas {
 		escaped := "'" + strings.ReplaceAll(s, "'", "''") + "'"

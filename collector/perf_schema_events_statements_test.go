@@ -49,7 +49,7 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 			1, 2, 3,
 			100, 1)
 
-	query := fmt.Sprintf(perfEventsStatementsQuery, 120, 86400, 250)
+	query := fmt.Sprintf(perfEventsStatementsQuery, *perfEventsStatementsDigestTextLimit, buildExcludedSchemasList(*perfEventsStatementsExcludeSchemas), *perfEventsStatementsTimeLimit, *perfEventsStatementsLimit)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
@@ -125,7 +125,7 @@ func TestScrapePerfEventsStatementsMySQL8028(t *testing.T) {
 			100, 1,
 			100, 150, 200)
 
-	query := fmt.Sprintf(perfEventsStatementsQueryMySQL, 120, 86400, 250)
+	query := fmt.Sprintf(perfEventsStatementsQueryMySQL, *perfEventsStatementsDigestTextLimit, buildExcludedSchemasList(*perfEventsStatementsExcludeSchemas), *perfEventsStatementsTimeLimit, *perfEventsStatementsLimit)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)

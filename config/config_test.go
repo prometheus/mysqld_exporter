@@ -96,6 +96,22 @@ func TestValidateConfig(t *testing.T) {
 		)
 	})
 
+	convey.Convey("Unix socket address support", t, func() {
+		c := MySqlConfigHandler{
+			Config: &Config{},
+		}
+		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
+		if err := c.ReloadConfig("", "unix:///run/mysqld/mysqld.sock", "testuser", true, promslog.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+
+		cfg := c.GetConfig()
+		section := cfg.Sections["client"]
+		convey.So(section.Socket, convey.ShouldEqual, "/run/mysqld/mysqld.sock")
+		convey.So(section.User, convey.ShouldEqual, "testuser")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+	})
+
 	convey.Convey("Config file precedence over environment variables", t, func() {
 		c := MySqlConfigHandler{
 			Config: &Config{},

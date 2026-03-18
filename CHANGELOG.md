@@ -9,6 +9,15 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.19.0 / 2026-03-18
+
+Changes:
+
+* [FEATURE] Add support for cleartext authentication #980
+* [FEATURE] Add support for  unix:// prefix addresses #1003
+* [FEATURE] Allow excluding additional schemas from `perf_schema.eventsstatements` #1011
+* [BUGFIX] sys.user_summary: Fix handling of negative current_memory values #985
+
 ## 0.18.0 / 2025-09-25
 
 Changes:

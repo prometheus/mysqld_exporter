@@ -19,8 +19,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -155,35 +155,25 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan
 		stateUserCounts[user] += count
 	}
 
-	for _, command := range sortedMapKeys(stateCounts) {
-		for _, state := range sortedMapKeys(stateCounts[command]) {
+	for _, command := range slices.Sorted(maps.Keys(stateCounts)) {
+		for _, state := range slices.Sorted(maps.Keys(stateCounts[command])) {
 			ch <- prometheus.MustNewConstMetric(processlistCountDesc, prometheus.GaugeValue, float64(stateCounts[command][state]), command, state)
 			ch <- prometheus.MustNewConstMetric(processlistTimeDesc, prometheus.GaugeValue, float64(stateTime[command][state]), command, state)
 		}
 	}
 
 	if *processesByHostFlag {
-		for _, host := range sortedMapKeys(stateHostCounts) {
+		for _, host := range slices.Sorted(maps.Keys(stateHostCounts)) {
 			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(stateHostCounts[host]), host)
 		}
 	}
 	if *processesByUserFlag {
-		for _, user := range sortedMapKeys(stateUserCounts) {
+		for _, user := range slices.Sorted(maps.Keys(stateUserCounts)) {
 			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(stateUserCounts[user]), user)
 		}
 	}
 
 	return nil
-}
-
-func sortedMapKeys(m interface{}) []string {
-	v := reflect.ValueOf(m)
-	keys := make([]string, 0, len(v.MapKeys()))
-	for _, key := range v.MapKeys() {
-		keys = append(keys, key.String())
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 func sanitizeState(state string) string {

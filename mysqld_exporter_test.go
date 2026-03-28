@@ -89,7 +89,6 @@ func TestBin(t *testing.T) {
 	portStart := 56000
 	t.Run(binName, func(t *testing.T) {
 		for _, f := range tests {
-			f := f // capture range variable
 			fName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 			portStart++
 			data := bin{
@@ -284,21 +283,26 @@ func Test_filterScrapers(t *testing.T) {
 		args args
 		want []collector.Scraper
 	}{
-		{"args_appears_in_collector",
+		{
+			"args_appears_in_collector",
 			args{
 				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
 				[]string{collector.ScrapeGlobalStatus{}.Name()},
 			},
 			[]collector.Scraper{
 				collector.ScrapeGlobalStatus{},
-			}},
-		{"args_absent_in_collector",
+			},
+		},
+		{
+			"args_absent_in_collector",
 			args{
 				[]collector.Scraper{collector.ScrapeGlobalStatus{}},
 				[]string{collector.ScrapeGlobalVariables{}.Name()},
 			},
-			[]collector.Scraper{collector.ScrapeGlobalStatus{}}},
-		{"respect_params",
+			[]collector.Scraper{collector.ScrapeGlobalStatus{}},
+		},
+		{
+			"respect_params",
 			args{
 				[]collector.Scraper{
 					collector.ScrapeGlobalStatus{},
@@ -331,44 +335,51 @@ func Test_getScrapeTimeoutSeconds(t *testing.T) {
 		wantTimeout float64
 		wantErr     bool
 	}{
-		{"no_timeout_header",
+		{
+			"no_timeout_header",
 			args{},
 			0, false,
 		},
-		{"zero_timeout_header",
+		{
+			"zero_timeout_header",
 			args{
 				timeoutHeader: "0",
 			},
 			0, false,
 		},
-		{"negative_timeout_header",
+		{
+			"negative_timeout_header",
 			args{
 				timeoutHeader: "-5",
 			},
 			0, true,
 		},
-		{"offset_greater_than_timeout",
+		{
+			"offset_greater_than_timeout",
 			args{
 				timeoutHeader: "5",
 				offset:        6,
 			},
 			0, true,
 		},
-		{"offset_equal_timeout",
+		{
+			"offset_equal_timeout",
 			args{
 				timeoutHeader: "5",
 				offset:        5,
 			},
 			0, true,
 		},
-		{"offset_less_than_timeout",
+		{
+			"offset_less_than_timeout",
 			args{
 				timeoutHeader: "5",
 				offset:        1,
 			},
 			4, false,
 		},
-		{"no_offset",
+		{
+			"no_offset",
 			args{
 				timeoutHeader: "5",
 			},

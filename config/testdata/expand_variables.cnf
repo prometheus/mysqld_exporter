@@ -1,0 +1,30 @@
+[client.server1]
+user = test
+password = foo
+[client.env]
+user = test2
+password = $MYSQLD_EXPORTER_PASSWORD
+[client.notExpandEnv]
+user = mysql_exporter
+password = SECRET_PA$SWORD
+[client.envNotExists]
+user = test
+password = $ENV_NOT_EXISTS
+[client.envEscaped]
+user = test
+password = $$MYSQLD_EXPORTER_PASSWORD
+[client.password$$Escaped]
+user = test
+password = $$$$MYSQLD_EXPORTER_PASSWORD
+[client.password$$$Env]
+user = test
+password = $$$MYSQLD_EXPORTER_PASSWORD
+[client.password$$$Escaped]
+user = test
+password = $$$$$$MYSQLD_EXPORTER_PASSWORD
+[client.password$$$$Escaped]
+user = test
+password = $$$$$$$$MYSQLD_EXPORTER_PASSWORD
+[client.password$$$$$Env]
+user = test
+password = $$$$$MYSQLD_EXPORTER_PASSWORD

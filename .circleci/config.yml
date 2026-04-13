@@ -1,101 +1,33 @@
 ---
+# Prometheus has switched to GitHub action.
+# Circle CI is not disabled repository-wise so that previous pull requests
+# continue working.
+# This file does not generate any CircleCI workflow.
+
 version: 2.1
-orbs:
-  prometheus: prometheus/prometheus@0.17.1
+
 executors:
-  # Whenever the Go version is updated here, .promu.yml
-  # should also be updated.
   golang:
     docker:
-      - image: cimg/go:1.26
+      - image: busybox
+
 jobs:
-  test:
+  noopjob:
     executor: golang
+
     steps:
-      - prometheus/setup_environment
-      - run: make check_license style staticcheck unused build test-short
-      - prometheus/store_artifact:
-          file: mysqld_exporter
-  integration:
-    docker:
-      - image: cimg/go:1.26
-      - image: << parameters.mysql_image >>
-        environment:
-          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-          MYSQL_ROOT_HOST: '%'
-    parameters:
-      mysql_image:
-        type: string
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker version
-      - run: docker-compose --version
-      - run: make build
-      - run: make test
-  mixin:
-    executor: golang
-    steps:
-      - checkout
-      - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
-      - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
-      - run: make -C mysqld-mixin lint build
+      - run:
+          command: "true"
+
 workflows:
   version: 2
   mysqld_exporter:
     jobs:
-      - test:
-          filters:
-            tags:
-              only: /.*/
-      - integration:
-          matrix:
-            parameters:
-              mysql_image:
-                - percona:5.6
-                - mysql:5.7.33
-                - mysql:8.0
-                - mysql:8.4
-                - mariadb:10.5
-                - mariadb:10.6
-                - mariadb:10.11
-                - mariadb:11.4
-      - prometheus/build:
-          name: build
-          parallelism: 3
-          promu_opts: "-p linux/amd64 -p windows/amd64 -p linux/arm64 -p darwin/amd64 -p darwin/arm64 -p linux/386"
-          filters:
-            tags:
-              ignore: /^v.*/
-            branches:
-              ignore: /^(main|release-.*|.*build-all.*)$/
-      - prometheus/build:
-          name: build_all
-          parallelism: 12
+      - noopjob
+    triggers:
+      - schedule:
+          cron: "0 0 30 2 *"
           filters:
             branches:
-              only: /^(main|release-.*|.*build-all.*)$/
-            tags:
-              only: /^v.*/
-      - mixin:
-          filters:
-            tags:
-              only: /.*/
-      - prometheus/publish_main:
-          context: org-context
-          requires:
-            - test
-            - build_all
-          filters:
-            branches:
-              only: main
-      - prometheus/publish_release:
-          context: org-context
-          requires:
-            - test
-            - build_all
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
+              only:
+                - main

@@ -70,6 +70,8 @@ jobs:
           persist-credentials: false
       - run: make build
       - run: make test
+        env:
+          TEST_MYSQL_DSN: root@tcp(mysqld:3306)/
       - run: git diff --exit-code
 
   build:

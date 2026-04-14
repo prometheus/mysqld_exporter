@@ -15,10 +15,10 @@ package collector
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
@@ -26,13 +26,14 @@ import (
 const dsn = "root@/mysql"
 
 func TestExporter(t *testing.T) {
-	if testing.Short() {
-		t.Skip("-short is passed, skipping test")
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
 	}
 
 	exporter := New(
 		context.Background(),
-		dsn,
+		connDSN,
 		[]Scraper{
 			ScrapeGlobalStatus{},
 		},
@@ -57,12 +58,15 @@ func TestExporter(t *testing.T) {
 			close(ch)
 		}()
 
+		seen := false
 		for m := range ch {
-			got := readMetric(m)
-			if got.labels[model.MetricNameLabel] == "mysql_up" {
+			if m.Desc() == mysqlUp {
+				seen = true
+				got := readMetric(m)
 				convey.So(got.value, convey.ShouldEqual, 1)
 			}
 		}
+		convey.SoMsg("mysql_up metric was not collected", seen, convey.ShouldBeTrue)
 	})
 }
 

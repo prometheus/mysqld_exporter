@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: prometheus/promci/build@9347e3d5e607933687d9db7af2f23504fe7f893a # v0.6.2
+      - uses: prometheus/promci/build@9c86752f3395e08c57719af549cc455d8e2c2514 # v0.7.0
         with:
           parallelism: 4
           thread: ${{ matrix.thread }}
@@ -98,7 +98,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: prometheus/promci/publish_main@9347e3d5e607933687d9db7af2f23504fe7f893a # v0.6.2
+      - uses: prometheus/promci/publish_main@9c86752f3395e08c57719af549cc455d8e2c2514 # v0.7.0
         with:
           docker_hub_login: ${{ secrets.docker_hub_login }}
           docker_hub_password: ${{ secrets.docker_hub_password }}
@@ -114,7 +114,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: prometheus/promci/publish_release@9347e3d5e607933687d9db7af2f23504fe7f893a # v0.6.2
+      - uses: prometheus/promci/publish_release@9c86752f3395e08c57719af549cc455d8e2c2514 # v0.7.0
         with:
           docker_hub_login: ${{ secrets.docker_hub_login }}
           docker_hub_password: ${{ secrets.docker_hub_password }}

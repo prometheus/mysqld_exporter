@@ -14,11 +14,13 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/blang/semver/v4"
 )
@@ -41,8 +43,9 @@ func newInstance(dsn string) (*instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(2)
 	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(1 * time.Minute)
 	i.db = db
 
 	version, versionString, err := queryVersion(db)
@@ -79,8 +82,8 @@ func (i *instance) Close() error {
 }
 
 // Ping checks connection availability and possibly invalidates the connection if it fails.
-func (i *instance) Ping() error {
-	if err := i.db.Ping(); err != nil {
+func (i *instance) Ping(ctx context.Context) error {
+	if err := i.db.PingContext(ctx); err != nil {
 		if cerr := i.Close(); cerr != nil {
 			return err
 		}

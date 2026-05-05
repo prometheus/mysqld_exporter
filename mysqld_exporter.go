@@ -73,6 +73,10 @@ var (
 		"exporter.log_slow_filter",
 		"Add a log_slow_filter to avoid slow query logging of scrapes. NOTE: Not supported by Oracle MySQL.",
 	).Default("false").Bool()
+	exporterQueryTimeout = kingpin.Flag(
+		"exporter.query_timeout",
+		"Per-scraper query timeout (in seconds). 0 disables the timeout.",
+	).Default("0").Int()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
 	c            = config.MySqlConfigHandler{
 		Config: &config.Config{},
@@ -216,6 +220,7 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
 			collector.SetLockWaitTimeout(*exporterLockTimeout),
 			collector.SetSlowLogFilter(*slowLogFilter),
+			collector.SetQueryTimeout(time.Duration(*exporterQueryTimeout)*time.Second),
 		))
 
 		gatherers := prometheus.Gatherers{

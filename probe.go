@@ -76,6 +76,7 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
 			collector.SetLockWaitTimeout(*exporterLockTimeout),
 			collector.SetSlowLogFilter(*slowLogFilter),
+			collector.SetQueryTimeout(time.Duration(*exporterQueryTimeout)*time.Second),
 		))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

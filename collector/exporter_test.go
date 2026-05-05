@@ -15,8 +15,10 @@ package collector
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/promslog"
@@ -145,4 +147,60 @@ func TestExporterWithOpts(t *testing.T) {
 			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?parseTime=true&lock_wait_timeout=30&log_slow_filter=%27tmp_table_on_disk,filesort_on_disk%27")
 		})
 	})
+}
+
+type mockScraper struct {
+	name     string
+	validate func(ctx context.Context) error
+}
+
+func (s *mockScraper) Name() string     { return s.name }
+func (s *mockScraper) Help() string     { return "mock scraper for testing" }
+func (s *mockScraper) Version() float64 { return 0 }
+
+func (s *mockScraper) Scrape(ctx context.Context, _ *instance, _ chan<- prometheus.Metric, _ *slog.Logger) error {
+	if s.validate != nil {
+		return s.validate(ctx)
+	}
+	return nil
+}
+
+func TestScrapeContextTimeout(t *testing.T) {
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	const timeout = 5 * time.Second
+	scraper := &mockScraper{
+		name: "timeout_test",
+		validate: func(ctx context.Context) error {
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				t.Error("scraper context should have a deadline")
+				return nil
+			}
+			remaining := time.Until(deadline)
+			if remaining > timeout || remaining < timeout-time.Second {
+				t.Errorf("expected deadline ~%v from now, got %v", timeout, remaining)
+			}
+			return nil
+		},
+	}
+
+	exporter := New(
+		context.Background(),
+		connDSN,
+		[]Scraper{scraper},
+		promslog.NewNopLogger(),
+		SetQueryTimeout(timeout),
+	)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		exporter.Collect(ch)
+		close(ch)
+	}()
+	for range ch {
+	}
 }

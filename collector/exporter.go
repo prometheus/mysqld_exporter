@@ -74,6 +74,7 @@ type Exporter struct {
 	enableLockWaitTimeout bool
 	lockWaitTimeout       int
 	slowLogFilter         bool
+	queryTimeout          time.Duration
 }
 
 type ExporterOpt func(*Exporter)
@@ -93,6 +94,14 @@ func SetLockWaitTimeout(timeout int) ExporterOpt {
 func SetSlowLogFilter(b bool) ExporterOpt {
 	return func(e *Exporter) {
 		e.slowLogFilter = b
+	}
+}
+
+// SetQueryTimeout sets a per-scraper query timeout. Zero disables the timeout
+// and falls back to the parent (request) context.
+func SetQueryTimeout(timeout time.Duration) ExporterOpt {
+	return func(e *Exporter) {
+		e.queryTimeout = timeout
 	}
 }
 
@@ -157,7 +166,13 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	defer instance.Close()
 	e.instance = instance
 
-	if err := instance.Ping(); err != nil {
+	pingCtx := ctx
+	if e.queryTimeout > 0 {
+		var pingCancel context.CancelFunc
+		pingCtx, pingCancel = context.WithTimeout(ctx, e.queryTimeout)
+		defer pingCancel()
+	}
+	if err := instance.Ping(pingCtx); err != nil {
 		e.logger.Error("Error pinging mysqld", "err", err)
 		return 0.0
 	}
@@ -177,7 +192,13 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			if err := scraper.Scrape(ctx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
+			scrapeCtx := ctx
+			if e.queryTimeout > 0 {
+				var cancel context.CancelFunc
+				scrapeCtx, cancel = context.WithTimeout(ctx, e.queryTimeout)
+				defer cancel()
+			}
+			if err := scraper.Scrape(scrapeCtx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
 				e.logger.Error("Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}

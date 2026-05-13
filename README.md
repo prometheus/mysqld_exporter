@@ -136,6 +136,7 @@ collect.perf_schema.replication_applier_status_by_worker     | 5.7           | C
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).
+collect.info_schema.innodb_trx                               | 5.7           | Collect Number of running transactions that have been running for more than the specified time(by --collector.info_schema_innodb_trx.running_time)(disabled by default).
 
 
 ### General Flags

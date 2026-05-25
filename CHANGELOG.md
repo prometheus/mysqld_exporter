@@ -9,6 +9,8 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+* [FEATURE] Add tls-min-version and tls-max-version config options
+
 ## 0.19.0 / 2026-03-18
 
 Changes:

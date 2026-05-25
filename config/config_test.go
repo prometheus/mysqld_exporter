@@ -14,10 +14,12 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
@@ -169,6 +171,49 @@ func TestValidateConfig(t *testing.T) {
 		convey.So(section.Password, convey.ShouldEqual, "foo")
 		convey.So(section.EnableCleartextPlugin, convey.ShouldBeTrue)
 	})
+
+	convey.Convey("Client with TLS min version config higher than TLS max version config", t, func() {
+		conf := MySqlConfig{
+			User:          "test",
+			TlsMinVersion: "TLSv1.3",
+			TlsMaxVersion: "TLSv1.2",
+		}
+		os.Clearenv()
+		err := conf.validateConfig()
+		convey.So(
+			err,
+			convey.ShouldResemble,
+			fmt.Errorf("tls-min-version must not be higher than tls-max-version: TLSv1.3 > TLSv1.2"),
+		)
+	})
+
+	convey.Convey("Client with unknown TLS min version configuration", t, func() {
+		conf := MySqlConfig{
+			User:          "test",
+			TlsMinVersion: "TLSv-something",
+		}
+		os.Clearenv()
+		err := conf.validateConfig()
+		convey.So(
+			err,
+			convey.ShouldResemble,
+			fmt.Errorf("tls-min-version=TLSv-something is not allowed, use one of: TLSv1.0, TLSv1.1, TLSv1.2, TLSv1.3"),
+		)
+	})
+
+	convey.Convey("Client with unknown TLS max version configuration", t, func() {
+		conf := MySqlConfig{
+			User:          "test",
+			TlsMaxVersion: "TLSv-something",
+		}
+		os.Clearenv()
+		err := conf.validateConfig()
+		convey.So(
+			err,
+			convey.ShouldResemble,
+			fmt.Errorf("tls-max-version=TLSv-something is not allowed, use one of: TLSv1.0, TLSv1.1, TLSv1.2, TLSv1.3"),
+		)
+	})
 }
 
 func TestFormDSN(t *testing.T) {
@@ -291,5 +336,16 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=skip-verify")
 		})
 
+		convey.Convey("Target tls custom with TLS versions configured", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_with_version_config"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			parsed, _ := mysql.ParseDSN(dsn)
+			convey.So(parsed.TLS.MinVersion, convey.ShouldEqual, uint16(tls.VersionTLS12))
+			convey.So(parsed.TLS.MaxVersion, convey.ShouldEqual, uint16(tls.VersionTLS13))
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=custom")
+		})
 	})
 }

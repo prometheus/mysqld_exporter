@@ -1,0 +1,18 @@
+[client_tls_true]
+host = server2
+port = 3306
+user = usr
+password = pwd
+tls=true
+[client_tls_preferred]
+host = server3
+port = 3306
+user = usr
+password = pwd
+tls=preferred
+[client_tls_skip_verify]
+host = server3
+port = 3306
+user = usr
+password = pwd
+tls=skip-verify

@@ -1,0 +1,11 @@
+groups:
+- name: MySQLdAlerts
+  rules:
+  - alert: MySQLDown
+    expr: mysql_up != 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      description: 'MySQL {{$labels.job}} on {{$labels.instance}} is not up.'
+      summary: MySQL not up.

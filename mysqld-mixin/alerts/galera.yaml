@@ -1,0 +1,74 @@
+###
+# Sample prometheus rules/alerts for mysqld.
+#
+# NOTE: Please review these carefully as thresholds and behavior may not meet
+#       your SLOs or labels.
+#
+###
+
+groups:
+- name: GaleraAlerts
+  rules:
+  - alert: MySQLGaleraNotReady
+    expr: mysql_global_status_wsrep_ready != 1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      description: '{{$labels.job}} on {{$labels.instance}} is not ready.'
+      summary: Galera cluster node not ready.
+  - alert: MySQLGaleraOutOfSync
+    expr: (mysql_global_status_wsrep_local_state != 4 and mysql_global_variables_wsrep_desync
+      == 0)
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      description: '{{$labels.job}} on {{$labels.instance}} is not in sync ({{$value}}
+        != 4).'
+      summary: Galera cluster node out of sync.
+  - alert: MySQLGaleraDonorFallingBehind
+    expr: (mysql_global_status_wsrep_local_state == 2 and mysql_global_status_wsrep_local_recv_queue
+      > 100)
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      description: '{{$labels.job}} on {{$labels.instance}} is a donor (hotbackup)
+        and is falling behind (queue size {{$value}}).'
+      summary: XtraDB cluster donor node falling behind.
+  - alert: MySQLReplicationNotRunning
+    expr: mysql_slave_status_slave_io_running == 0 or mysql_slave_status_slave_sql_running
+      == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      description: "Replication on {{$labels.instance}} (IO or SQL) has been down for more than 2 minutes."
+      summary: Replication is not running.
+  - alert: MySQLReplicationLag
+    expr: (instance:mysql_slave_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_slave_lag_seconds[5m],
+      60 * 2) > 0)
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "Replication on {{$labels.instance}} has fallen behind and is not recovering."
+      summary: MySQL slave replication is lagging.
+  - alert: MySQLHeartbeatLag
+    expr: (instance:mysql_heartbeat_lag_seconds > 30) and on(instance) (predict_linear(instance:mysql_heartbeat_lag_seconds[5m],
+      60 * 2) > 0)
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: "The heartbeat is lagging on {{$labels.instance}} and is not recovering."
+      summary: MySQL heartbeat is lagging.
+  - alert: MySQLInnoDBLogWaits
+    expr: rate(mysql_global_status_innodb_log_waits[15m]) > 10
+    labels:
+      severity: warning
+    annotations:
+      description: The innodb logs are waiting for disk at a rate of {{$value}} /
+        second
+      summary: MySQL innodb log writes stalling.

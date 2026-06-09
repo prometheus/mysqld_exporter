@@ -1,0 +1,60 @@
+---
+name: Integration
+on:
+  pull_request:
+  push:
+    branches: [main, 'release-*']
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  mixins:
+    name: Test mixins
+    runs-on: ubuntu-latest
+    container:
+      # Whenever the Go version is updated here, .promu.yml
+      # should also be updated.
+      image: quay.io/prometheus/golang-builder:1.26-base
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
+      - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
+      - run: make -C mysqld-mixin lint build
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    container:
+      # Whenever the Go version is updated here, .promu.yml
+      # should also be updated.
+      image: quay.io/prometheus/golang-builder:1.26-base
+    services:
+      mysqld:
+        image: ${{ matrix.mysql_image }}
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_ROOT_HOST: '%'
+    strategy:
+      matrix:
+        mysql_image:
+          - percona:5.6
+          - mysql:5.7.33
+          - mysql:8.0
+          - mysql:8.4
+          - mariadb:10.5
+          - mariadb:10.6
+          - mariadb:10.11
+          - mariadb:11.4
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: make build
+      - run: make test
+        env:
+          TEST_MYSQL_DSN: root@tcp(mysqld:3306)/
+      - run: git diff --exit-code

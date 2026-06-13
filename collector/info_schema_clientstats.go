@@ -190,7 +190,7 @@ func (ScrapeClientStat) Scrape(ctx context.Context, instance *instance, ch chan<
 	var (
 		client             string                                // Holds the client name, which should be in column 0.
 		clientStatData     = make([]float64, len(columnNames)-1) // 1 less because of the client column.
-		clientStatScanArgs = make([]interface{}, len(columnNames))
+		clientStatScanArgs = make([]any, len(columnNames))
 	)
 
 	clientStatScanArgs[0] = &client

@@ -220,7 +220,7 @@ func (ScrapeUser) Scrape(ctx context.Context, instance *instance, ch chan<- prom
 				return err
 			}
 
-			scanArgs := make([]interface{}, len(userCols))
+			scanArgs := make([]any, len(userCols))
 			for i := range scanArgs {
 				scanArgs[i] = &sql.RawBytes{}
 			}

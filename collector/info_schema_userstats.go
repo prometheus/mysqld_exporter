@@ -199,7 +199,7 @@ func (ScrapeUserStat) Scrape(ctx context.Context, instance *instance, ch chan<- 
 		}
 
 		// Loop over column names, and match to scan data. Unknown columns
-		// will be filled with an untyped metric number. We assume other then
+		// will be filled with an untyped metric number. We assume other than
 		// user, that we'll only get numbers.
 		for idx, columnName := range columnNames[1:] {
 			if metricType, ok := informationSchemaUserStatisticsTypes[columnName]; ok {

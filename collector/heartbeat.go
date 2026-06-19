@@ -22,8 +22,8 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -34,21 +34,6 @@ const (
 	// The second column allows gets the server timestamp at the exact same
 	// time the query is run.
 	heartbeatQuery = "SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(%s), server_id from `%s`.`%s`"
-)
-
-var (
-	collectHeartbeatDatabase = kingpin.Flag(
-		"collect.heartbeat.database",
-		"Database from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatTable = kingpin.Flag(
-		"collect.heartbeat.table",
-		"Table from where to collect heartbeat data",
-	).Default("heartbeat").String()
-	collectHeartbeatUtc = kingpin.Flag(
-		"collect.heartbeat.utc",
-		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
-	).Bool()
 )
 
 // Metric descriptors.
@@ -74,7 +59,7 @@ var (
 //	server_id             int unsigned NOT NULL PRIMARY KEY,
 //
 // );
-type ScrapeHeartbeat struct{}
+type ScrapeHeartbeat config.HeartbeatConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeHeartbeat) Name() string {
@@ -92,17 +77,17 @@ func (ScrapeHeartbeat) Version() float64 {
 }
 
 // nowExpr returns a current timestamp expression.
-func nowExpr() string {
-	if *collectHeartbeatUtc {
+func (s ScrapeHeartbeat) nowExpr() string {
+	if s.UTC {
 		return "UTC_TIMESTAMP(6)"
 	}
 	return "NOW(6)"
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeHeartbeat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapeHeartbeat) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
-	query := fmt.Sprintf(heartbeatQuery, nowExpr(), *collectHeartbeatDatabase, *collectHeartbeatTable)
+	query := fmt.Sprintf(heartbeatQuery, s.nowExpr(), s.Database, s.Table)
 	heartbeatRows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err

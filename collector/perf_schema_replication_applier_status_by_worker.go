@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfReplicationApplierStatsByWorkerQuery = `
@@ -82,7 +83,7 @@ var (
 )
 
 // ScrapePerfReplicationApplierStatsByWorker collects from `performance_schema.replication_applier_status_by_worker`.
-type ScrapePerfReplicationApplierStatsByWorker struct{}
+type ScrapePerfReplicationApplierStatsByWorker config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfReplicationApplierStatsByWorker) Name() string {

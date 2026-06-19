@@ -23,6 +23,7 @@ import (
 	"regexp"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const infoSchemaInnodbMetricsEnabledColumnQuery = `
@@ -73,7 +74,7 @@ var (
 )
 
 // ScrapeInnodbMetrics collects from `information_schema.innodb_metrics`.
-type ScrapeInnodbMetrics struct{}
+type ScrapeInnodbMetrics config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeInnodbMetrics) Name() string {

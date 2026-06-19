@@ -23,6 +23,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const innodbTablespacesTablenameQuery = `
@@ -83,7 +84,7 @@ var (
 )
 
 // ScrapeInfoSchemaInnodbTablespaces collects from `information_schema.innodb_sys_tablespaces`.
-type ScrapeInfoSchemaInnodbTablespaces struct{}
+type ScrapeInfoSchemaInnodbTablespaces config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeInfoSchemaInnodbTablespaces) Name() string {

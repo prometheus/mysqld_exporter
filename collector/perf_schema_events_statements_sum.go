@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfEventsStatementsSumQuery = `
@@ -158,7 +159,7 @@ var (
 )
 
 // ScrapePerfEventsStatementsSum collects from `performance_schema.events_statements_summary_by_digest`.
-type ScrapePerfEventsStatementsSum struct{}
+type ScrapePerfEventsStatementsSum config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfEventsStatementsSum) Name() string {

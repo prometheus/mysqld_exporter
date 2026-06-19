@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfReplicationGroupMembersQuery = `
@@ -27,7 +28,7 @@ const perfReplicationGroupMembersQuery = `
 	`
 
 // ScrapeReplicationGroupMembers collects from `performance_schema.replication_group_members`.
-type ScrapePerfReplicationGroupMembers struct{}
+type ScrapePerfReplicationGroupMembers config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfReplicationGroupMembers) Name() string {

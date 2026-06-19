@@ -20,8 +20,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -49,14 +49,6 @@ const (
 		`
 )
 
-// Tunable flags.
-var (
-	tableSchemaDatabases = kingpin.Flag(
-		"collect.info_schema.tables.databases",
-		"The list of databases to collect table stats for, or '*' for all",
-	).Default("*").String()
-)
-
 // Metric descriptors.
 var (
 	infoSchemaTablesVersionDesc = prometheus.NewDesc(
@@ -77,7 +69,7 @@ var (
 )
 
 // ScrapeTableSchema collects from `information_schema.tables`.
-type ScrapeTableSchema struct{}
+type ScrapeTableSchema config.InfoSchemaTablesConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeTableSchema) Name() string {
@@ -95,10 +87,10 @@ func (ScrapeTableSchema) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	var dbList []string
 	db := instance.getDB()
-	if *tableSchemaDatabases == "*" {
+	if s.Databases == "*" {
 		dbListRows, err := db.QueryContext(ctx, dbListQuery)
 		if err != nil {
 			return err
@@ -116,7 +108,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan
 			dbList = append(dbList, database)
 		}
 	} else {
-		dbList = strings.Split(*tableSchemaDatabases, ",")
+		dbList = strings.Split(s.Databases, ",")
 	}
 
 	for _, database := range dbList {

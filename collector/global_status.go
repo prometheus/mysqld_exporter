@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -81,7 +82,7 @@ var (
 )
 
 // ScrapeGlobalStatus collects from `SHOW GLOBAL STATUS`.
-type ScrapeGlobalStatus struct{}
+type ScrapeGlobalStatus config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeGlobalStatus) Name() string {

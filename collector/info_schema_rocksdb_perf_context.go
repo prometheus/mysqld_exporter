@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const rocksdbPerfContextQuery = `
@@ -225,7 +226,7 @@ var informationSchemaRocksDBPerfContextMetrics = map[string]struct {
 }
 
 // ScrapeInnodbCmp collects from `information_schema.innodb_cmp`.
-type ScrapeRocksDBPerfContext struct{}
+type ScrapeRocksDBPerfContext config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeRocksDBPerfContext) Name() string {

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -53,7 +54,7 @@ var (
 )
 
 // ScrapeBinlogSize collects from `SHOW BINARY LOGS`.
-type ScrapeBinlogSize struct{}
+type ScrapeBinlogSize config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeBinlogSize) Name() string {

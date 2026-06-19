@@ -23,9 +23,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
-func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerFunc {
+func handleProbe(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -56,7 +57,7 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 		}
 
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		timeoutSeconds, err := getScrapeTimeoutSeconds(r, *timeoutOffset)
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffset)
 		if err != nil {
 			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}
@@ -69,14 +70,24 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 			r = r.WithContext(ctx)
 		}
 
-		filteredScrapers := filterScrapers(scrapers, collectParams)
+		runtimeConfig := configForCollectParams(baseConfig, collectParams)
+		runtimeConfig.DataSourceName = dsn
+		if err := runtimeConfig.Validate(); err != nil {
+			logger.Error("Invalid probe runtime config", "err", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		registry := prometheus.NewRegistry()
-		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger,
-			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
-			collector.SetLockWaitTimeout(*exporterLockTimeout),
-			collector.SetSlowLogFilter(*slowLogFilter),
-		))
+		runtime, err := collector.NewRuntimeWithContext(ctx, &runtimeConfig, logger.With("target", target))
+		if err != nil {
+			logger.Error("Error creating probe runtime", "err", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, c := range runtime.Collectors() {
+			registry.MustRegister(c)
+		}
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

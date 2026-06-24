@@ -204,8 +204,8 @@ func (ScrapeClientStat) Scrape(ctx context.Context, instance *instance, ch chan<
 		}
 
 		// Loop over column names, and match to scan data. Unknown columns
-		// will be filled with an untyped metric number. We assume other then
-		// cient, that we'll only get numbers.
+		// will be filled with an untyped metric number. We assume other than
+		// client, that we'll only get numbers.
 		for idx, columnName := range columnNames[1:] {
 			if metricType, ok := informationSchemaClientStatisticsTypes[columnName]; ok {
 				ch <- prometheus.MustNewConstMetric(metricType.desc, metricType.vtype, float64(clientStatData[idx]), client)

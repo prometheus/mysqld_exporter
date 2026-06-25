@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -141,43 +140,30 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 			}
 		}
 
-		parseMariaDBGtid(ch, "Gtid_IO_Pos", columnValue(scanArgs, slaveCols, "Gtid_IO_Pos"), masterHost, masterUUID, channelName, connectionName)
-		parseMariaDBGtid(ch, "Gtid_Slave_Pos", columnValue(scanArgs, slaveCols, "Gtid_Slave_Pos"), masterHost, masterUUID, channelName, connectionName)
-	}
-	return nil
-}
-
-func parseMariaDBGtid(ch chan<- prometheus.Metric, name string, value string, masterHost string, masterUUID string, channelName string, connectionName string) {
-	if value == "" {
-		return
-	}
-
-	for _, gtid := range strings.Split(value, ",") {
-		parts := strings.Split(gtid, "-")
-		if len(parts) != 3 {
-			continue
-		}
-
-		domainID := parts[0]
-		serverID := parts[1]
-
-		sequence_num, err := strconv.ParseUint(parts[2], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(name)),
-				fmt.Sprintf("%s metric from SHOW SLAVE STATUS.", name),
-				[]string{"master_host", "master_uuid", "channel_name", "connection_name", "domain_id", "server_id"},
-				nil,
-			),
-			prometheus.GaugeValue,
-			float64(sequence_num),
-			masterHost, masterUUID, channelName, connectionName, domainID, serverID,
+		parseMariaDBGtid(
+			ch,
+			"Gtid_IO_Pos",
+			columnValue(scanArgs, slaveCols, "Gtid_IO_Pos"),
+			map[string]string{
+				"master_host":     masterHost,
+				"master_uuid":     masterUUID,
+				"channel_name":    channelName,
+				"connection_name": connectionName,
+			},
+		)
+		parseMariaDBGtid(
+			ch,
+			"Gtid_Slave_Pos",
+			columnValue(scanArgs, slaveCols, "Gtid_Slave_Pos"),
+			map[string]string{
+				"master_host":     masterHost,
+				"master_uuid":     masterUUID,
+				"channel_name":    channelName,
+				"connection_name": connectionName,
+			},
 		)
 	}
+	return nil
 }
 
 // check interface

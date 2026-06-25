@@ -43,7 +43,7 @@ func columnIndex(slaveCols []string, colName string) int {
 	return -1
 }
 
-func columnValue(scanArgs []interface{}, slaveCols []string, colName string) string {
+func columnValue(scanArgs []any, slaveCols []string, colName string) string {
 	var columnIndex = columnIndex(slaveCols, colName)
 	if columnIndex == -1 {
 		return ""
@@ -103,9 +103,9 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 
 	for slaveStatusRows.Next() {
 		// As the number of columns varies with mysqld versions,
-		// and sql.Scan requires []interface{}, we need to create a
+		// and sql.Scan requires []any, we need to create a
 		// slice of pointers to the elements of slaveData.
-		scanArgs := make([]interface{}, len(slaveCols))
+		scanArgs := make([]any, len(slaveCols))
 		for i := range scanArgs {
 			scanArgs[i] = &sql.RawBytes{}
 		}

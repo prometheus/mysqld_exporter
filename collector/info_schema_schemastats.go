@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const schemaStatQuery = `
@@ -52,7 +53,7 @@ var (
 )
 
 // ScrapeSchemaStat collects from `information_schema.table_statistics` grouped by schema.
-type ScrapeSchemaStat struct{}
+type ScrapeSchemaStat config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeSchemaStat) Name() string {

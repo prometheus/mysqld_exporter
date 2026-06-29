@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -45,7 +46,7 @@ var (
 )
 
 // ScrapeSlaveHosts scrapes metrics about the replicating slaves.
-type ScrapeSlaveHosts struct{}
+type ScrapeSlaveHosts config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeSlaveHosts) Name() string {

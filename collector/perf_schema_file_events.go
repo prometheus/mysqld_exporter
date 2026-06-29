@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfFileEventsQuery = `
@@ -51,7 +52,7 @@ var (
 )
 
 // ScrapePerfFileEvents collects from `performance_schema.file_summary_by_event_name`.
-type ScrapePerfFileEvents struct{}
+type ScrapePerfFileEvents config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfFileEvents) Name() string {

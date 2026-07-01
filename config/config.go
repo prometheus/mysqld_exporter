@@ -85,6 +85,7 @@ type MySqlConfig struct {
 	Tls                   string `ini:"tls"`
 	TlsMinVersion         string `ini:"tls-min-version"`
 	TlsMaxVersion         string `ini:"tls-max-version"`
+	TlsServerName         string `ini:"tls-server-name"`
 }
 
 type MySqlConfigHandler struct {
@@ -234,7 +235,13 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 		config.TLSConfig = "skip-verify"
 	} else {
 		config.TLSConfig = m.Tls
-		if m.SslCa != "" || m.TlsMinVersion != "" || m.TlsMaxVersion != "" {
+
+		hasCustomTLS := m.SslCa != "" ||
+			m.TlsMinVersion != "" ||
+			m.TlsMaxVersion != "" ||
+			m.TlsServerName != ""
+
+		if hasCustomTLS {
 			if err := m.CustomizeTLS(); err != nil {
 				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
 				return "", err
@@ -279,6 +286,9 @@ func (m MySqlConfig) CustomizeTLS() error {
 	}
 	if m.TlsMaxVersion != "" {
 		tlsCfg.MaxVersion = tlsVersions[m.TlsMaxVersion]
+	}
+	if m.TlsServerName != "" {
+		tlsCfg.ServerName = m.TlsServerName
 	}
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
 	mysql.RegisterTLSConfig("custom", &tlsCfg)

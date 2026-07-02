@@ -45,6 +45,7 @@ func TestValidateConfig(t *testing.T) {
 			convey.So(ok, convey.ShouldBeTrue)
 			convey.So(childSection.User, convey.ShouldEqual, "test")
 			convey.So(childSection.Password, convey.ShouldEqual, "foo")
+			convey.So(childSection.TlsServerName, convey.ShouldEqual, "mysql.example")
 
 		})
 

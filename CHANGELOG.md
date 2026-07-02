@@ -9,6 +9,8 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+* [FEATURE] Add an optional tls-server-name config option used to verify the server hostname
+
 ## 0.19.0 / 2026-03-18
 
 Changes:

@@ -186,6 +186,13 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
+It's possible to also restrict the TLS versions that can be used between the MySQL server and mysqld exporter by specifying versions in the mysql cnf file like this:
+
+```
+tls-min-version=TLSv1.2
+tls-max-version=TLSv1.3
+```
+
 
 ## Using Docker
 

@@ -6,7 +6,7 @@ Changes:
 
 * [CHANGE]
 * [FEATURE] Add `--exporter.query_timeout` to apply a per-scraper timeout so a single slow scraper cannot cancel the others sharing the request context
-* [ENHANCEMENT] Allow up to 2 connections per scrape and set a 1 minute connection lifetime to prevent scrapers from cascade-failing behind a slow query
+* [ENHANCEMENT] Allow up to 2 connections per scrape to prevent scrapers from cascade-failing behind a slow query
 * [BUGFIX]
 
 ## 0.19.0 / 2026-03-18

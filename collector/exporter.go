@@ -105,6 +105,16 @@ func SetQueryTimeout(timeout time.Duration) ExporterOpt {
 	}
 }
 
+// withQueryTimeout derives a context bounded by the configured query timeout.
+// When the timeout is disabled (0), it returns the parent context and a no-op
+// cancel so callers can unconditionally `defer cancel()`.
+func (e *Exporter) withQueryTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if e.queryTimeout > 0 {
+		return context.WithTimeout(ctx, e.queryTimeout)
+	}
+	return ctx, func() {}
+}
+
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
@@ -166,12 +176,8 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	defer instance.Close()
 	e.instance = instance
 
-	pingCtx := ctx
-	if e.queryTimeout > 0 {
-		var pingCancel context.CancelFunc
-		pingCtx, pingCancel = context.WithTimeout(ctx, e.queryTimeout)
-		defer pingCancel()
-	}
+	pingCtx, pingCancel := e.withQueryTimeout(ctx)
+	defer pingCancel()
 	if err := instance.Ping(pingCtx); err != nil {
 		e.logger.Error("Error pinging mysqld", "err", err)
 		return 0.0
@@ -192,12 +198,8 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			scrapeCtx := ctx
-			if e.queryTimeout > 0 {
-				var cancel context.CancelFunc
-				scrapeCtx, cancel = context.WithTimeout(ctx, e.queryTimeout)
-				defer cancel()
-			}
+			scrapeCtx, cancel := e.withQueryTimeout(ctx)
+			defer cancel()
 			if err := scraper.Scrape(scrapeCtx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
 				e.logger.Error("Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0

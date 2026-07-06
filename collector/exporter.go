@@ -108,7 +108,7 @@ func SetQueryTimeout(timeout time.Duration) ExporterOpt {
 // withQueryTimeout derives a context bounded by the configured query timeout.
 // When the timeout is disabled (0), it returns the parent context and a no-op
 // cancel so callers can unconditionally `defer cancel()`.
-func (e *Exporter) withQueryTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+func (e *Exporter) withQueryTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	if e.queryTimeout > 0 {
 		return context.WithTimeout(ctx, e.queryTimeout)
 	}

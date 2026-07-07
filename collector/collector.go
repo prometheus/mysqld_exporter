@@ -16,7 +16,10 @@ package collector
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -81,4 +84,45 @@ func parsePrivilege(data sql.RawBytes) (float64, bool) {
 		return 0, true
 	}
 	return -1, false
+}
+
+func parseMariaDBGtid(ch chan<- prometheus.Metric, name string, value string, labels map[string]string) {
+	if value == "" {
+		return
+	}
+
+	label_keys := slices.Sorted(maps.Keys(labels))
+	label_values := make([]string, len(label_keys))
+	for i, key := range label_keys {
+		label_values[i] = labels[key]
+	}
+
+	label_keys = append(label_keys, "domain_id", "server_id")
+
+	for _, gtid := range strings.Split(value, ",") {
+		parts := strings.Split(gtid, "-")
+		if len(parts) != 3 {
+			continue
+		}
+
+		domainID := parts[0]
+		serverID := parts[1]
+
+		sequence_num, err := strconv.ParseUint(parts[2], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			prometheus.NewDesc(
+				prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(name)),
+				fmt.Sprintf("%s metric from SHOW SLAVE STATUS.", name),
+				label_keys,
+				nil,
+			),
+			prometheus.GaugeValue,
+			float64(sequence_num),
+			append(label_values, domainID, serverID)...,
+		)
+	}
 }

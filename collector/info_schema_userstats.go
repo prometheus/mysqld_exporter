@@ -186,7 +186,7 @@ func (ScrapeUserStat) Scrape(ctx context.Context, instance *instance, ch chan<- 
 
 	var user string                                        // Holds the username, which should be in column 0.
 	var userStatData = make([]float64, len(columnNames)-1) // 1 less because of the user column.
-	var userStatScanArgs = make([]interface{}, len(columnNames))
+	var userStatScanArgs = make([]any, len(columnNames))
 	userStatScanArgs[0] = &user
 	for i := range userStatData {
 		userStatScanArgs[i+1] = &userStatData[i]

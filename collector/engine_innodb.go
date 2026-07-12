@@ -74,7 +74,7 @@ func (ScrapeEngineInnodbStatus) Scrape(ctx context.Context, instance *instance, 
 		}
 	}
 
-	for _, line := range strings.Split(statusCol, "\n") {
+	for line := range strings.SplitSeq(statusCol, "\n") {
 		if data := queriesRe.FindStringSubmatch(line); data != nil {
 			value, _ := strconv.ParseFloat(data[1], 64)
 			ch <- prometheus.MustNewConstMetric(

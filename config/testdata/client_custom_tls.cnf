@@ -16,3 +16,10 @@ port = 3306
 user = usr
 password = pwd
 tls=skip-verify
+[client_tls_with_version_config]
+host = server3
+port = 3306
+user = usr
+password = pwd
+tls-min-version = TLSv1.2
+tls-max-version = TLSv1.3

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const queryResponseCheckQuery = `SELECT @@query_response_time_stats`
@@ -100,7 +101,7 @@ func processQueryResponseTimeTable(ctx context.Context, instance *instance, ch c
 }
 
 // ScrapeQueryResponseTime collects from `information_schema.query_response_time`.
-type ScrapeQueryResponseTime struct{}
+type ScrapeQueryResponseTime config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeQueryResponseTime) Name() string {

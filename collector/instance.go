@@ -14,6 +14,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -41,7 +42,7 @@ func newInstance(dsn string) (*instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(2)
 	db.SetMaxIdleConns(1)
 	i.db = db
 
@@ -79,8 +80,8 @@ func (i *instance) Close() error {
 }
 
 // Ping checks connection availability and possibly invalidates the connection if it fails.
-func (i *instance) Ping() error {
-	if err := i.db.Ping(); err != nil {
+func (i *instance) Ping(ctx context.Context) error {
+	if err := i.db.PingContext(ctx); err != nil {
 		if cerr := i.Close(); cerr != nil {
 			return err
 		}

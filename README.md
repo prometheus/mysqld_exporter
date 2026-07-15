@@ -148,6 +148,7 @@ log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
 exporter.enable_lock_wait_timeout          | Enable the lock_wait_timeout connection parameter. Makes the exporter compatible with older versions of MySQL. (default: true)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+exporter.query_timeout                     | Per-scraper query timeout (in seconds). 0 disables the timeout. (default: 0, disabled)
 tls.insecure-skip-verify                   | Ignore tls verification errors.
 web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.

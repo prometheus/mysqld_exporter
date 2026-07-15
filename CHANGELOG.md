@@ -5,8 +5,8 @@ BREAKING CHANGES:
 Changes:
 
 * [CHANGE]
-* [FEATURE]
-* [ENHANCEMENT]
+* [FEATURE] Add `--exporter.query_timeout` to apply a per-scraper timeout so a single slow scraper cannot cancel the others sharing the request context
+* [ENHANCEMENT] Allow up to 2 connections per scrape to prevent scrapers from cascade-failing behind a slow query
 * [BUGFIX]
 
 * [FEATURE] Add tls-min-version and tls-max-version config options

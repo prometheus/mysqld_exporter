@@ -185,13 +185,18 @@ func (ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, instance *insta
 	}
 	defer perfEventsStatementsSumRows.Close()
 
+	// Scan into float64 rather than uint64. MySQL SUM() over long-lived
+	// performance_schema digests can return values larger than math.MaxUint64
+	// (especially SUM_TIMER_WAIT in picoseconds), and the driver then fails to
+	// convert the []byte decimal into a uint64. Prometheus metrics are float64
+	// anyway, so this matches the wire format we expose.
 	var (
-		total, createdTmpDiskTables, createdTmpTables, errors uint64
-		lockTime, noGoodIndexUsed, noIndexUsed, rowsAffected  uint64
-		rowsExamined, rowsSent, selectFullJoin                uint64
-		selectFullRangeJoin, selectRange, selectRangeCheck    uint64
-		selectScan, sortMergePasses, sortRange, sortRows      uint64
-		sortScan, timerWait, warnings                         uint64
+		total, createdTmpDiskTables, createdTmpTables, errors float64
+		lockTime, noGoodIndexUsed, noIndexUsed, rowsAffected  float64
+		rowsExamined, rowsSent, selectFullJoin                float64
+		selectFullRangeJoin, selectRange, selectRangeCheck    float64
+		selectScan, sortMergePasses, sortRange, sortRows      float64
+		sortScan, timerWait, warnings                         float64
 	)
 
 	for perfEventsStatementsSumRows.Next() {
@@ -206,67 +211,67 @@ func (ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, instance *insta
 			return err
 		}
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumTotalDesc, prometheus.CounterValue, float64(total),
+			performanceSchemaEventsStatementsSumTotalDesc, prometheus.CounterValue, total,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumCreatedTmpDiskTablesDesc, prometheus.CounterValue, float64(createdTmpDiskTables),
+			performanceSchemaEventsStatementsSumCreatedTmpDiskTablesDesc, prometheus.CounterValue, createdTmpDiskTables,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumCreatedTmpTablesDesc, prometheus.CounterValue, float64(createdTmpTables),
+			performanceSchemaEventsStatementsSumCreatedTmpTablesDesc, prometheus.CounterValue, createdTmpTables,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumErrorsDesc, prometheus.CounterValue, float64(errors),
+			performanceSchemaEventsStatementsSumErrorsDesc, prometheus.CounterValue, errors,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumLockTimeDesc, prometheus.CounterValue, float64(lockTime),
+			performanceSchemaEventsStatementsSumLockTimeDesc, prometheus.CounterValue, lockTime,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumNoGoodIndexUsedDesc, prometheus.CounterValue, float64(noGoodIndexUsed),
+			performanceSchemaEventsStatementsSumNoGoodIndexUsedDesc, prometheus.CounterValue, noGoodIndexUsed,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumNoIndexUsedDesc, prometheus.CounterValue, float64(noIndexUsed),
+			performanceSchemaEventsStatementsSumNoIndexUsedDesc, prometheus.CounterValue, noIndexUsed,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumRowsAffectedDesc, prometheus.CounterValue, float64(rowsAffected),
+			performanceSchemaEventsStatementsSumRowsAffectedDesc, prometheus.CounterValue, rowsAffected,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumRowsExaminedDesc, prometheus.CounterValue, float64(rowsExamined),
+			performanceSchemaEventsStatementsSumRowsExaminedDesc, prometheus.CounterValue, rowsExamined,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumRowsSentDesc, prometheus.CounterValue, float64(rowsSent),
+			performanceSchemaEventsStatementsSumRowsSentDesc, prometheus.CounterValue, rowsSent,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSelectFullJoinDesc, prometheus.CounterValue, float64(selectFullJoin),
+			performanceSchemaEventsStatementsSumSelectFullJoinDesc, prometheus.CounterValue, selectFullJoin,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSelectFullRangeJoinDesc, prometheus.CounterValue, float64(selectFullRangeJoin),
+			performanceSchemaEventsStatementsSumSelectFullRangeJoinDesc, prometheus.CounterValue, selectFullRangeJoin,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSelectRangeDesc, prometheus.CounterValue, float64(selectRange),
+			performanceSchemaEventsStatementsSumSelectRangeDesc, prometheus.CounterValue, selectRange,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSelectRangeCheckDesc, prometheus.CounterValue, float64(selectRangeCheck),
+			performanceSchemaEventsStatementsSumSelectRangeCheckDesc, prometheus.CounterValue, selectRangeCheck,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSelectScanDesc, prometheus.CounterValue, float64(selectScan),
+			performanceSchemaEventsStatementsSumSelectScanDesc, prometheus.CounterValue, selectScan,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSortMergePassesDesc, prometheus.CounterValue, float64(sortMergePasses),
+			performanceSchemaEventsStatementsSumSortMergePassesDesc, prometheus.CounterValue, sortMergePasses,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSortRangeDesc, prometheus.CounterValue, float64(sortRange),
+			performanceSchemaEventsStatementsSumSortRangeDesc, prometheus.CounterValue, sortRange,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSortRowsDesc, prometheus.CounterValue, float64(sortRows),
+			performanceSchemaEventsStatementsSumSortRowsDesc, prometheus.CounterValue, sortRows,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumSortScanDesc, prometheus.CounterValue, float64(sortScan),
+			performanceSchemaEventsStatementsSumSortScanDesc, prometheus.CounterValue, sortScan,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumTimerWaitDesc, prometheus.CounterValue, float64(timerWait)/picoSeconds,
+			performanceSchemaEventsStatementsSumTimerWaitDesc, prometheus.CounterValue, timerWait/picoSeconds,
 		)
 		ch <- prometheus.MustNewConstMetric(
-			performanceSchemaEventsStatementsSumWarningsDesc, prometheus.CounterValue, float64(warnings),
+			performanceSchemaEventsStatementsSumWarningsDesc, prometheus.CounterValue, warnings,
 		)
 	}
 	return nil

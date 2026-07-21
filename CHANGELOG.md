@@ -10,6 +10,7 @@ Changes:
 * [BUGFIX]
 
 * [FEATURE] Add tls-min-version and tls-max-version config options
+* [FEATURE] Add an optional tls-server-name config option used to verify the server hostname
 
 ## 0.19.0 / 2026-03-18
 

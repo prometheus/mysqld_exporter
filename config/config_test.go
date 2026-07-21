@@ -347,5 +347,16 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 			convey.So(parsed.TLS.MaxVersion, convey.ShouldEqual, uint16(tls.VersionTLS13))
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=custom")
 		})
+
+		convey.Convey("Target tls custom with TLS server name configured", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_with_server_name"]
+			if dsn, err = section.FormDSN(""); err != nil {
+				t.Error(err)
+			}
+			parsed, _ := mysql.ParseDSN(dsn)
+			convey.So(parsed.TLS.ServerName, convey.ShouldEqual, "mysql.example")
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=custom")
+		})
 	})
 }

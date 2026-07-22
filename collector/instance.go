@@ -35,13 +35,13 @@ type instance struct {
 	versionMajorMinor float64
 }
 
-func newInstance(dsn string) (*instance, error) {
+func newInstance(dsn string, maxOpenConns int) (*instance, error) {
 	i := &instance{}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(1)
 	i.db = db
 

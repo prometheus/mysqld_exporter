@@ -74,6 +74,7 @@ type Exporter struct {
 	enableLockWaitTimeout bool
 	lockWaitTimeout       int
 	slowLogFilter         bool
+	maxOpenConns          int
 }
 
 type ExporterOpt func(*Exporter)
@@ -96,12 +97,21 @@ func SetSlowLogFilter(b bool) ExporterOpt {
 	}
 }
 
+// SetMaxOpenConns sets the maximum number of open connections to the database.
+// See database/sql.DB.SetMaxOpenConns. Defaults to 1 when not set.
+func SetMaxOpenConns(n int) ExporterOpt {
+	return func(e *Exporter) {
+		e.maxOpenConns = n
+	}
+}
+
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
-		ctx:      ctx,
-		logger:   logger,
-		scrapers: scrapers,
+		ctx:          ctx,
+		logger:       logger,
+		scrapers:     scrapers,
+		maxOpenConns: 1,
 	}
 
 	for _, opt := range opts {
@@ -149,7 +159,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) float64 {
 	var err error
 	scrapeTime := time.Now()
-	instance, err := newInstance(e.dsn)
+	instance, err := newInstance(e.dsn, e.maxOpenConns)
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)
 		return 0.0

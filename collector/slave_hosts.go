@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"log/slog"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -69,8 +70,16 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, instance *instance, ch chan<
 		err            error
 	)
 	db := instance.getDB()
-	// Try the both syntax for MySQL 8.0 and MySQL 8.4
+	// Try SHOW SLAVE HOSTS first (MySQL < 8.4 / MariaDB). On MySQL 8.4+ that
+	// statement was removed, so fall back to SHOW REPLICAS only when the server
+	// reports a syntax/parse error. Other failures (e.g. permission denied)
+	// must be returned as-is so they are not masked by a secondary syntax error
+	// from SHOW REPLICAS on servers that do not support it.
 	if slaveHostsRows, err = db.QueryContext(ctx, slaveHostsQuery); err != nil {
+		mysqlErr, ok := err.(*mysql.MySQLError)
+		if !ok || mysqlErr.Number != 1064 {
+			return err
+		}
 		if slaveHostsRows, err = db.QueryContext(ctx, showReplicasQuery); err != nil {
 			return err
 		}

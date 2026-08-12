@@ -9,7 +9,13 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
-* [FEATURE] Add tls-min-version and tls-max-version config options
+## 0.20.0 / 2026-08-12
+
+Changes:
+
+* [FEATURE] Add tls-min-version and tls-max-version config options #1027
+* [ENHANCEMENT] Add distroless Docker image variant #1030
+* [ENHANCEMENT] Publish images to GHCR #1031
 
 ## 0.19.0 / 2026-03-18
 

@@ -105,7 +105,7 @@ func SetQueryTimeout(timeout time.Duration) ExporterOpt {
 	}
 }
 
-// withQueryTimeout derives a context bounded by the configured query timeout.
+// withQueryTimeoutContext derives a context bounded by the configured query timeout.
 // When the timeout is disabled (0), it returns the parent context and a no-op
 // cancel so callers can unconditionally `defer cancel()`.
 func (e *Exporter) withQueryTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -176,7 +176,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	defer instance.Close()
 	e.instance = instance
 
-	pingCtx, pingCancel := e.withQueryTimeout(ctx)
+	pingCtx, pingCancel := e.withQueryTimeoutContext(ctx)
 	defer pingCancel()
 	if err := instance.Ping(pingCtx); err != nil {
 		e.logger.Error("Error pinging mysqld", "err", err)
@@ -198,7 +198,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			scrapeCtx, cancel := e.withQueryTimeout(ctx)
+			scrapeCtx, cancel := e.withQueryTimeoutContext(ctx)
 			defer cancel()
 			if err := scraper.Scrape(scrapeCtx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
 				e.logger.Error("Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)

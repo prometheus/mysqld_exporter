@@ -17,9 +17,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -229,11 +232,16 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 }
 
 func main() {
+	// Sort scrapers by name so that flag registration and processing happen
+	// in a deterministic order, as map iteration order is undefined.
+	sortedScrapers := slices.SortedFunc(maps.Keys(scrapers), func(a, b collector.Scraper) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	// Generate ON/OFF flags for all scrapers.
 	scraperFlags := map[collector.Scraper]*bool{}
-	for scraper, enabledByDefault := range scrapers {
+	for _, scraper := range sortedScrapers {
 		defaultOn := "false"
-		if enabledByDefault {
+		if scrapers[scraper] {
 			defaultOn = "true"
 		}
 
@@ -264,8 +272,8 @@ func main() {
 
 	// Register only scrapers enabled by flag.
 	enabledScrapers := []collector.Scraper{}
-	for scraper, enabled := range scraperFlags {
-		if *enabled {
+	for _, scraper := range sortedScrapers {
+		if *scraperFlags[scraper] {
 			logger.Info("Scraper enabled", "scraper", scraper.Name())
 			enabledScrapers = append(enabledScrapers, scraper)
 		}

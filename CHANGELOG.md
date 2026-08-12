@@ -14,8 +14,11 @@ Changes:
 Changes:
 
 * [FEATURE] Add tls-min-version and tls-max-version config options #1027
+* [FEATURE] Add an optional tls-server-name config option used to verify the server hostname #1044
+* [FEATURE] Add `--exporter.query_timeout` to apply a per-scraper timeout so a single slow scraper cannot cancel the others sharing the request context #1025
 * [ENHANCEMENT] Add distroless Docker image variant #1030
 * [ENHANCEMENT] Publish images to GHCR #1031
+* [ENHANCEMENT] Raise the default per-scrape connection limit from 1 to 2 and add `--exporter.max_open_connections` to configure it, preventing scrapers from cascade-failing behind a slow query #1025
 
 ## 0.19.0 / 2026-03-18
 

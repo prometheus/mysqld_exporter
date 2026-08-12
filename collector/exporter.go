@@ -75,6 +75,7 @@ type Exporter struct {
 	lockWaitTimeout       int
 	slowLogFilter         bool
 	queryTimeout          time.Duration
+	maxOpenConns          int
 }
 
 type ExporterOpt func(*Exporter)
@@ -105,6 +106,14 @@ func SetQueryTimeout(timeout time.Duration) ExporterOpt {
 	}
 }
 
+// SetMaxOpenConns sets the maximum number of open connections to the
+// database used for each scrape.
+func SetMaxOpenConns(n int) ExporterOpt {
+	return func(e *Exporter) {
+		e.maxOpenConns = n
+	}
+}
+
 // withQueryTimeoutContext derives a context bounded by the configured query timeout.
 // When the timeout is disabled (0), it returns the parent context and a no-op
 // cancel so callers can unconditionally `defer cancel()`.
@@ -118,9 +127,10 @@ func (e *Exporter) withQueryTimeoutContext(ctx context.Context) (context.Context
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
-		ctx:      ctx,
-		logger:   logger,
-		scrapers: scrapers,
+		ctx:          ctx,
+		logger:       logger,
+		scrapers:     scrapers,
+		maxOpenConns: 2,
 	}
 
 	for _, opt := range opts {
@@ -168,7 +178,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) float64 {
 	var err error
 	scrapeTime := time.Now()
-	instance, err := newInstance(e.dsn)
+	instance, err := newInstance(e.dsn, e.maxOpenConns)
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)
 		return 0.0

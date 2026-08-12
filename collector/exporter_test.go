@@ -204,3 +204,21 @@ func TestScrapeContextTimeout(t *testing.T) {
 	for range ch {
 	}
 }
+
+func TestNewInstanceMaxOpenConnections(t *testing.T) {
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	const want = 5
+	inst, err := newInstance(connDSN, want)
+	if err != nil {
+		t.Fatalf("newInstance: %v", err)
+	}
+	defer inst.Close()
+
+	if got := inst.getDB().Stats().MaxOpenConnections; got != want {
+		t.Errorf("MaxOpenConnections = %d, want %d", got, want)
+	}
+}

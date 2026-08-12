@@ -80,6 +80,10 @@ var (
 		"exporter.query_timeout",
 		"Per-scraper query timeout (in seconds). 0 disables the timeout.",
 	).Default("0").Int()
+	exporterMaxOpenConns = kingpin.Flag(
+		"exporter.max_open_connections",
+		"Maximum number of open connections to the database per scrape. Must be >= 1.",
+	).Default("2").Int()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
 	c            = config.MySqlConfigHandler{
 		Config: &config.Config{},
@@ -225,6 +229,7 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 			collector.SetLockWaitTimeout(*exporterLockTimeout),
 			collector.SetSlowLogFilter(*slowLogFilter),
 			collector.SetQueryTimeout(time.Duration(*exporterQueryTimeout)*time.Second),
+			collector.SetMaxOpenConns(*exporterMaxOpenConns),
 		))
 
 		gatherers := prometheus.Gatherers{
@@ -269,6 +274,11 @@ func main() {
 
 	logger.Info("Starting mysqld_exporter", "version", version.Info())
 	logger.Info("Build context", "build_context", version.BuildContext())
+
+	if *exporterMaxOpenConns < 1 {
+		logger.Error("Invalid value for --exporter.max_open_connections, must be >= 1", "value", *exporterMaxOpenConns)
+		os.Exit(1)
+	}
 
 	var err error
 	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {

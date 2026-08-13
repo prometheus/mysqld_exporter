@@ -148,6 +148,8 @@ log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
 exporter.enable_lock_wait_timeout          | Enable the lock_wait_timeout connection parameter. Makes the exporter compatible with older versions of MySQL. (default: true)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+exporter.query_timeout                     | Per-scraper query timeout (in seconds). 0 disables the timeout. (default: 0, disabled)
+exporter.max_open_connections              | Maximum number of open connections to the database per scrape. Must be >= 1. The pool is per scrape request, so in multi-target mode total connections scale with concurrent targets; keep the value within the exporter user's `MAX_USER_CONNECTIONS` grant. (default: 2)
 tls.insecure-skip-verify                   | Ignore tls verification errors.
 web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.
@@ -193,6 +195,11 @@ tls-min-version=TLSv1.2
 tls-max-version=TLSv1.3
 ```
 
+In some environments the MySQL server's TLS certificate SN or SAN may not include the host that mysqld exporter uses to connect to it. This could happen in cases when the certificate includes only DNS names, while mysqld exporter uses an IP address to connect. To allow secure connections in these cases, tls-server-name can be used to specify the server's name to use during verification. The parameter works the same as server_name in Prometheus's scrape config configuration.
+
+```
+tls-server-name=mysql.example
+```
 
 ## Using Docker
 

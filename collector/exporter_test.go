@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -151,16 +152,16 @@ func TestExporterWithOpts(t *testing.T) {
 
 type mockScraper struct {
 	name     string
-	validate func(ctx context.Context) error
+	validate func(ctx context.Context, instance *instance) error
 }
 
 func (s *mockScraper) Name() string     { return s.name }
 func (s *mockScraper) Help() string     { return "mock scraper for testing" }
 func (s *mockScraper) Version() float64 { return 0 }
 
-func (s *mockScraper) Scrape(ctx context.Context, _ *instance, _ chan<- prometheus.Metric, _ *slog.Logger) error {
+func (s *mockScraper) Scrape(ctx context.Context, instance *instance, _ chan<- prometheus.Metric, _ *slog.Logger) error {
 	if s.validate != nil {
-		return s.validate(ctx)
+		return s.validate(ctx, instance)
 	}
 	return nil
 }
@@ -174,7 +175,7 @@ func TestScrapeContextTimeout(t *testing.T) {
 	const timeout = 5 * time.Second
 	scraper := &mockScraper{
 		name: "timeout_test",
-		validate: func(ctx context.Context) error {
+		validate: func(ctx context.Context, _ *instance) error {
 			deadline, ok := ctx.Deadline()
 			if !ok {
 				t.Error("scraper context should have a deadline")
@@ -212,7 +213,7 @@ func TestNewInstanceMaxOpenConnections(t *testing.T) {
 	}
 
 	const want = 5
-	inst, err := newInstance(connDSN, want)
+	inst, err := newInstance(context.Background(), connDSN, want)
 	if err != nil {
 		t.Fatalf("newInstance: %v", err)
 	}
@@ -220,5 +221,111 @@ func TestNewInstanceMaxOpenConnections(t *testing.T) {
 
 	if got := inst.getDB().Stats().MaxOpenConnections; got != want {
 		t.Errorf("MaxOpenConnections = %d, want %d", got, want)
+	}
+}
+
+func TestSlowScraperDoesNotBlockFastScraper(t *testing.T) {
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	const queryTimeout = 2 * time.Second
+	testCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	slowReady := make(chan struct{})
+	slowResult := make(chan error, 1)
+	fastResult := make(chan error, 1)
+
+	slowScraper := &mockScraper{
+		name: "slow",
+		validate: func(ctx context.Context, instance *instance) error {
+			conn, err := instance.getDB().Conn(ctx)
+			if err != nil {
+				close(slowReady)
+				slowResult <- err
+				return err
+			}
+			defer conn.Close()
+
+			// Signal only after reserving one of the pool's connections.
+			close(slowReady)
+
+			var result int
+			err = conn.QueryRowContext(ctx, "SELECT SLEEP(10)").Scan(&result)
+			slowResult <- err
+			return err
+		},
+	}
+
+	fastScraper := &mockScraper{
+		name: "fast",
+		validate: func(ctx context.Context, instance *instance) error {
+			select {
+			case <-slowReady:
+			case <-ctx.Done():
+				fastResult <- ctx.Err()
+				return ctx.Err()
+			}
+
+			var result int
+			err := instance.getDB().QueryRowContext(ctx, "SELECT 1").Scan(&result)
+			fastResult <- err
+			return err
+		},
+	}
+
+	exporter := New(
+		testCtx,
+		connDSN,
+		[]Scraper{slowScraper, fastScraper},
+		promslog.NewNopLogger(),
+		SetQueryTimeout(queryTimeout),
+		SetMaxOpenConns(2),
+	)
+
+	ch := make(chan prometheus.Metric)
+	collectDone := make(chan struct{})
+	go func() {
+		exporter.Collect(ch)
+		close(ch)
+	}()
+	go func() {
+		for range ch {
+		}
+		close(collectDone)
+	}()
+
+	select {
+	case err := <-fastResult:
+		if err != nil {
+			t.Fatalf("fast query failed behind slow query: %v", err)
+		}
+	case err := <-slowResult:
+		t.Fatalf("slow query completed before fast query: %v", err)
+	case <-testCtx.Done():
+		t.Fatal("timed out waiting for fast query result")
+	}
+
+	select {
+	case err := <-slowResult:
+		t.Fatalf("slow query completed before fast result was asserted: %v", err)
+	default:
+	}
+
+	select {
+	case err := <-slowResult:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("slow query error = %v, want context deadline exceeded", err)
+		}
+	case <-testCtx.Done():
+		t.Fatal("timed out waiting for slow query result")
+	}
+
+	select {
+	case <-collectDone:
+	case <-testCtx.Done():
+		t.Fatal("timed out waiting for collection to finish")
 	}
 }

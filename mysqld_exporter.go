@@ -242,6 +242,16 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 	}
 }
 
+func validateExporterFlags(maxOpenConns, queryTimeout int) error {
+	if maxOpenConns < 1 {
+		return fmt.Errorf("invalid value for --exporter.max_open_connections, must be >= 1: %d", maxOpenConns)
+	}
+	if queryTimeout < 0 {
+		return fmt.Errorf("invalid value for --exporter.query_timeout, must be >= 0: %d", queryTimeout)
+	}
+	return nil
+}
+
 func main() {
 	// Sort scrapers by name so that flag registration and processing happen
 	// in a deterministic order, as map iteration order is undefined.
@@ -275,8 +285,8 @@ func main() {
 	logger.Info("Starting mysqld_exporter", "version", version.Info())
 	logger.Info("Build context", "build_context", version.BuildContext())
 
-	if *exporterMaxOpenConns < 1 {
-		logger.Error("Invalid value for --exporter.max_open_connections, must be >= 1", "value", *exporterMaxOpenConns)
+	if err := validateExporterFlags(*exporterMaxOpenConns, *exporterQueryTimeout); err != nil {
+		logger.Error(err.Error())
 		os.Exit(1)
 	}
 

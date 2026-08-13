@@ -36,7 +36,7 @@ type instance struct {
 	versionMajorMinor float64
 }
 
-func newInstance(dsn string, maxOpenConns int) (*instance, error) {
+func newInstance(ctx context.Context, dsn string, maxOpenConns int) (*instance, error) {
 	i := &instance{}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -46,7 +46,7 @@ func newInstance(dsn string, maxOpenConns int) (*instance, error) {
 	db.SetMaxIdleConns(1)
 	i.db = db
 
-	version, versionString, err := queryVersion(db)
+	version, versionString, err := queryVersion(ctx, db)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -95,9 +95,9 @@ func (i *instance) Ping(ctx context.Context) error {
 // for MySQL: "8.0.36-28.1"
 var versionRegex = regexp.MustCompile(`^((\d+)(\.\d+)(\.\d+))`)
 
-func queryVersion(db *sql.DB) (semver.Version, string, error) {
+func queryVersion(ctx context.Context, db *sql.DB) (semver.Version, string, error) {
 	var version string
-	err := db.QueryRow("SELECT @@version;").Scan(&version)
+	err := db.QueryRowContext(ctx, "SELECT @@version;").Scan(&version)
 	if err != nil {
 		return semver.Version{}, version, err
 	}

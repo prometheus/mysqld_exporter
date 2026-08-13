@@ -178,7 +178,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) float64 {
 	var err error
 	scrapeTime := time.Now()
-	instance, err := newInstance(e.dsn, e.maxOpenConns)
+	versionCtx, versionCancel := e.withQueryTimeoutContext(ctx)
+	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns)
+	versionCancel()
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)
 		return 0.0

@@ -3,9 +3,9 @@ ARG OS="linux"
 FROM quay.io/prometheus/busybox-${OS}-${ARCH}:latest
 LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
 
-LABEL org.opencontainers.image.authors="The Prometheus Authors <prometheus-developers@googlegroups.com>"
+LABEL org.opencontainers.image.authors="The Prometheus Authors"
 LABEL org.opencontainers.image.vendor="Prometheus"
-LABEL org.opencontainers.image.title="MySQL Server Exporter"
+LABEL org.opencontainers.image.title="mysqld_exporter"
 LABEL org.opencontainers.image.description="Prometheus exporter for MySQL server metrics"
 LABEL org.opencontainers.image.source="https://github.com/prometheus/mysqld_exporter"
 LABEL org.opencontainers.image.url="https://github.com/prometheus/mysqld_exporter"

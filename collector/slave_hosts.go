@@ -72,9 +72,11 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, instance *instance, ch chan<
 	db := instance.getDB()
 	// Try SHOW SLAVE HOSTS first (MySQL < 8.4 / MariaDB). On MySQL 8.4+ that
 	// statement was removed, so fall back to SHOW REPLICAS only when the server
-	// reports a syntax/parse error. Other failures (e.g. permission denied)
-	// must be returned as-is so they are not masked by a secondary syntax error
-	// from SHOW REPLICAS on servers that do not support it.
+	// reports a syntax/parse error (MySQL error 1064 / ER_PARSE_ERROR:
+	// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_parse_error).
+	// Other failures (e.g. permission denied) must be returned as-is so they
+	// are not masked by a secondary syntax error from SHOW REPLICAS on servers
+	// that do not support it.
 	if slaveHostsRows, err = db.QueryContext(ctx, slaveHostsQuery); err != nil {
 		mysqlErr, ok := err.(*mysql.MySQLError)
 		if !ok || mysqlErr.Number != 1064 {

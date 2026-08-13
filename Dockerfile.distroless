@@ -13,7 +13,7 @@ LABEL org.opencontainers.image.description="Prometheus exporter for MySQL server
 LABEL org.opencontainers.image.source="https://github.com/prometheus/mysqld_exporter"
 LABEL org.opencontainers.image.url="https://github.com/prometheus/mysqld_exporter"
 LABEL org.opencontainers.image.documentation="https://github.com/prometheus/mysqld_exporter/blob/main/README.md"
-LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL io.prometheus.image.variant="distroless"
 
 COPY LICENSE NOTICE /

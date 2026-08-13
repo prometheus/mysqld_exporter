@@ -14,6 +14,7 @@
 package collector
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -35,17 +36,17 @@ type instance struct {
 	versionMajorMinor float64
 }
 
-func newInstance(dsn string) (*instance, error) {
+func newInstance(ctx context.Context, dsn string, maxOpenConns int) (*instance, error) {
 	i := &instance{}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
+	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(1)
 	i.db = db
 
-	version, versionString, err := queryVersion(db)
+	version, versionString, err := queryVersion(ctx, db)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -79,8 +80,8 @@ func (i *instance) Close() error {
 }
 
 // Ping checks connection availability and possibly invalidates the connection if it fails.
-func (i *instance) Ping() error {
-	if err := i.db.Ping(); err != nil {
+func (i *instance) Ping(ctx context.Context) error {
+	if err := i.db.PingContext(ctx); err != nil {
 		if cerr := i.Close(); cerr != nil {
 			return err
 		}
@@ -94,9 +95,9 @@ func (i *instance) Ping() error {
 // for MySQL: "8.0.36-28.1"
 var versionRegex = regexp.MustCompile(`^((\d+)(\.\d+)(\.\d+))`)
 
-func queryVersion(db *sql.DB) (semver.Version, string, error) {
+func queryVersion(ctx context.Context, db *sql.DB) (semver.Version, string, error) {
 	var version string
-	err := db.QueryRow("SELECT @@version;").Scan(&version)
+	err := db.QueryRowContext(ctx, "SELECT @@version;").Scan(&version)
 	if err != nil {
 		return semver.Version{}, version, err
 	}

@@ -185,11 +185,6 @@ func (ScrapePerfEventsStatementsSum) Scrape(ctx context.Context, instance *insta
 	}
 	defer perfEventsStatementsSumRows.Close()
 
-	// Scan into float64 rather than uint64. MySQL SUM() over long-lived
-	// performance_schema digests can return values larger than math.MaxUint64
-	// (especially SUM_TIMER_WAIT in picoseconds), and the driver then fails to
-	// convert the []byte decimal into a uint64. Prometheus metrics are float64
-	// anyway, so this matches the wire format we expose.
 	var (
 		total, createdTmpDiskTables, createdTmpTables, errors float64
 		lockTime, noGoodIndexUsed, noIndexUsed, rowsAffected  float64

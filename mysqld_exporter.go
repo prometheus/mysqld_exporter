@@ -176,6 +176,7 @@ func init() {
 
 func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		const authModule string = "client"
 		var dsn string
 		var err error
 		target := ""
@@ -185,12 +186,12 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 		}
 
 		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Sections["client"]
+		cfgsection, ok := cfg.Sections[authModule]
 		if !ok {
-			logger.Error("Failed to parse section [client] from config file", "err", err)
+			logger.Error(fmt.Sprintf("Failed to parse section [%s] from config file", authModule), "err", err)
 		}
-		if dsn, err = cfgsection.FormDSN(target); err != nil {
-			logger.Error("Failed to form dsn from section [client]", "err", err)
+		if dsn, err = cfgsection.FormDSN(target, authModule); err != nil {
+			logger.Error(fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
 		}
 
 		collect := q["collect[]"]

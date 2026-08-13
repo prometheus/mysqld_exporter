@@ -232,7 +232,7 @@ func TestFormDSN(t *testing.T) {
 		convey.Convey("Default Client", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/")
@@ -240,7 +240,7 @@ func TestFormDSN(t *testing.T) {
 		convey.Convey("Target specific with explicit port", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client.server1"]
-			if dsn, err = section.FormDSN("server1:5000"); err != nil {
+			if dsn, err = section.FormDSN("server1:5000", "client.server1"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/")
@@ -248,7 +248,7 @@ func TestFormDSN(t *testing.T) {
 		convey.Convey("UNIX domain socket", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client.server1"]
-			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock"); err != nil {
+			if dsn, err = section.FormDSN("unix:///run/mysqld/mysqld.sock", "client.server1"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@unix(/run/mysqld/mysqld.sock)/")
@@ -256,7 +256,7 @@ func TestFormDSN(t *testing.T) {
 		convey.Convey("With cleartext password enabled", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client.cleartextPlugin"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client.cleartextPlugin"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server2:3306)/?allowCleartextPasswords=true")
@@ -280,7 +280,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 		convey.Convey("Default Client", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "root:abc@tcp(server2:3306)/?tls=skip-verify")
@@ -288,7 +288,7 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 		convey.Convey("Target specific with explicit port", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client.server1"]
-			if dsn, err = section.FormDSN("server1:5000"); err != nil {
+			if dsn, err = section.FormDSN("server1:5000", "client.server1"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server1:5000)/?tls=skip-verify")
@@ -312,7 +312,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		convey.Convey("Target tls enabled", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client_tls_true"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client_tls_true"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server2:3306)/?tls=true")
@@ -321,7 +321,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		convey.Convey("Target tls preferred", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client_tls_preferred"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client_tls_preferred"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=preferred")
@@ -330,7 +330,7 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		convey.Convey("Target tls skip-verify", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client_tls_skip_verify"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client_tls_skip_verify"); err != nil {
 				t.Error(err)
 			}
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=skip-verify")
@@ -339,13 +339,24 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		convey.Convey("Target tls custom with TLS versions configured", func() {
 			cfg := c.GetConfig()
 			section := cfg.Sections["client_tls_with_version_config"]
-			if dsn, err = section.FormDSN(""); err != nil {
+			if dsn, err = section.FormDSN("", "client_tls_with_version_config"); err != nil {
 				t.Error(err)
 			}
 			parsed, _ := mysql.ParseDSN(dsn)
 			convey.So(parsed.TLS.MinVersion, convey.ShouldEqual, uint16(tls.VersionTLS12))
 			convey.So(parsed.TLS.MaxVersion, convey.ShouldEqual, uint16(tls.VersionTLS13))
-			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=custom")
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=client_tls_with_version_config")
+		})
+
+		convey.Convey("Target tls custom with TLS server name configured", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client_tls_with_server_name"]
+			if dsn, err = section.FormDSN("", "client_tls_with_server_name"); err != nil {
+				t.Error(err)
+			}
+			parsed, _ := mysql.ParseDSN(dsn)
+			convey.So(parsed.TLS.ServerName, convey.ShouldEqual, "mysql.example")
+			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=client_tls_with_server_name")
 		})
 	})
 }

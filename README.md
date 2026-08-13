@@ -193,6 +193,11 @@ tls-min-version=TLSv1.2
 tls-max-version=TLSv1.3
 ```
 
+In some environments the MySQL server's TLS certificate SN or SAN may not include the host that mysqld exporter uses to connect to it. This could happen in cases when the certificate includes only DNS names, while mysqld exporter uses an IP address to connect. To allow secure connections in these cases, tls-server-name can be used to specify the server's name to use during verification. The parameter works the same as server_name in Prometheus's scrape config configuration.
+
+```
+tls-server-name=mysql.example
+```
 
 ## Using Docker
 

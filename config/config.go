@@ -85,6 +85,7 @@ type MySqlConfig struct {
 	Tls                   string `ini:"tls"`
 	TlsMinVersion         string `ini:"tls-min-version"`
 	TlsMaxVersion         string `ini:"tls-max-version"`
+	TlsServerName         string `ini:"tls-server-name"`
 }
 
 type MySqlConfigHandler struct {
@@ -200,7 +201,7 @@ func (m MySqlConfig) validateConfig() error {
 	return nil
 }
 
-func (m MySqlConfig) FormDSN(target string) (string, error) {
+func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, error) {
 	config := mysql.NewConfig()
 	config.User = m.User
 	config.Passwd = m.Password
@@ -234,12 +235,18 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 		config.TLSConfig = "skip-verify"
 	} else {
 		config.TLSConfig = m.Tls
-		if m.SslCa != "" || m.TlsMinVersion != "" || m.TlsMaxVersion != "" {
-			if err := m.CustomizeTLS(); err != nil {
+
+		hasCustomTLS := m.SslCa != "" ||
+			m.TlsMinVersion != "" ||
+			m.TlsMaxVersion != "" ||
+			m.TlsServerName != ""
+
+		if hasCustomTLS {
+			if err := m.CustomizeTLS(configSectionName); err != nil {
 				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
 				return "", err
 			}
-			config.TLSConfig = "custom"
+			config.TLSConfig = configSectionName
 		}
 	}
 
@@ -250,7 +257,7 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 	return config.FormatDSN(), nil
 }
 
-func (m MySqlConfig) CustomizeTLS() error {
+func (m MySqlConfig) CustomizeTLS(configSectionName string) error {
 	var tlsCfg tls.Config
 	if m.SslCa != "" {
 		caBundle := x509.NewCertPool()
@@ -280,7 +287,10 @@ func (m MySqlConfig) CustomizeTLS() error {
 	if m.TlsMaxVersion != "" {
 		tlsCfg.MaxVersion = tlsVersions[m.TlsMaxVersion]
 	}
+	if m.TlsServerName != "" {
+		tlsCfg.ServerName = m.TlsServerName
+	}
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
-	mysql.RegisterTLSConfig("custom", &tlsCfg)
+	mysql.RegisterTLSConfig(configSectionName, &tlsCfg)
 	return nil
 }

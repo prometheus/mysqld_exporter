@@ -152,6 +152,10 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 	var key string
 	var val sql.RawBytes
 	textItems := map[string]string{
+		"gtid_binlog_pos":        "",
+		"gtid_binlog_state":      "",
+		"gtid_current_pos":       "",
+		"gtid_slave_pos":         "",
 		"innodb_version":         "",
 		"version":                "",
 		"version_comment":        "",
@@ -223,6 +227,11 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 			1, level,
 		)
 	}
+
+	parseMariaDBGtid(ch, "gtid_binlog_pos", textItems["gtid_binlog_pos"], map[string]string{})
+	parseMariaDBGtid(ch, "gtid_binlog_state", textItems["gtid_binlog_state"], map[string]string{})
+	parseMariaDBGtid(ch, "gtid_current_pos", textItems["gtid_current_pos"], map[string]string{})
+	parseMariaDBGtid(ch, "gtid_slave_pos", textItems["gtid_slave_pos"], map[string]string{})
 
 	return nil
 }

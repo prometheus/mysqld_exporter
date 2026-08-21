@@ -136,7 +136,8 @@ collect.perf_schema.replication_applier_status_by_worker     | 5.7           | C
 collect.slave_status                                         | 5.1           | Collect from SHOW SLAVE STATUS (Enabled by default)
 collect.slave_hosts                                          | 5.1           | Collect from SHOW SLAVE HOSTS
 collect.sys.user_summary                                     | 5.7           | Collect metrics from sys.x$user_summary (disabled by default).
-
+collect.perf_schema.processlist                              | 8.0           | Collect thread state counts from performance_schema.processlist.
+collect.perf_schema.processlist.min_time                     | 8.0           | Minimum time a thread must be in each state to be counted. (default: 0)
 
 ### General Flags
 Name                                       | Description

@@ -75,6 +75,7 @@ type MySqlConfig struct {
 	User                  string `ini:"user"`
 	Password              string `ini:"password"`
 	Host                  string `ini:"host"`
+	Database              string `ini:"database"`
 	Port                  int    `ini:"port"`
 	Socket                string `ini:"socket"`
 	EnableCleartextPlugin bool   `ini:"enable-cleartext-plugin"`
@@ -205,6 +206,7 @@ func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, e
 	config := mysql.NewConfig()
 	config.User = m.User
 	config.Passwd = m.Password
+	config.DBName = m.Database
 	config.Net = "tcp"
 	if target == "" {
 		if m.Socket == "" {

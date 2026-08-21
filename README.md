@@ -24,6 +24,15 @@ GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load. This is not supported on all MySQL/MariaDB versions; for example, MariaDB 10.1 (provided with Ubuntu 18.04) [does _not_ support this feature](https://mariadb.com/kb/en/library/create-user/#resource-limit-options).
 
+If mysqld_exporter runs on the same system as mysql, you can use passwordless socket access instead:
+
+
+```sql
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO `mysqld_exporter`@`localhost` IDENTIFIED VIA unix_socket WITH MAX_USER_CONNECTIONS 3;
+```
+
+The username must then match the system user `mysqld_exporter` is running at.
+
 ### Build
 
     make build
@@ -74,6 +83,18 @@ On the prometheus side you can set a scrape config as follows
             - target_label: __address__
               # The mysqld_exporter host:port
               replacement: localhost:9104
+              
+##### Socket authentication
+
+To use passwordless socket authentication, give socket based grants as documented above, then use:
+
+```shell
+## run as user mysqld_exporter:
+export DATA_SOURCE_NAME="mysqld_exporter:@unix(/var/run/mysqld/mysqld.sock)/"
+./mysqld_exporter <flags>
+```
+
+The username must match the user ```mysqld_exporter``` is running at. The socket path depends on the mysql/mariadb package used.
 
 #####  Flag format
 Example format for flags for version > 0.10.0:

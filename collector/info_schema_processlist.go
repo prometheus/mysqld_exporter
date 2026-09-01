@@ -28,17 +28,18 @@ import (
 )
 
 const infoSchemaProcesslistQuery = `
-		  SELECT
-		    user,
-		    SUBSTRING_INDEX(host, ':', 1) AS host,
-		    COALESCE(command, '') AS command,
-		    COALESCE(state, '') AS state,
-		    COUNT(*) AS processes,
-		    SUM(time) AS seconds
-		  FROM information_schema.processlist
-		  WHERE ID != connection_id()
-		    AND TIME >= %d
-		  GROUP BY user, SUBSTRING_INDEX(host, ':', 1), COALESCE(command, ''), COALESCE(state, '')
+	SELECT user, host, command, state, COUNT(*) AS processes, SUM(time) AS seconds
+	FROM (
+	  SELECT user,
+	         SUBSTRING_INDEX(host, ':', 1) AS host,
+	         COALESCE(command, '') AS command,
+	         COALESCE(state, '')   AS state,
+	         time
+	  FROM information_schema.processlist
+	  WHERE ID != CONNECTION_ID()
+	  AND TIME >= %d
+	) p
+	GROUP BY user, host, command, state
 	`
 
 // Tunable flags.

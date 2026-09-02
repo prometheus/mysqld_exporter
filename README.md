@@ -17,6 +17,23 @@ NOTE: Not all collection methods are supported on MySQL/MariaDB < 5.6
 
 ### Required Grants
 
+The default `--mysqld.address=localhost:3306` uses TCP. Because `localhost`
+may resolve to either `127.0.0.1` or `::1`, use an explicit address when
+creating a host-specific MySQL account. For a local IPv4 connection:
+
+```sql
+CREATE USER 'exporter'@'127.0.0.1' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'127.0.0.1';
+```
+
+Run the exporter with `--mysqld.address=127.0.0.1:3306`. For remote or
+containerized deployments, replace `127.0.0.1` with the client host or address
+that the MySQL server observes.
+
+For a Unix socket connection, such as
+`--mysqld.address=unix:///run/mysqld/mysqld.sock` or a `socket=` entry in the
+configuration file, use a `localhost` account:
+
 ```sql
 CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';

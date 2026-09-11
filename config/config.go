@@ -320,7 +320,15 @@ func NewAuthConfigHandler(registerer prometheus.Registerer) (*AuthConfigHandler,
 			Help:      "Timestamp of the last successful configuration reload.",
 		}),
 	}
-	registerer.MustRegister(ch.configReloadSuccess, ch.configReloadSeconds)
+	collectors := []prometheus.Collector{ch.configReloadSuccess, ch.configReloadSeconds}
+	for i, collector := range collectors {
+		if err := registerer.Register(collector); err != nil {
+			for _, registered := range collectors[:i] {
+				registerer.Unregister(registered)
+			}
+			return nil, fmt.Errorf("register auth config metric: %w", err)
+		}
+	}
 	return ch, nil
 }
 

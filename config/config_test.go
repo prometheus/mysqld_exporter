@@ -53,12 +53,17 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 }
 
 func TestNewAuthConfigHandler(t *testing.T) {
-	handler, err := NewAuthConfigHandler(prometheus.NewRegistry())
+	registry := prometheus.NewRegistry()
+	handler, err := NewAuthConfigHandler(registry)
 	if err != nil {
 		t.Fatalf("unexpected handler error: %v", err)
 	}
 	if handler.GetConfig() == nil {
 		t.Fatal("handler should initialize auth config")
+	}
+
+	if _, err := NewAuthConfigHandler(registry); err == nil {
+		t.Fatal("expected duplicate metric registration to return an error")
 	}
 }
 

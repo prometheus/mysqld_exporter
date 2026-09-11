@@ -16,6 +16,7 @@ package collector
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/mysqld_exporter/config"
@@ -34,9 +35,14 @@ func TestNewRuntimeValidatesConfig(t *testing.T) {
 	}
 }
 
-func TestNewRuntimeCollectors(t *testing.T) {
+func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+	cfg.EnableExporterLockWaitTimeout = true
+	cfg.ExporterLockWaitTimeout = 30
+	cfg.SlowLogFilter = true
+	cfg.ExporterQueryTimeout = 5 * time.Second
+	cfg.ExporterMaxOpenConns = 7
 
 	runtime, err := NewRuntime(cfg, promslog.NewNopLogger())
 	if err != nil {
@@ -44,6 +50,21 @@ func TestNewRuntimeCollectors(t *testing.T) {
 	}
 	if got := len(runtime.Collectors()); got != 1 {
 		t.Fatalf("unexpected collector count: got %d, want 1", got)
+	}
+	if !runtime.exporter.enableLockWaitTimeout {
+		t.Fatal("lock wait timeout should be enabled")
+	}
+	if got := runtime.exporter.lockWaitTimeout; got != cfg.ExporterLockWaitTimeout {
+		t.Errorf("lock wait timeout = %d, want %d", got, cfg.ExporterLockWaitTimeout)
+	}
+	if !runtime.exporter.slowLogFilter {
+		t.Fatal("slow log filter should be enabled")
+	}
+	if got := runtime.exporter.queryTimeout; got != cfg.ExporterQueryTimeout {
+		t.Errorf("query timeout = %v, want %v", got, cfg.ExporterQueryTimeout)
+	}
+	if got := runtime.exporter.maxOpenConns; got != cfg.ExporterMaxOpenConns {
+		t.Errorf("max open connections = %d, want %d", got, cfg.ExporterMaxOpenConns)
 	}
 }
 

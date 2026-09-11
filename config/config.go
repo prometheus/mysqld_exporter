@@ -58,7 +58,6 @@ var (
 )
 
 const (
-	DefaultTimeoutOffsetSeconds           = 0.25
 	DefaultExporterLockWaitTimeoutSeconds = 2
 	DefaultEnableExporterLockTimeout      = true
 	DefaultSlowLogFilter                  = false
@@ -89,7 +88,6 @@ const (
 type Config struct {
 	DataSourceName                 string
 	Collectors                     map[string]bool
-	TimeoutOffsetSeconds           float64
 	EnableExporterLockWaitTimeout  bool
 	ExporterLockWaitTimeoutSeconds int
 	SlowLogFilter                  bool
@@ -145,7 +143,6 @@ type MysqlUserConfig struct {
 func NewConfigWithDefaults() Config {
 	return Config{
 		Collectors:                     DefaultCollectorConfig(),
-		TimeoutOffsetSeconds:           DefaultTimeoutOffsetSeconds,
 		EnableExporterLockWaitTimeout:  DefaultEnableExporterLockTimeout,
 		ExporterLockWaitTimeoutSeconds: DefaultExporterLockWaitTimeoutSeconds,
 		SlowLogFilter:                  DefaultSlowLogFilter,
@@ -226,9 +223,6 @@ func DefaultCollectorConfig() map[string]bool {
 func (c Config) Validate() error {
 	if c.DataSourceName == "" {
 		return fmt.Errorf("data source name must not be empty")
-	}
-	if c.TimeoutOffsetSeconds < 0 {
-		return fmt.Errorf("timeout offset must not be negative")
 	}
 	if c.ExporterLockWaitTimeoutSeconds < 0 {
 		return fmt.Errorf("exporter lock wait timeout must not be negative")

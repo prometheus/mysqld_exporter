@@ -105,22 +105,24 @@ func TestBin(t *testing.T) {
 
 func TestValidateExporterFlags(t *testing.T) {
 	tests := []struct {
-		name         string
-		maxOpenConns int
-		queryTimeout int
-		wantErr      bool
+		name                 string
+		maxOpenConns         int
+		queryTimeout         int
+		timeoutOffsetSeconds float64
+		wantErr              bool
 	}{
-		{name: "defaults", maxOpenConns: 2},
+		{name: "defaults", maxOpenConns: 2, timeoutOffsetSeconds: defaultTimeoutOffsetSeconds},
 		{name: "disabled query timeout", maxOpenConns: 2, queryTimeout: 0},
 		{name: "positive query timeout", maxOpenConns: 2, queryTimeout: 1},
 		{name: "zero max open connections", maxOpenConns: 0, wantErr: true},
 		{name: "negative max open connections", maxOpenConns: -1, wantErr: true},
 		{name: "negative query timeout", maxOpenConns: 2, queryTimeout: -1, wantErr: true},
+		{name: "negative timeout offset", maxOpenConns: 2, timeoutOffsetSeconds: -1, wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExporterFlags(tt.maxOpenConns, tt.queryTimeout)
+			err := validateExporterFlags(tt.maxOpenConns, tt.queryTimeout, tt.timeoutOffsetSeconds)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("validateExporterFlags() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -351,8 +353,8 @@ func Test_filterScrapers(t *testing.T) {
 
 func Test_getScrapeTimeoutSeconds(t *testing.T) {
 	type args struct {
-		timeoutHeader string
-		offset        float64
+		timeoutHeader        string
+		timeoutOffsetSeconds float64
 	}
 	tests := []struct {
 		name        string
@@ -382,24 +384,24 @@ func Test_getScrapeTimeoutSeconds(t *testing.T) {
 		{
 			"offset_greater_than_timeout",
 			args{
-				timeoutHeader: "5",
-				offset:        6,
+				timeoutHeader:        "5",
+				timeoutOffsetSeconds: 6,
 			},
 			0, true,
 		},
 		{
 			"offset_equal_timeout",
 			args{
-				timeoutHeader: "5",
-				offset:        5,
+				timeoutHeader:        "5",
+				timeoutOffsetSeconds: 5,
 			},
 			0, true,
 		},
 		{
 			"offset_less_than_timeout",
 			args{
-				timeoutHeader: "5",
-				offset:        1,
+				timeoutHeader:        "5",
+				timeoutOffsetSeconds: 1,
 			},
 			4, false,
 		},
@@ -419,7 +421,7 @@ func Test_getScrapeTimeoutSeconds(t *testing.T) {
 			}
 			request.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", tt.args.timeoutHeader)
 
-			timeout, err := getScrapeTimeoutSeconds(request, tt.args.offset)
+			timeout, err := getScrapeTimeoutSeconds(request, tt.args.timeoutOffsetSeconds)
 			if err != nil && !tt.wantErr {
 				t.Fatalf("unexpected error: %v", err)
 			}

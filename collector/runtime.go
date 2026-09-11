@@ -53,7 +53,7 @@ func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.
 			EnabledScrapers(cfg),
 			logger,
 			EnableLockWaitTimeout(cfg.EnableExporterLockWaitTimeout),
-			SetLockWaitTimeout(cfg.ExporterLockWaitTimeout),
+			SetLockWaitTimeout(cfg.ExporterLockWaitTimeoutSeconds),
 			SetSlowLogFilter(cfg.SlowLogFilter),
 			SetQueryTimeout(cfg.ExporterQueryTimeout),
 			SetMaxOpenConns(cfg.ExporterMaxOpenConns),

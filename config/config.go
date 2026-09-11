@@ -58,12 +58,12 @@ var (
 )
 
 const (
-	DefaultTimeoutOffset             = 0.25
-	DefaultExporterLockWaitTimeout   = 2
-	DefaultEnableExporterLockTimeout = true
-	DefaultSlowLogFilter             = false
-	DefaultExporterQueryTimeout      = 0
-	DefaultExporterMaxOpenConns      = 2
+	DefaultTimeoutOffsetSeconds           = 0.25
+	DefaultExporterLockWaitTimeoutSeconds = 2
+	DefaultEnableExporterLockTimeout      = true
+	DefaultSlowLogFilter                  = false
+	DefaultExporterQueryTimeout           = 0
+	DefaultExporterMaxOpenConns           = 2
 
 	DefaultHeartbeatDatabase = "heartbeat"
 	DefaultHeartbeatTable    = "heartbeat"
@@ -87,21 +87,21 @@ const (
 )
 
 type Config struct {
-	DataSourceName                string
-	Collectors                    map[string]bool
-	TimeoutOffset                 float64
-	EnableExporterLockWaitTimeout bool
-	ExporterLockWaitTimeout       int
-	SlowLogFilter                 bool
-	ExporterQueryTimeout          time.Duration
-	ExporterMaxOpenConns          int
-	Heartbeat                     HeartbeatConfig
-	InfoSchemaProcesslist         InfoSchemaProcesslistConfig
-	InfoSchemaTables              InfoSchemaTablesConfig
-	PerfSchemaEventsStatements    PerfSchemaEventsStatementsConfig
-	PerfSchemaFileInstances       PerfSchemaFileInstancesConfig
-	PerfSchemaMemoryEvents        PerfSchemaMemoryEventsConfig
-	MysqlUser                     MysqlUserConfig
+	DataSourceName                 string
+	Collectors                     map[string]bool
+	TimeoutOffsetSeconds           float64
+	EnableExporterLockWaitTimeout  bool
+	ExporterLockWaitTimeoutSeconds int
+	SlowLogFilter                  bool
+	ExporterQueryTimeout           time.Duration
+	ExporterMaxOpenConns           int
+	Heartbeat                      HeartbeatConfig
+	InfoSchemaProcesslist          InfoSchemaProcesslistConfig
+	InfoSchemaTables               InfoSchemaTablesConfig
+	PerfSchemaEventsStatements     PerfSchemaEventsStatementsConfig
+	PerfSchemaFileInstances        PerfSchemaFileInstancesConfig
+	PerfSchemaMemoryEvents         PerfSchemaMemoryEventsConfig
+	MysqlUser                      MysqlUserConfig
 }
 
 type EmptyConfig struct{}
@@ -144,13 +144,13 @@ type MysqlUserConfig struct {
 
 func NewConfigWithDefaults() Config {
 	return Config{
-		Collectors:                    DefaultCollectorConfig(),
-		TimeoutOffset:                 DefaultTimeoutOffset,
-		EnableExporterLockWaitTimeout: DefaultEnableExporterLockTimeout,
-		ExporterLockWaitTimeout:       DefaultExporterLockWaitTimeout,
-		SlowLogFilter:                 DefaultSlowLogFilter,
-		ExporterQueryTimeout:          DefaultExporterQueryTimeout,
-		ExporterMaxOpenConns:          DefaultExporterMaxOpenConns,
+		Collectors:                     DefaultCollectorConfig(),
+		TimeoutOffsetSeconds:           DefaultTimeoutOffsetSeconds,
+		EnableExporterLockWaitTimeout:  DefaultEnableExporterLockTimeout,
+		ExporterLockWaitTimeoutSeconds: DefaultExporterLockWaitTimeoutSeconds,
+		SlowLogFilter:                  DefaultSlowLogFilter,
+		ExporterQueryTimeout:           DefaultExporterQueryTimeout,
+		ExporterMaxOpenConns:           DefaultExporterMaxOpenConns,
 		Heartbeat: HeartbeatConfig{
 			Database: DefaultHeartbeatDatabase,
 			Table:    DefaultHeartbeatTable,
@@ -227,10 +227,10 @@ func (c Config) Validate() error {
 	if c.DataSourceName == "" {
 		return fmt.Errorf("data source name must not be empty")
 	}
-	if c.TimeoutOffset < 0 {
+	if c.TimeoutOffsetSeconds < 0 {
 		return fmt.Errorf("timeout offset must not be negative")
 	}
-	if c.ExporterLockWaitTimeout < 0 {
+	if c.ExporterLockWaitTimeoutSeconds < 0 {
 		return fmt.Errorf("exporter lock wait timeout must not be negative")
 	}
 	if c.ExporterQueryTimeout < 0 {

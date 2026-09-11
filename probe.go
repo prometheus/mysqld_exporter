@@ -57,7 +57,7 @@ func handleProbe(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc
 		}
 
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffset)
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffsetSeconds)
 		if err != nil {
 			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}

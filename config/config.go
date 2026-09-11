@@ -102,8 +102,6 @@ type Config struct {
 	PerfSchemaFileInstances       PerfSchemaFileInstancesConfig
 	PerfSchemaMemoryEvents        PerfSchemaMemoryEventsConfig
 	MysqlUser                     MysqlUserConfig
-
-	validated bool
 }
 
 type EmptyConfig struct{}
@@ -225,9 +223,7 @@ func DefaultCollectorConfig() map[string]bool {
 	}
 }
 
-func (c *Config) Validate() error {
-	c.validated = false
-
+func (c Config) Validate() error {
 	if c.DataSourceName == "" {
 		return fmt.Errorf("data source name must not be empty")
 	}
@@ -273,12 +269,7 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	c.validated = true
 	return nil
-}
-
-func (c Config) Validated() bool {
-	return c.validated
 }
 
 type AuthConfig struct {

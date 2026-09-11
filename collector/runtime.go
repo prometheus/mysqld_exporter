@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,14 +34,14 @@ func NewRuntime(cfg config.Config, logger *slog.Logger) (*Runtime, error) {
 // NewRuntimeWithContext creates a Runtime whose lifetime is also bounded by ctx.
 // Long-lived embedded consumers should use NewRuntime and call Runtime.Shutdown.
 func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime, error) {
+	if ctx == nil {
+		return nil, errors.New("context is required")
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	if logger == nil {
-		logger = slog.Default()
+		return nil, errors.New("logger is required")
 	}
 	runtimeCtx, cancel := context.WithCancel(ctx)
 

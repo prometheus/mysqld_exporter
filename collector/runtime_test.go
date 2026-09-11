@@ -35,6 +35,15 @@ func TestNewRuntimeValidatesConfig(t *testing.T) {
 	}
 }
 
+func TestNewRuntimeRejectsNilLogger(t *testing.T) {
+	cfg := config.NewConfigWithDefaults()
+	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+
+	if _, err := NewRuntime(cfg, nil); err == nil {
+		t.Fatal("expected nil logger to fail")
+	}
+}
+
 func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
@@ -101,6 +110,10 @@ func TestRuntimeShutdownCancelsContext(t *testing.T) {
 func TestNewRuntimeWithContextPropagatesParentCancellation(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+	if _, err := NewRuntimeWithContext(nil, cfg, promslog.NewNopLogger()); err == nil { //nolint:staticcheck // Verify that the API rejects a nil context.
+		t.Fatal("expected nil context to fail")
+	}
+
 	ctx, cancel := context.WithCancel(t.Context())
 
 	runtime, err := NewRuntimeWithContext(ctx, cfg, promslog.NewNopLogger())

@@ -305,6 +305,9 @@ func newHandler(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer func() {
+			_ = runtime.Shutdown(context.Background())
+		}()
 
 		for _, c := range runtime.Collectors() {
 			registry.MustRegister(c)

@@ -26,7 +26,7 @@ import (
 	"github.com/prometheus/mysqld_exporter/config"
 )
 
-func handleProbe(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc {
+func handleProbe(baseConfig config.Config, timeoutOffsetSeconds float64, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		params := r.URL.Query()
@@ -57,7 +57,7 @@ func handleProbe(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc
 		}
 
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffsetSeconds)
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, timeoutOffsetSeconds)
 		if err != nil {
 			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}

@@ -14,6 +14,7 @@
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/prometheus/common/promslog"
@@ -43,6 +44,57 @@ func TestNewRuntimeCollectors(t *testing.T) {
 	}
 	if got := len(runtime.Collectors()); got != 1 {
 		t.Fatalf("unexpected collector count: got %d, want 1", got)
+	}
+}
+
+func TestRuntimeShutdownCancelsContext(t *testing.T) {
+	cfg := config.NewConfigWithDefaults()
+	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+
+	runtime, err := NewRuntime(cfg, promslog.NewNopLogger())
+	if err != nil {
+		t.Fatalf("unexpected runtime error: %v", err)
+	}
+
+	select {
+	case <-runtime.exporter.ctx.Done():
+		t.Fatal("runtime context canceled before shutdown")
+	default:
+	}
+
+	if err := runtime.Shutdown(t.Context()); err != nil {
+		t.Fatalf("unexpected shutdown error: %v", err)
+	}
+
+	select {
+	case <-runtime.exporter.ctx.Done():
+	default:
+		t.Fatal("runtime context was not canceled by shutdown")
+	}
+
+	if err := runtime.Shutdown(t.Context()); err != nil {
+		t.Fatalf("shutdown should be idempotent: %v", err)
+	}
+}
+
+func TestNewRuntimeWithContextPropagatesParentCancellation(t *testing.T) {
+	cfg := config.NewConfigWithDefaults()
+	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+	ctx, cancel := context.WithCancel(t.Context())
+
+	runtime, err := NewRuntimeWithContext(ctx, cfg, promslog.NewNopLogger())
+	if err != nil {
+		t.Fatalf("unexpected runtime error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runtime.Shutdown(t.Context())
+	})
+
+	cancel()
+	select {
+	case <-runtime.exporter.ctx.Done():
+	default:
+		t.Fatal("parent cancellation did not reach runtime context")
 	}
 }
 

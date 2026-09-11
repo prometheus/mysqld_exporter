@@ -22,6 +22,7 @@ import (
 )
 
 type Runtime struct {
+	cancel   context.CancelFunc
 	exporter *Exporter
 }
 
@@ -29,6 +30,8 @@ func NewRuntime(cfg config.Config, logger *slog.Logger) (*Runtime, error) {
 	return NewRuntimeWithContext(context.Background(), cfg, logger)
 }
 
+// NewRuntimeWithContext creates a Runtime whose lifetime is also bounded by ctx.
+// Long-lived embedded consumers should use NewRuntime and call Runtime.Shutdown.
 func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -39,10 +42,12 @@ func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.
 	if logger == nil {
 		logger = slog.Default()
 	}
+	runtimeCtx, cancel := context.WithCancel(ctx)
 
 	return &Runtime{
+		cancel: cancel,
 		exporter: New(
-			ctx,
+			runtimeCtx,
 			cfg.DataSourceName,
 			EnabledScrapers(cfg),
 			logger,
@@ -53,6 +58,12 @@ func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.
 			SetMaxOpenConns(cfg.ExporterMaxOpenConns),
 		),
 	}, nil
+}
+
+// Shutdown cancels in-flight collection work owned by the Runtime.
+func (r *Runtime) Shutdown(context.Context) error {
+	r.cancel()
+	return nil
 }
 
 func (r *Runtime) Collectors() []prometheus.Collector {

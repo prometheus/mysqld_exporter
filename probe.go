@@ -72,14 +72,9 @@ func handleProbe(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc
 
 		runtimeConfig := configForCollectParams(baseConfig, collectParams)
 		runtimeConfig.DataSourceName = dsn
-		if err := runtimeConfig.Validate(); err != nil {
-			logger.Error("Invalid probe runtime config", "err", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 
 		registry := prometheus.NewRegistry()
-		runtime, err := collector.NewRuntimeWithContext(ctx, &runtimeConfig, logger.With("target", target))
+		runtime, err := collector.NewRuntimeWithContext(ctx, runtimeConfig, logger.With("target", target))
 		if err != nil {
 			logger.Error("Error creating probe runtime", "err", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

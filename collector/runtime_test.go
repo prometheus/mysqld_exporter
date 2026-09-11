@@ -20,26 +20,24 @@ import (
 	"github.com/prometheus/mysqld_exporter/config"
 )
 
-func TestNewRuntimeRequiresValidatedConfig(t *testing.T) {
-	if _, err := NewRuntime(nil, promslog.NewNopLogger()); err == nil {
-		t.Fatal("expected nil config to fail")
-	}
-
+func TestNewRuntimeValidatesConfig(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
-	if _, err := NewRuntime(&cfg, promslog.NewNopLogger()); err == nil {
-		t.Fatal("expected unvalidated config to fail")
+	if _, err := NewRuntime(cfg, promslog.NewNopLogger()); err != nil {
+		t.Fatalf("expected valid config to succeed: %v", err)
+	}
+
+	cfg.DataSourceName = ""
+	if _, err := NewRuntime(cfg, promslog.NewNopLogger()); err == nil {
+		t.Fatal("expected runtime construction to revalidate config")
 	}
 }
 
 func TestNewRuntimeCollectors(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("unexpected validation error: %v", err)
-	}
 
-	runtime, err := NewRuntime(&cfg, promslog.NewNopLogger())
+	runtime, err := NewRuntime(cfg, promslog.NewNopLogger())
 	if err != nil {
 		t.Fatalf("unexpected runtime error: %v", err)
 	}

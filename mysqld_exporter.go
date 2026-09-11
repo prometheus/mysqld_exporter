@@ -297,14 +297,9 @@ func newHandler(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc 
 
 		cfg := configForCollectParams(baseConfig, collect)
 		cfg.DataSourceName = dsn
-		if err := cfg.Validate(); err != nil {
-			logger.Error("Invalid runtime config", "err", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 
 		registry := prometheus.NewRegistry()
-		runtime, err := collector.NewRuntimeWithContext(ctx, &cfg, logger)
+		runtime, err := collector.NewRuntimeWithContext(ctx, cfg, logger)
 		if err != nil {
 			logger.Error("Error creating runtime", "err", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

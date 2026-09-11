@@ -25,11 +25,10 @@ import (
 	"github.com/smartystreets/goconvey/convey"
 )
 
+var _ interface{ Validate() error } = Config{}
+
 func TestConfigDefaultsAndValidation(t *testing.T) {
 	cfg := NewConfigWithDefaults()
-	if cfg.Validated() {
-		t.Fatal("new config should not be marked as validated")
-	}
 	if cfg.TimeoutOffset != DefaultTimeoutOffset {
 		t.Fatalf("unexpected timeout offset: got %f, want %f", cfg.TimeoutOffset, DefaultTimeoutOffset)
 	}
@@ -46,16 +45,10 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected missing data source name to fail validation")
 	}
-	if cfg.Validated() {
-		t.Fatal("failed validation should not mark config as validated")
-	}
 
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected validation error: %v", err)
-	}
-	if !cfg.Validated() {
-		t.Fatal("successful validation should mark config as validated")
 	}
 }
 

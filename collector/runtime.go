@@ -15,7 +15,6 @@ package collector
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,16 +25,13 @@ type Runtime struct {
 	exporter *Exporter
 }
 
-func NewRuntime(cfg *config.Config, logger *slog.Logger) (*Runtime, error) {
+func NewRuntime(cfg config.Config, logger *slog.Logger) (*Runtime, error) {
 	return NewRuntimeWithContext(context.Background(), cfg, logger)
 }
 
-func NewRuntimeWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Runtime, error) {
-	if cfg == nil {
-		return nil, errors.New("config is required")
-	}
-	if !cfg.Validated() {
-		return nil, errors.New("config has not been validated; call cfg.Validate before NewRuntime")
+func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Runtime, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -48,7 +44,7 @@ func NewRuntimeWithContext(ctx context.Context, cfg *config.Config, logger *slog
 		exporter: New(
 			ctx,
 			cfg.DataSourceName,
-			EnabledScrapers(*cfg),
+			EnabledScrapers(cfg),
 			logger,
 			EnableLockWaitTimeout(cfg.EnableExporterLockWaitTimeout),
 			SetLockWaitTimeout(cfg.ExporterLockWaitTimeout),

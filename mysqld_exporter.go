@@ -167,7 +167,7 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 	return filteredScrapers
 }
 
-func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
+func getScrapeTimeoutSeconds(r *http.Request, offsetSeconds float64) (float64, error) {
 	var timeoutSeconds float64
 	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
 		var err error
@@ -183,12 +183,12 @@ func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
 		return 0, fmt.Errorf("timeout value from Prometheus header is invalid: %f", timeoutSeconds)
 	}
 
-	if offset >= timeoutSeconds {
+	if offsetSeconds >= timeoutSeconds {
 		// Ignore timeout offset if it doesn't leave time to scrape.
-		return 0, fmt.Errorf("timeout offset (%f) should be lower than prometheus scrape timeout (%f)", offset, timeoutSeconds)
+		return 0, fmt.Errorf("timeout offset (%f) should be lower than prometheus scrape timeout (%f)", offsetSeconds, timeoutSeconds)
 	} else {
 		// Subtract timeout offset from timeout.
-		timeoutSeconds -= offset
+		timeoutSeconds -= offsetSeconds
 	}
 	return timeoutSeconds, nil
 }
@@ -215,9 +215,9 @@ func configFromFlags(collectorFlags map[string]*bool) config.Config {
 	for name, enabled := range collectorFlags {
 		cfg.Collectors[name] = *enabled
 	}
-	cfg.TimeoutOffset = *timeoutOffset
+	cfg.TimeoutOffsetSeconds = *timeoutOffset
 	cfg.EnableExporterLockWaitTimeout = *enableExporterLockTimeout
-	cfg.ExporterLockWaitTimeout = *exporterLockTimeout
+	cfg.ExporterLockWaitTimeoutSeconds = *exporterLockTimeout
 	cfg.SlowLogFilter = *slowLogFilter
 	cfg.ExporterQueryTimeout = time.Duration(*exporterQueryTimeout) * time.Second
 	cfg.ExporterMaxOpenConns = *exporterMaxOpenConns
@@ -282,7 +282,7 @@ func newHandler(baseConfig config.Config, logger *slog.Logger) http.HandlerFunc 
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffset)
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, baseConfig.TimeoutOffsetSeconds)
 		if err != nil {
 			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}

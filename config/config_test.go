@@ -29,11 +29,11 @@ var _ interface{ Validate() error } = Config{}
 
 func TestConfigDefaultsAndValidation(t *testing.T) {
 	cfg := NewConfigWithDefaults()
-	if cfg.TimeoutOffset != DefaultTimeoutOffset {
-		t.Fatalf("unexpected timeout offset: got %f, want %f", cfg.TimeoutOffset, DefaultTimeoutOffset)
+	if cfg.TimeoutOffsetSeconds != DefaultTimeoutOffsetSeconds {
+		t.Fatalf("unexpected timeout offset: got %f, want %f", cfg.TimeoutOffsetSeconds, DefaultTimeoutOffsetSeconds)
 	}
-	if cfg.ExporterLockWaitTimeout != DefaultExporterLockWaitTimeout {
-		t.Fatalf("unexpected lock wait timeout: got %d, want %d", cfg.ExporterLockWaitTimeout, DefaultExporterLockWaitTimeout)
+	if cfg.ExporterLockWaitTimeoutSeconds != DefaultExporterLockWaitTimeoutSeconds {
+		t.Fatalf("unexpected lock wait timeout: got %d, want %d", cfg.ExporterLockWaitTimeoutSeconds, DefaultExporterLockWaitTimeoutSeconds)
 	}
 	if cfg.Collectors["global_status"] != true {
 		t.Fatal("global_status should be enabled by default")

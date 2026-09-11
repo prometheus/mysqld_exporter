@@ -48,7 +48,7 @@ func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	cfg := config.NewConfigWithDefaults()
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
 	cfg.EnableExporterLockWaitTimeout = true
-	cfg.ExporterLockWaitTimeout = 30
+	cfg.ExporterLockWaitTimeoutSeconds = 30
 	cfg.SlowLogFilter = true
 	cfg.ExporterQueryTimeout = 5 * time.Second
 	cfg.ExporterMaxOpenConns = 7
@@ -63,8 +63,8 @@ func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	if !runtime.exporter.enableLockWaitTimeout {
 		t.Fatal("lock wait timeout should be enabled")
 	}
-	if got := runtime.exporter.lockWaitTimeout; got != cfg.ExporterLockWaitTimeout {
-		t.Errorf("lock wait timeout = %d, want %d", got, cfg.ExporterLockWaitTimeout)
+	if got := runtime.exporter.lockWaitTimeout; got != cfg.ExporterLockWaitTimeoutSeconds {
+		t.Errorf("lock wait timeout = %d, want %d", got, cfg.ExporterLockWaitTimeoutSeconds)
 	}
 	if !runtime.exporter.slowLogFilter {
 		t.Fatal("slow log filter should be enabled")

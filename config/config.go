@@ -144,7 +144,14 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		}
 	}
 
-	cfg.ValueMapper = os.ExpandEnv
+	cfg.ValueMapper = func(val string) string {
+		return os.Expand(val, func(name string) string {
+			if name == "$" {
+				return "$"
+			}
+			return os.Getenv(name)
+		})
+	}
 	config := &Config{}
 	m := make(map[string]MySqlConfig)
 	for _, sec := range cfg.Sections() {

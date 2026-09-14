@@ -214,6 +214,57 @@ func TestValidateConfig(t *testing.T) {
 			fmt.Errorf("tls-max-version=TLSv-something is not allowed, use one of: TLSv1.0, TLSv1.1, TLSv1.2, TLSv1.3"),
 		)
 	})
+
+	convey.Convey("Expand variables", t, func() {
+		c := MySqlConfigHandler{
+			Config: &Config{},
+		}
+		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
+		if err := c.ReloadConfig("testdata/expand_variables.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
+			t.Error(err)
+		}
+
+		cfg := c.GetConfig()
+		section := cfg.Sections["client.server1"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "foo")
+
+		section = cfg.Sections["client.env"]
+		convey.So(section.User, convey.ShouldEqual, "test2")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+
+		section = cfg.Sections["client.envBraces"]
+		convey.So(section.User, convey.ShouldEqual, "test2")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+
+		section = cfg.Sections["client.notExpandEnv"]
+		convey.So(section.User, convey.ShouldEqual, "mysql_exporter")
+		convey.So(section.Password, convey.ShouldEqual, "SECRET_PA$SWORD")
+
+		section = cfg.Sections["client.envNotExists"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "")
+
+		section = cfg.Sections["client.twoDollars"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$MYSQLD_EXPORTER_PASSWORD")
+
+		section = cfg.Sections["client.threeDollars"]
+		convey.So(section.User, convey.ShouldEqual, "test")
+		convey.So(section.Password, convey.ShouldEqual, "$supersecretpassword")
+
+		section = cfg.Sections["client.startWithDollarButAnotherDollarSymbolAlsoExists"]
+		convey.So(section.User, convey.ShouldEqual, "test2dollars")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpassword")
+
+		section = cfg.Sections["client.dollarAndBraces"]
+		convey.So(section.User, convey.ShouldEqual, "testBraces")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpasswordFoo")
+
+		section = cfg.Sections["client.twoEnvVariables"]
+		convey.So(section.User, convey.ShouldEqual, "test2Env")
+		convey.So(section.Password, convey.ShouldEqual, "supersecretpasswordFoosupersecretpassword")
+	})
 }
 
 func TestFormDSN(t *testing.T) {

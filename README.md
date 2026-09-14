@@ -60,7 +60,7 @@ This exporter supports the multi-target pattern. This allows running a single in
 To use the multi-target functionality, send an http request to the endpoint `/probe?target=foo:3306` where target is set to the DSN of the MySQL instance to scrape metrics from.
 
 To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
- 
+
 Sample config file for multiple configurations
 
         [client]
@@ -68,7 +68,13 @@ Sample config file for multiple configurations
         password = foo123
         [client.servers]
         user = bar
-        password = bar123
+        password = ${PASSWORD_FROM_ENV}
+        [client.servers2]
+        user = baz
+        password = MY_$$ECRET
+
+If your password contains a dollar sign ($) and you don't want it to be interpreted as an environment variable,
+escape it by doubling it ($$). In the example above, the password for `client.servers2` is `MY_$ECRET`.
 
 On the prometheus side you can set a scrape config as follows
 

@@ -20,14 +20,54 @@ import (
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
 
+var _ interface{ Validate() error } = Config{}
+
+func TestConfigDefaultsAndValidation(t *testing.T) {
+	cfg := NewConfigWithDefaults()
+	if cfg.ExporterLockWaitTimeoutSeconds != DefaultExporterLockWaitTimeoutSeconds {
+		t.Fatalf("unexpected lock wait timeout: got %d, want %d", cfg.ExporterLockWaitTimeoutSeconds, DefaultExporterLockWaitTimeoutSeconds)
+	}
+	if cfg.Collectors["global_status"] != true {
+		t.Fatal("global_status should be enabled by default")
+	}
+	if cfg.Collectors["info_schema.processlist"] != false {
+		t.Fatal("info_schema.processlist should be disabled by default")
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected missing data source name to fail validation")
+	}
+
+	cfg.DataSourceName = "root@tcp(localhost:3306)/"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+}
+
+func TestNewAuthConfigHandler(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	handler, err := NewAuthConfigHandler(registry)
+	if err != nil {
+		t.Fatalf("unexpected handler error: %v", err)
+	}
+	if handler.GetConfig() == nil {
+		t.Fatal("handler should initialize auth config")
+	}
+
+	if _, err := NewAuthConfigHandler(registry); err == nil {
+		t.Fatal("expected duplicate metric registration to return an error")
+	}
+}
+
 func TestValidateConfig(t *testing.T) {
 	convey.Convey("Working config validation", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
@@ -58,8 +98,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Inherit from parent section", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		if err := c.ReloadConfig("testdata/child_client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
 			t.Error(err)
@@ -70,8 +110,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Environment variable / CLI flags", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		if err := c.ReloadConfig("", "testhost:5000", "testuser", true, promslog.NewNopLogger()); err != nil {
@@ -87,8 +127,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Environment variable / CLI flags error without port", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		err := c.ReloadConfig("", "testhost", "testuser", true, promslog.NewNopLogger())
@@ -99,8 +139,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Unix socket address support", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		if err := c.ReloadConfig("", "unix:///run/mysqld/mysqld.sock", "testuser", true, promslog.NewNopLogger()); err != nil {
@@ -115,8 +155,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Config file precedence over environment variables", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "fakeuser", true, promslog.NewNopLogger()); err != nil {
@@ -130,8 +170,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Client without user", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Clearenv()
 		err := c.ReloadConfig("testdata/missing_user.cnf", "localhost:3306", "", true, promslog.NewNopLogger())
@@ -143,8 +183,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Client without password", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Clearenv()
 		if err := c.ReloadConfig("testdata/missing_password.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
@@ -158,8 +198,8 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	convey.Convey("Client with cleartext password enabled", t, func() {
-		c := MySqlConfigHandler{
-			Config: &Config{},
+		c := AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		os.Clearenv()
 		if err := c.ReloadConfig("testdata/client.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
@@ -217,7 +257,7 @@ func TestValidateConfig(t *testing.T) {
 
 	convey.Convey("Expand variables", t, func() {
 		c := MySqlConfigHandler{
-			Config: &Config{},
+			Config: &AuthConfig{},
 		}
 		os.Setenv("MYSQLD_EXPORTER_PASSWORD", "supersecretpassword")
 		if err := c.ReloadConfig("testdata/expand_variables.cnf", "localhost:3306", "", true, promslog.NewNopLogger()); err != nil {
@@ -269,8 +309,8 @@ func TestValidateConfig(t *testing.T) {
 
 func TestFormDSN(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
-			Config: &Config{},
+		c = AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		err error
 		dsn string
@@ -317,8 +357,8 @@ func TestFormDSN(t *testing.T) {
 
 func TestFormDSNWithSslSkipVerify(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
-			Config: &Config{},
+		c = AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		err error
 		dsn string
@@ -349,8 +389,8 @@ func TestFormDSNWithSslSkipVerify(t *testing.T) {
 
 func TestFormDSNWithCustomTls(t *testing.T) {
 	var (
-		c = MySqlConfigHandler{
-			Config: &Config{},
+		c = AuthConfigHandler{
+			Config: &AuthConfig{},
 		}
 		err error
 		dsn string

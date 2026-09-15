@@ -86,6 +86,7 @@ func EnableLockWaitTimeout(b bool) ExporterOpt {
 	}
 }
 
+// SetLockWaitTimeout sets the lock_wait_timeout session variable in seconds.
 func SetLockWaitTimeout(timeout int) ExporterOpt {
 	return func(e *Exporter) {
 		e.lockWaitTimeout = timeout

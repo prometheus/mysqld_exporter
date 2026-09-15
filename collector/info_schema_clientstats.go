@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const clientStatQuery = `SELECT * FROM information_schema.client_statistics`
@@ -141,7 +142,7 @@ var (
 )
 
 // ScrapeClientStat collects from `information_schema.client_statistics`.
-type ScrapeClientStat struct{}
+type ScrapeClientStat config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeClientStat) Name() string {

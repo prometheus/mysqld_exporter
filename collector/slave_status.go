@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -52,7 +53,7 @@ func columnValue(scanArgs []any, slaveCols []string, colName string) string {
 }
 
 // ScrapeSlaveStatus collects from `SHOW SLAVE STATUS`.
-type ScrapeSlaveStatus struct{}
+type ScrapeSlaveStatus config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeSlaveStatus) Name() string {

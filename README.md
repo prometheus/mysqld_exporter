@@ -17,6 +17,23 @@ NOTE: Not all collection methods are supported on MySQL/MariaDB < 5.6
 
 ### Required Grants
 
+The default `--mysqld.address=localhost:3306` uses TCP. Because `localhost`
+may resolve to either `127.0.0.1` or `::1`, use an explicit address when
+creating a host-specific MySQL account. For a local IPv4 connection:
+
+```sql
+CREATE USER 'exporter'@'127.0.0.1' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'127.0.0.1';
+```
+
+Run the exporter with `--mysqld.address=127.0.0.1:3306`. For remote or
+containerized deployments, replace `127.0.0.1` with the client host or address
+that the MySQL server observes.
+
+For a Unix socket connection, such as
+`--mysqld.address=unix:///run/mysqld/mysqld.sock` or a `socket=` entry in the
+configuration file, use a `localhost` account:
+
 ```sql
 CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
@@ -43,7 +60,7 @@ This exporter supports the multi-target pattern. This allows running a single in
 To use the multi-target functionality, send an http request to the endpoint `/probe?target=foo:3306` where target is set to the DSN of the MySQL instance to scrape metrics from.
 
 To avoid putting sensitive information like username and password in the URL, you can have multiple configurations in `config.my-cnf` file and match it by adding `&auth_module=<section>` to the request.
- 
+
 Sample config file for multiple configurations
 
         [client]
@@ -51,7 +68,13 @@ Sample config file for multiple configurations
         password = foo123
         [client.servers]
         user = bar
-        password = bar123
+        password = ${PASSWORD_FROM_ENV}
+        [client.servers2]
+        user = baz
+        password = MY_$$ECRET
+
+If your password contains a dollar sign ($) and you don't want it to be interpreted as an environment variable,
+escape it by doubling it ($$). In the example above, the password for `client.servers2` is `MY_$ECRET`.
 
 On the prometheus side you can set a scrape config as follows
 
@@ -149,6 +172,8 @@ log.level                                  | Logging verbosity (default: info)
 exporter.lock_wait_timeout                 | Set a lock_wait_timeout (in seconds) on the connection to avoid long metadata locking. (default: 2)
 exporter.enable_lock_wait_timeout          | Enable the lock_wait_timeout connection parameter. Makes the exporter compatible with older versions of MySQL. (default: true)
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
+exporter.query_timeout                     | Per-scraper query timeout (in seconds). 0 disables the timeout. (default: 0, disabled)
+exporter.max_open_connections              | Maximum number of open connections to the database per scrape. Must be >= 1. The pool is per scrape request, so in multi-target mode total connections scale with concurrent targets; keep the value within the exporter user's `MAX_USER_CONNECTIONS` grant. (default: 2)
 tls.insecure-skip-verify                   | Ignore tls verification errors.
 web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.
@@ -187,6 +212,18 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
+It's possible to also restrict the TLS versions that can be used between the MySQL server and mysqld exporter by specifying versions in the mysql cnf file like this:
+
+```
+tls-min-version=TLSv1.2
+tls-max-version=TLSv1.3
+```
+
+In some environments the MySQL server's TLS certificate SN or SAN may not include the host that mysqld exporter uses to connect to it. This could happen in cases when the certificate includes only DNS names, while mysqld exporter uses an IP address to connect. To allow secure connections in these cases, tls-server-name can be used to specify the server's name to use during verification. The parameter works the same as server_name in Prometheus's scrape config configuration.
+
+```
+tls-server-name=mysql.example
+```
 
 ## Using Docker
 

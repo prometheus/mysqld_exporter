@@ -58,7 +58,7 @@ func (ScrapePerfReplicationGroupMembers) Scrape(ctx context.Context, instance *i
 		return err
 	}
 
-	var scanArgs = make([]interface{}, len(columnNames))
+	var scanArgs = make([]any, len(columnNames))
 	for i := range scanArgs {
 		scanArgs[i] = &sql.RawBytes{}
 	}

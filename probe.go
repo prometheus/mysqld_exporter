@@ -48,7 +48,7 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 			http.Error(w, fmt.Sprintf("Could not find config section [%s]", authModule), http.StatusBadRequest)
 			return
 		}
-		dsn, err := cfgsection.FormDSN(target)
+		dsn, err := cfgsection.FormDSN(target, authModule)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
 			http.Error(w, fmt.Sprintf("Error forming dsn from config section [%s]", authModule), http.StatusBadRequest)
@@ -76,6 +76,8 @@ func handleProbe(scrapers []collector.Scraper, logger *slog.Logger) http.Handler
 			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
 			collector.SetLockWaitTimeout(*exporterLockTimeout),
 			collector.SetSlowLogFilter(*slowLogFilter),
+			collector.SetQueryTimeout(time.Duration(*exporterQueryTimeout)*time.Second),
+			collector.SetMaxOpenConns(*exporterMaxOpenConns),
 		))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

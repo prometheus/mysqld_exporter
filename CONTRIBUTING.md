@@ -20,10 +20,23 @@ Prometheus uses GitHub to manage reviews of pull requests.
 
 ## Local setup
 
-The easiest way to make a local development setup is to use Docker Compose.
+The easiest way to get a local MySQL instance for development is Docker Compose.
+A minimal `docker-compose.yml` is provided in the repository root.
 
 ```
-docker-compose up
-make
-make test
+docker compose up -d --wait
+TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' make test
 ```
+
+The tests that require a running MySQL instance are only run when
+`TEST_MYSQL_DSN` is set.
+
+MySQL will be available on `127.0.0.1:3306` with an empty root password.
+Override the image if needed, for example:
+
+```
+MYSQL_IMAGE=mysql:5.7 docker compose up -d
+```
+
+You can also point the exporter at any existing MySQL/MariaDB instance; Compose
+is only a convenience for contributors who do not already have one running.

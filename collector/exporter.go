@@ -74,6 +74,8 @@ type Exporter struct {
 	enableLockWaitTimeout bool
 	lockWaitTimeout       int
 	slowLogFilter         bool
+	queryTimeout          time.Duration
+	maxOpenConns          int
 }
 
 type ExporterOpt func(*Exporter)
@@ -96,12 +98,39 @@ func SetSlowLogFilter(b bool) ExporterOpt {
 	}
 }
 
+// SetQueryTimeout sets a per-scraper query timeout. Zero disables the timeout
+// and falls back to the parent (request) context.
+func SetQueryTimeout(timeout time.Duration) ExporterOpt {
+	return func(e *Exporter) {
+		e.queryTimeout = timeout
+	}
+}
+
+// SetMaxOpenConns sets the maximum number of open connections to the
+// database used for each scrape.
+func SetMaxOpenConns(n int) ExporterOpt {
+	return func(e *Exporter) {
+		e.maxOpenConns = n
+	}
+}
+
+// withQueryTimeoutContext derives a context bounded by the configured query timeout.
+// When the timeout is disabled (0), it returns the parent context and a no-op
+// cancel so callers can unconditionally `defer cancel()`.
+func (e *Exporter) withQueryTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if e.queryTimeout > 0 {
+		return context.WithTimeout(ctx, e.queryTimeout)
+	}
+	return ctx, func() {}
+}
+
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
-		ctx:      ctx,
-		logger:   logger,
-		scrapers: scrapers,
+		ctx:          ctx,
+		logger:       logger,
+		scrapers:     scrapers,
+		maxOpenConns: 2,
 	}
 
 	for _, opt := range opts {
@@ -149,7 +178,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) float64 {
 	var err error
 	scrapeTime := time.Now()
-	instance, err := newInstance(e.dsn)
+	versionCtx, versionCancel := e.withQueryTimeoutContext(ctx)
+	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns)
+	versionCancel()
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)
 		return 0.0
@@ -157,7 +188,9 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	defer instance.Close()
 	e.instance = instance
 
-	if err := instance.Ping(); err != nil {
+	pingCtx, pingCancel := e.withQueryTimeoutContext(ctx)
+	defer pingCancel()
+	if err := instance.Ping(pingCtx); err != nil {
 		e.logger.Error("Error pinging mysqld", "err", err)
 		return 0.0
 	}
@@ -177,7 +210,9 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 			label := "collect." + scraper.Name()
 			scrapeTime := time.Now()
 			collectorSuccess := 1.0
-			if err := scraper.Scrape(ctx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
+			scrapeCtx, cancel := e.withQueryTimeoutContext(ctx)
+			defer cancel()
+			if err := scraper.Scrape(scrapeCtx, instance, ch, e.logger.With("scraper", scraper.Name())); err != nil {
 				e.logger.Error("Error from scraper", "scraper", scraper.Name(), "target", e.getTargetFromDsn(), "err", err)
 				collectorSuccess = 0.0
 			}

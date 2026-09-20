@@ -18,8 +18,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -55,6 +57,14 @@ var (
 	}
 
 	err error
+
+	// Use the same pattern of TLS version strings as the mysql client binary.
+	tlsVersions = map[string]uint16{
+		"TLSv1.0": tls.VersionTLS10,
+		"TLSv1.1": tls.VersionTLS11,
+		"TLSv1.2": tls.VersionTLS12,
+		"TLSv1.3": tls.VersionTLS13,
+	}
 )
 
 type Config struct {
@@ -73,6 +83,9 @@ type MySqlConfig struct {
 	SslKey                string `ini:"ssl-key"`
 	TlsInsecureSkipVerify bool   `ini:"ssl-skip-verfication"` //nolint:misspell
 	Tls                   string `ini:"tls"`
+	TlsMinVersion         string `ini:"tls-min-version"`
+	TlsMaxVersion         string `ini:"tls-max-version"`
+	TlsServerName         string `ini:"tls-server-name"`
 }
 
 type MySqlConfigHandler struct {
@@ -131,7 +144,14 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 		}
 	}
 
-	cfg.ValueMapper = os.ExpandEnv
+	cfg.ValueMapper = func(val string) string {
+		return os.Expand(val, func(name string) string {
+			if name == "$" {
+				return "$"
+			}
+			return os.Getenv(name)
+		})
+	}
 	config := &Config{}
 	m := make(map[string]MySqlConfig)
 	for _, sec := range cfg.Sections() {
@@ -172,10 +192,23 @@ func (m MySqlConfig) validateConfig() error {
 		return fmt.Errorf("no user specified in section or parent")
 	}
 
+	allowedTLSVersions := strings.Join(slices.Sorted(maps.Keys(tlsVersions)), ", ")
+	if _, ok := tlsVersions[m.TlsMinVersion]; !ok && m.TlsMinVersion != "" {
+		return fmt.Errorf("tls-min-version=%s is not allowed, use one of: %s", m.TlsMinVersion, allowedTLSVersions)
+	}
+	if _, ok := tlsVersions[m.TlsMaxVersion]; !ok && m.TlsMaxVersion != "" {
+		return fmt.Errorf("tls-max-version=%s is not allowed, use one of: %s", m.TlsMaxVersion, allowedTLSVersions)
+	}
+	if m.TlsMinVersion != "" && m.TlsMaxVersion != "" {
+		if tlsVersions[m.TlsMinVersion] > tlsVersions[m.TlsMaxVersion] {
+			return fmt.Errorf("tls-min-version must not be higher than tls-max-version: %s > %s", m.TlsMinVersion, m.TlsMaxVersion)
+		}
+	}
+
 	return nil
 }
 
-func (m MySqlConfig) FormDSN(target string) (string, error) {
+func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, error) {
 	config := mysql.NewConfig()
 	config.User = m.User
 	config.Passwd = m.Password
@@ -209,12 +242,18 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 		config.TLSConfig = "skip-verify"
 	} else {
 		config.TLSConfig = m.Tls
-		if m.SslCa != "" {
-			if err := m.CustomizeTLS(); err != nil {
+
+		hasCustomTLS := m.SslCa != "" ||
+			m.TlsMinVersion != "" ||
+			m.TlsMaxVersion != "" ||
+			m.TlsServerName != ""
+
+		if hasCustomTLS {
+			if err := m.CustomizeTLS(configSectionName); err != nil {
 				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
 				return "", err
 			}
-			config.TLSConfig = "custom"
+			config.TLSConfig = configSectionName
 		}
 	}
 
@@ -225,29 +264,40 @@ func (m MySqlConfig) FormDSN(target string) (string, error) {
 	return config.FormatDSN(), nil
 }
 
-func (m MySqlConfig) CustomizeTLS() error {
+func (m MySqlConfig) CustomizeTLS(configSectionName string) error {
 	var tlsCfg tls.Config
-	caBundle := x509.NewCertPool()
-	pemCA, err := os.ReadFile(m.SslCa)
-	if err != nil {
-		return err
-	}
-	if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
-		tlsCfg.RootCAs = caBundle
-	} else {
-		return fmt.Errorf("failed parse pem-encoded CA certificates from %s", m.SslCa)
-	}
-	if m.SslCert != "" && m.SslKey != "" {
-		certPairs := make([]tls.Certificate, 0, 1)
-		keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
+	if m.SslCa != "" {
+		caBundle := x509.NewCertPool()
+		pemCA, err := os.ReadFile(m.SslCa)
 		if err != nil {
-			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
-				m.SslCert, m.SslKey, err)
+			return err
 		}
-		certPairs = append(certPairs, keypair)
-		tlsCfg.Certificates = certPairs
+		if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
+			tlsCfg.RootCAs = caBundle
+		} else {
+			return fmt.Errorf("failed parse pem-encoded CA certificates from %s", m.SslCa)
+		}
+		if m.SslCert != "" && m.SslKey != "" {
+			certPairs := make([]tls.Certificate, 0, 1)
+			keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
+			if err != nil {
+				return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
+					m.SslCert, m.SslKey, err)
+			}
+			certPairs = append(certPairs, keypair)
+			tlsCfg.Certificates = certPairs
+		}
+	}
+	if m.TlsMinVersion != "" {
+		tlsCfg.MinVersion = tlsVersions[m.TlsMinVersion]
+	}
+	if m.TlsMaxVersion != "" {
+		tlsCfg.MaxVersion = tlsVersions[m.TlsMaxVersion]
+	}
+	if m.TlsServerName != "" {
+		tlsCfg.ServerName = m.TlsServerName
 	}
 	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
-	mysql.RegisterTLSConfig("custom", &tlsCfg)
+	mysql.RegisterTLSConfig(configSectionName, &tlsCfg)
 	return nil
 }

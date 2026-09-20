@@ -103,6 +103,31 @@ func TestBin(t *testing.T) {
 	})
 }
 
+func TestValidateExporterFlags(t *testing.T) {
+	tests := []struct {
+		name         string
+		maxOpenConns int
+		queryTimeout int
+		wantErr      bool
+	}{
+		{name: "defaults", maxOpenConns: 2},
+		{name: "disabled query timeout", maxOpenConns: 2, queryTimeout: 0},
+		{name: "positive query timeout", maxOpenConns: 2, queryTimeout: 1},
+		{name: "zero max open connections", maxOpenConns: 0, wantErr: true},
+		{name: "negative max open connections", maxOpenConns: -1, wantErr: true},
+		{name: "negative query timeout", maxOpenConns: 2, queryTimeout: -1, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExporterFlags(tt.maxOpenConns, tt.queryTimeout)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateExporterFlags() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func testLanding(t *testing.T, data bin) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

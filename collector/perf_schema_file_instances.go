@@ -20,8 +20,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfFileInstancesQuery = `
@@ -32,19 +32,6 @@ const perfFileInstancesQuery = `
 	  FROM performance_schema.file_summary_by_instance
 	     where FILE_NAME REGEXP ?
 	`
-
-// Tunable flags.
-var (
-	performanceSchemaFileInstancesFilter = kingpin.Flag(
-		"collect.perf_schema.file_instances.filter",
-		"RegEx file_name filter for performance_schema.file_summary_by_instance",
-	).Default(".*").String()
-
-	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
-		"collect.perf_schema.file_instances.remove_prefix",
-		"Remove path prefix in performance_schema.file_summary_by_instance",
-	).Default("/var/lib/mysql/").String()
-)
 
 // Metric descriptors.
 var (
@@ -61,7 +48,7 @@ var (
 )
 
 // ScrapePerfFileInstances collects from `performance_schema.file_summary_by_instance`.
-type ScrapePerfFileInstances struct{}
+type ScrapePerfFileInstances config.PerfSchemaFileInstancesConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfFileInstances) Name() string {
@@ -79,10 +66,10 @@ func (ScrapePerfFileInstances) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapePerfFileInstances) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapePerfFileInstances) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	// Timers here are returned in picoseconds.
-	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, *performanceSchemaFileInstancesFilter)
+	perfSchemaFileInstancesRows, err := db.QueryContext(ctx, perfFileInstancesQuery, s.Filter)
 	if err != nil {
 		return err
 	}
@@ -103,7 +90,7 @@ func (ScrapePerfFileInstances) Scrape(ctx context.Context, instance *instance, c
 			return err
 		}
 
-		fileName = strings.TrimPrefix(fileName, *performanceSchemaFileInstancesRemovePrefix)
+		fileName = strings.TrimPrefix(fileName, s.RemovePrefix)
 		ch <- prometheus.MustNewConstMetric(
 			performanceSchemaFileInstancesCountDesc, prometheus.CounterValue, float64(countRead),
 			fileName, eventName, "read",

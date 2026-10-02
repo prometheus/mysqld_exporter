@@ -16,6 +16,7 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -25,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,18 +35,6 @@ import (
 )
 
 var (
-	configReloadSuccess = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "mysqld_exporter",
-		Name:      "config_last_reload_successful",
-		Help:      "Mysqld exporter config loaded successfully.",
-	})
-
-	configReloadSeconds = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "mysqld_exporter",
-		Name:      "config_last_reload_success_timestamp_seconds",
-		Help:      "Timestamp of the last successful configuration reload.",
-	})
-
 	opts = ini.LoadOptions{
 		// Do not error on nonexistent file to allow empty string as filename input
 		Loose: true,
@@ -67,7 +57,216 @@ var (
 	}
 )
 
+const (
+	DefaultExporterLockWaitTimeoutSeconds = 2
+	DefaultEnableExporterLockTimeout      = true
+	DefaultSlowLogFilter                  = false
+	DefaultExporterQueryTimeout           = 0
+	DefaultExporterMaxOpenConns           = 2
+
+	DefaultHeartbeatDatabase = "heartbeat"
+	DefaultHeartbeatTable    = "heartbeat"
+	DefaultHeartbeatUTC      = false
+
+	DefaultInfoSchemaProcesslistMinTime         = 0
+	DefaultInfoSchemaProcesslistProcessesByUser = true
+	DefaultInfoSchemaProcesslistProcessesByHost = true
+
+	DefaultInfoSchemaTablesDatabases = "*"
+
+	DefaultPerfSchemaEventsStatementsLimit           = 250
+	DefaultPerfSchemaEventsStatementsTimeLimit       = 86400
+	DefaultPerfSchemaEventsStatementsDigestTextLimit = 120
+
+	DefaultPerfSchemaFileInstancesFilter       = ".*"
+	DefaultPerfSchemaFileInstancesRemovePrefix = "/var/lib/mysql/"
+	DefaultPerfSchemaMemoryEventsRemovePrefix  = "memory/"
+
+	DefaultMysqlUserPrivileges = false
+)
+
 type Config struct {
+	DataSourceName                 string
+	Collectors                     map[string]bool
+	EnableExporterLockWaitTimeout  bool
+	ExporterLockWaitTimeoutSeconds int
+	SlowLogFilter                  bool
+	ExporterQueryTimeout           time.Duration
+	ExporterMaxOpenConns           int
+	Heartbeat                      HeartbeatConfig
+	InfoSchemaProcesslist          InfoSchemaProcesslistConfig
+	InfoSchemaTables               InfoSchemaTablesConfig
+	PerfSchemaEventsStatements     PerfSchemaEventsStatementsConfig
+	PerfSchemaFileInstances        PerfSchemaFileInstancesConfig
+	PerfSchemaMemoryEvents         PerfSchemaMemoryEventsConfig
+	MysqlUser                      MysqlUserConfig
+}
+
+type EmptyConfig struct{}
+
+type HeartbeatConfig struct {
+	Database string
+	Table    string
+	UTC      bool
+}
+
+type InfoSchemaProcesslistConfig struct {
+	MinTime         int
+	ProcessesByUser bool
+	ProcessesByHost bool
+}
+
+type InfoSchemaTablesConfig struct {
+	Databases string
+}
+
+type PerfSchemaEventsStatementsConfig struct {
+	Limit           int
+	TimeLimit       int
+	DigestTextLimit int
+	ExcludeSchemas  []string
+}
+
+type PerfSchemaFileInstancesConfig struct {
+	Filter       string
+	RemovePrefix string
+}
+
+type PerfSchemaMemoryEventsConfig struct {
+	RemovePrefix string
+}
+
+type MysqlUserConfig struct {
+	Privileges bool
+}
+
+func NewConfigWithDefaults() Config {
+	return Config{
+		Collectors:                     DefaultCollectorConfig(),
+		EnableExporterLockWaitTimeout:  DefaultEnableExporterLockTimeout,
+		ExporterLockWaitTimeoutSeconds: DefaultExporterLockWaitTimeoutSeconds,
+		SlowLogFilter:                  DefaultSlowLogFilter,
+		ExporterQueryTimeout:           DefaultExporterQueryTimeout,
+		ExporterMaxOpenConns:           DefaultExporterMaxOpenConns,
+		Heartbeat: HeartbeatConfig{
+			Database: DefaultHeartbeatDatabase,
+			Table:    DefaultHeartbeatTable,
+			UTC:      DefaultHeartbeatUTC,
+		},
+		InfoSchemaProcesslist: InfoSchemaProcesslistConfig{
+			MinTime:         DefaultInfoSchemaProcesslistMinTime,
+			ProcessesByUser: DefaultInfoSchemaProcesslistProcessesByUser,
+			ProcessesByHost: DefaultInfoSchemaProcesslistProcessesByHost,
+		},
+		InfoSchemaTables: InfoSchemaTablesConfig{
+			Databases: DefaultInfoSchemaTablesDatabases,
+		},
+		PerfSchemaEventsStatements: PerfSchemaEventsStatementsConfig{
+			Limit:           DefaultPerfSchemaEventsStatementsLimit,
+			TimeLimit:       DefaultPerfSchemaEventsStatementsTimeLimit,
+			DigestTextLimit: DefaultPerfSchemaEventsStatementsDigestTextLimit,
+		},
+		PerfSchemaFileInstances: PerfSchemaFileInstancesConfig{
+			Filter:       DefaultPerfSchemaFileInstancesFilter,
+			RemovePrefix: DefaultPerfSchemaFileInstancesRemovePrefix,
+		},
+		PerfSchemaMemoryEvents: PerfSchemaMemoryEventsConfig{
+			RemovePrefix: DefaultPerfSchemaMemoryEventsRemovePrefix,
+		},
+		MysqlUser: MysqlUserConfig{
+			Privileges: DefaultMysqlUserPrivileges,
+		},
+	}
+}
+
+func DefaultCollectorConfig() map[string]bool {
+	return map[string]bool{
+		"global_status":                                    true,
+		"global_variables":                                 true,
+		"slave_status":                                     true,
+		"info_schema.processlist":                          false,
+		"mysql.user":                                       false,
+		"info_schema.tables":                               false,
+		"info_schema.innodb_tablespaces":                   false,
+		"info_schema.innodb_metrics":                       false,
+		"auto_increment.columns":                           false,
+		"binlog_size":                                      false,
+		"perf_schema.tableiowaits":                         false,
+		"perf_schema.indexiowaits":                         false,
+		"perf_schema.tablelocks":                           false,
+		"perf_schema.eventsstatements":                     false,
+		"perf_schema.eventsstatementssum":                  false,
+		"perf_schema.eventswaits":                          false,
+		"perf_schema.file_events":                          false,
+		"perf_schema.file_instances":                       false,
+		"perf_schema.memory_events":                        false,
+		"perf_schema.replication_group_members":            false,
+		"perf_schema.replication_group_member_stats":       false,
+		"perf_schema.replication_applier_status_by_worker": false,
+		"sys.user_summary":                                 false,
+		"info_schema.userstats":                            false,
+		"info_schema.clientstats":                          false,
+		"info_schema.tablestats":                           false,
+		"info_schema.schemastats":                          false,
+		"info_schema.innodb_cmp":                           true,
+		"info_schema.innodb_cmpmem":                        true,
+		"info_schema.query_response_time":                  true,
+		"engine_tokudb_status":                             false,
+		"engine_innodb_status":                             false,
+		"heartbeat":                                        false,
+		"slave_hosts":                                      false,
+		"info_schema.replica_host":                         false,
+		"info_schema.rocksdb_perf_context":                 false,
+	}
+}
+
+func (c Config) Validate() error {
+	if c.DataSourceName == "" {
+		return fmt.Errorf("data source name must not be empty")
+	}
+	if c.ExporterLockWaitTimeoutSeconds < 0 {
+		return fmt.Errorf("exporter lock wait timeout must not be negative")
+	}
+	if c.ExporterQueryTimeout < 0 {
+		return fmt.Errorf("exporter query timeout must not be negative")
+	}
+	if c.ExporterMaxOpenConns < 1 {
+		return fmt.Errorf("exporter max open connections must be at least 1")
+	}
+	if c.Heartbeat.Database == "" {
+		return fmt.Errorf("heartbeat database must not be empty")
+	}
+	if c.Heartbeat.Table == "" {
+		return fmt.Errorf("heartbeat table must not be empty")
+	}
+	if c.InfoSchemaProcesslist.MinTime < 0 {
+		return fmt.Errorf("info_schema processlist min time must not be negative")
+	}
+	if c.InfoSchemaTables.Databases == "" {
+		return fmt.Errorf("info_schema tables databases must not be empty")
+	}
+	if c.PerfSchemaEventsStatements.Limit <= 0 {
+		return fmt.Errorf("perf_schema events statements limit must be greater than zero")
+	}
+	if c.PerfSchemaEventsStatements.TimeLimit <= 0 {
+		return fmt.Errorf("perf_schema events statements time limit must be greater than zero")
+	}
+	if c.PerfSchemaEventsStatements.DigestTextLimit <= 0 {
+		return fmt.Errorf("perf_schema events statements digest text limit must be greater than zero")
+	}
+	if c.PerfSchemaFileInstances.Filter == "" {
+		return fmt.Errorf("perf_schema file instances filter must not be empty")
+	}
+	for name := range c.Collectors {
+		if _, ok := DefaultCollectorConfig()[name]; !ok {
+			return fmt.Errorf("unknown collector %q", name)
+		}
+	}
+
+	return nil
+}
+
+type AuthConfig struct {
 	Sections map[string]MySqlConfig
 }
 
@@ -88,27 +287,55 @@ type MySqlConfig struct {
 	TlsServerName         string `ini:"tls-server-name"`
 }
 
-type MySqlConfigHandler struct {
+type AuthConfigHandler struct {
 	sync.RWMutex
 	TlsInsecureSkipVerify bool
-	Config                *Config
+	Config                *AuthConfig
+	configReloadSuccess   prometheus.Gauge
+	configReloadSeconds   prometheus.Gauge
 }
 
-func (ch *MySqlConfigHandler) GetConfig() *Config {
+type MySqlConfigHandler = AuthConfigHandler
+
+func NewAuthConfigHandler(registerer prometheus.Registerer) (*AuthConfigHandler, error) {
+	if registerer == nil {
+		return nil, errors.New("registerer is required")
+	}
+	ch := &AuthConfigHandler{
+		Config: &AuthConfig{},
+		configReloadSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "mysqld_exporter",
+			Name:      "config_last_reload_successful",
+			Help:      "Mysqld exporter config loaded successfully.",
+		}),
+		configReloadSeconds: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "mysqld_exporter",
+			Name:      "config_last_reload_success_timestamp_seconds",
+			Help:      "Timestamp of the last successful configuration reload.",
+		}),
+	}
+	collectors := []prometheus.Collector{ch.configReloadSuccess, ch.configReloadSeconds}
+	for i, collector := range collectors {
+		if err := registerer.Register(collector); err != nil {
+			for _, registered := range collectors[:i] {
+				registerer.Unregister(registered)
+			}
+			return nil, fmt.Errorf("register auth config metric: %w", err)
+		}
+	}
+	return ch, nil
+}
+
+func (ch *AuthConfigHandler) GetConfig() *AuthConfig {
 	ch.RLock()
 	defer ch.RUnlock()
 	return ch.Config
 }
 
-func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) error {
+func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) error {
 	var host, port string
 	defer func() {
-		if err != nil {
-			configReloadSuccess.Set(0)
-		} else {
-			configReloadSuccess.Set(1)
-			configReloadSeconds.SetToCurrentTime()
-		}
+		ch.observeReload(err)
 	}()
 
 	cfg, err := ini.LoadSources(
@@ -152,7 +379,7 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 			return os.Getenv(name)
 		})
 	}
-	config := &Config{}
+	config := &AuthConfig{}
 	m := make(map[string]MySqlConfig)
 	for _, sec := range cfg.Sections() {
 		sectionName := sec.Name()
@@ -185,6 +412,20 @@ func (ch *MySqlConfigHandler) ReloadConfig(filename string, mysqldAddress string
 	ch.Config = config
 	ch.Unlock()
 	return nil
+}
+
+func (ch *AuthConfigHandler) observeReload(err error) {
+	if ch.configReloadSuccess == nil {
+		return
+	}
+	if err != nil {
+		ch.configReloadSuccess.Set(0)
+		return
+	}
+	ch.configReloadSuccess.Set(1)
+	if ch.configReloadSeconds != nil {
+		ch.configReloadSeconds.SetToCurrentTime()
+	}
 }
 
 func (m MySqlConfig) validateConfig() error {

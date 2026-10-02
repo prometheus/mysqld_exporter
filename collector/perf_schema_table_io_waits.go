@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const perfTableIOWaitsQuery = `
@@ -46,7 +47,7 @@ var (
 )
 
 // ScrapePerfTableIOWaits collects from `performance_schema.table_io_waits_summary_by_table`.
-type ScrapePerfTableIOWaits struct{}
+type ScrapePerfTableIOWaits config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapePerfTableIOWaits) Name() string {

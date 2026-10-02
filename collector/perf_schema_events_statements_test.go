@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/mysqld_exporter/config"
 	"github.com/smartystreets/goconvey/convey"
 )
 
@@ -49,12 +50,17 @@ func TestScrapePerfEventsStatements(t *testing.T) {
 			1, 2, 3,
 			100, 1)
 
-	query := fmt.Sprintf(perfEventsStatementsQuery, *perfEventsStatementsDigestTextLimit, buildExcludedSchemasList(*perfEventsStatementsExcludeSchemas), *perfEventsStatementsTimeLimit, *perfEventsStatementsLimit)
+	scraper := ScrapePerfEventsStatements{
+		DigestTextLimit: config.DefaultPerfSchemaEventsStatementsDigestTextLimit,
+		TimeLimit:       config.DefaultPerfSchemaEventsStatementsTimeLimit,
+		Limit:           config.DefaultPerfSchemaEventsStatementsLimit,
+	}
+	query := fmt.Sprintf(perfEventsStatementsQuery, scraper.DigestTextLimit, buildExcludedSchemasList(scraper.ExcludeSchemas), scraper.TimeLimit, scraper.Limit)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfEventsStatements{}).Scrape(context.Background(), &instance{db: db}, ch, promslog.NewNopLogger()); err != nil {
+		if err = scraper.Scrape(context.Background(), &instance{db: db}, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)
@@ -125,12 +131,17 @@ func TestScrapePerfEventsStatementsMySQL8028(t *testing.T) {
 			100, 1,
 			100, 150, 200)
 
-	query := fmt.Sprintf(perfEventsStatementsQueryMySQL, *perfEventsStatementsDigestTextLimit, buildExcludedSchemasList(*perfEventsStatementsExcludeSchemas), *perfEventsStatementsTimeLimit, *perfEventsStatementsLimit)
+	scraper := ScrapePerfEventsStatements{
+		DigestTextLimit: config.DefaultPerfSchemaEventsStatementsDigestTextLimit,
+		TimeLimit:       config.DefaultPerfSchemaEventsStatementsTimeLimit,
+		Limit:           config.DefaultPerfSchemaEventsStatementsLimit,
+	}
+	query := fmt.Sprintf(perfEventsStatementsQueryMySQL, scraper.DigestTextLimit, buildExcludedSchemasList(scraper.ExcludeSchemas), scraper.TimeLimit, scraper.Limit)
 	mock.ExpectQuery(sanitizeQuery(query)).WillReturnRows(rows)
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfEventsStatements{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+		if err = scraper.Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			t.Errorf("error calling function on test: %s", err)
 		}
 		close(ch)

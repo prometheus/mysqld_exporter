@@ -23,8 +23,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const infoSchemaProcesslistQuery = `
@@ -40,22 +40,6 @@ const infoSchemaProcesslistQuery = `
 		    AND TIME >= %d
 		  GROUP BY user, host, command, state
 	`
-
-// Tunable flags.
-var (
-	processlistMinTime = kingpin.Flag(
-		"collect.info_schema.processlist.min_time",
-		"Minimum time a thread must be in each state to be counted",
-	).Default("0").Int()
-	processesByUserFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_user",
-		"Enable collecting the number of processes by user",
-	).Default("true").Bool()
-	processesByHostFlag = kingpin.Flag(
-		"collect.info_schema.processlist.processes_by_host",
-		"Enable collecting the number of processes by host",
-	).Default("true").Bool()
-)
 
 // Metric descriptors.
 var (
@@ -78,7 +62,7 @@ var (
 )
 
 // ScrapeProcesslist collects from `information_schema.processlist`.
-type ScrapeProcesslist struct{}
+type ScrapeProcesslist config.InfoSchemaProcesslistConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeProcesslist) Name() string {
@@ -96,11 +80,8 @@ func (ScrapeProcesslist) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
-	processQuery := fmt.Sprintf(
-		infoSchemaProcesslistQuery,
-		*processlistMinTime,
-	)
+func (s ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	processQuery := fmt.Sprintf(infoSchemaProcesslistQuery, s.MinTime)
 	db := instance.getDB()
 	processlistRows, err := db.QueryContext(ctx, processQuery)
 	if err != nil {
@@ -162,12 +143,12 @@ func (ScrapeProcesslist) Scrape(ctx context.Context, instance *instance, ch chan
 		}
 	}
 
-	if *processesByHostFlag {
+	if s.ProcessesByHost {
 		for _, host := range slices.Sorted(maps.Keys(stateHostCounts)) {
 			ch <- prometheus.MustNewConstMetric(processesByHostDesc, prometheus.GaugeValue, float64(stateHostCounts[host]), host)
 		}
 	}
-	if *processesByUserFlag {
+	if s.ProcessesByUser {
 		for _, user := range slices.Sorted(maps.Keys(stateUserCounts)) {
 			ch <- prometheus.MustNewConstMetric(processesByUserDesc, prometheus.GaugeValue, float64(stateUserCounts[user]), user)
 		}

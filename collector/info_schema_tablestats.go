@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const tableStatQuery = `
@@ -52,7 +53,7 @@ var (
 )
 
 // ScrapeTableStat collects from `information_schema.table_statistics`.
-type ScrapeTableStat struct{}
+type ScrapeTableStat config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeTableStat) Name() string {

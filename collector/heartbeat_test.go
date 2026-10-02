@@ -15,11 +15,9 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
@@ -27,26 +25,22 @@ import (
 )
 
 type ScrapeHeartbeatTestCase struct {
-	Args    []string
+	Name    string
+	Scraper ScrapeHeartbeat
 	Columns []string
 	Query   string
 }
 
 var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 	{
-		[]string{
-			"--collect.heartbeat.database", "heartbeat-test",
-			"--collect.heartbeat.table", "heartbeat-test",
-		},
+		"local time",
+		ScrapeHeartbeat{Database: "heartbeat-test", Table: "heartbeat-test"},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(NOW(6))", "server_id"},
 		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(NOW(6)), server_id from `heartbeat-test`.`heartbeat-test`",
 	},
 	{
-		[]string{
-			"--collect.heartbeat.database", "heartbeat-test",
-			"--collect.heartbeat.table", "heartbeat-test",
-			"--collect.heartbeat.utc",
-		},
+		"utc",
+		ScrapeHeartbeat{Database: "heartbeat-test", Table: "heartbeat-test", UTC: true},
 		[]string{"UNIX_TIMESTAMP(ts)", "UNIX_TIMESTAMP(UTC_TIMESTAMP(6))", "server_id"},
 		"SELECT UNIX_TIMESTAMP(ts), UNIX_TIMESTAMP(UTC_TIMESTAMP(6)), server_id from `heartbeat-test`.`heartbeat-test`",
 	},
@@ -54,12 +48,7 @@ var ScrapeHeartbeatTestCases = []ScrapeHeartbeatTestCase{
 
 func TestScrapeHeartbeat(t *testing.T) {
 	for _, tt := range ScrapeHeartbeatTestCases {
-		t.Run(fmt.Sprint(tt.Args), func(t *testing.T) {
-			_, err := kingpin.CommandLine.Parse(tt.Args)
-			if err != nil {
-				t.Fatal(err)
-			}
-
+		t.Run(tt.Name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
 				t.Fatalf("error opening a stub database connection: %s", err)
@@ -73,7 +62,7 @@ func TestScrapeHeartbeat(t *testing.T) {
 
 			ch := make(chan prometheus.Metric)
 			go func() {
-				if err = (ScrapeHeartbeat{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+				if err = tt.Scraper.Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 					t.Errorf("error calling function on test: %s", err)
 				}
 				close(ch)

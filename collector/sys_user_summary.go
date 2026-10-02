@@ -18,6 +18,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const sysUserSummaryQuery = `
@@ -80,7 +81,7 @@ var (
 		[]string{"user"}, nil)
 )
 
-type ScrapeSysUserSummary struct{}
+type ScrapeSysUserSummary config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeSysUserSummary) Name() string {

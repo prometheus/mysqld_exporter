@@ -265,6 +265,36 @@ params:
 
 This can be useful for having different Prometheus servers collect specific metrics from targets.
 
+## Using as a Go library
+
+Create a runtime for a MySQL target, register its collectors with a caller-owned
+Prometheus registry, and shut down the runtime when it is no longer needed:
+
+```go
+cfg := config.NewConfigWithDefaults()
+cfg.DataSourceName = "exporter@tcp(localhost:3306)/"
+
+runtime, err := collector.NewRuntime(cfg, slog.Default())
+if err != nil {
+	return err
+}
+defer func() {
+	_ = runtime.Shutdown(context.Background())
+}()
+
+registry := prometheus.NewRegistry()
+for _, c := range runtime.Collectors() {
+	if err := registry.Register(c); err != nil {
+		return err
+	}
+}
+
+metricFamilies, err := registry.Gather()
+```
+
+The caller owns the registry and can expose or gather it as needed. Create one
+runtime per MySQL target.
+
 ## Example Rules
 
 There is a set of sample rules, alerts and dashboards available in the [mysqld-mixin](mysqld-mixin/)

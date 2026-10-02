@@ -22,8 +22,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 // mysqlSubsystem used for metric names.
@@ -69,14 +69,6 @@ const mysqlUserQuery = `
 		  FROM mysql.user
 		`
 
-// Tunable flags.
-var (
-	userPrivilegesFlag = kingpin.Flag(
-		"collect.mysql.user.privileges",
-		"Enable collecting user privileges from mysql.user",
-	).Default("false").Bool()
-)
-
 var (
 	labelNames = []string{"mysql_user", "hostmask"}
 )
@@ -102,7 +94,7 @@ var (
 )
 
 // ScrapeUser collects from `information_schema.processlist`.
-type ScrapeUser struct{}
+type ScrapeUser config.MysqlUserConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeUser) Name() string {
@@ -120,7 +112,7 @@ func (ScrapeUser) Version() float64 {
 }
 
 // Scrape collects data from database connection and sends it over channel as prometheus metric.
-func (ScrapeUser) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+func (s ScrapeUser) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 	var (
 		userRows *sql.Rows
@@ -214,7 +206,7 @@ func (ScrapeUser) Scrape(ctx context.Context, instance *instance, ch chan<- prom
 			return err
 		}
 
-		if *userPrivilegesFlag {
+		if s.Privileges {
 			userCols, err := userRows.Columns()
 			if err != nil {
 				return err

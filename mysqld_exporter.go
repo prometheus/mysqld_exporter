@@ -17,12 +17,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
 	"net/http"
 	"os"
-	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -39,6 +36,8 @@ import (
 	"github.com/prometheus/mysqld_exporter/config"
 )
 
+const defaultTimeoutOffsetSeconds = 0.25
+
 var (
 	metricsPath = kingpin.Flag(
 		"web.telemetry-path",
@@ -47,7 +46,7 @@ var (
 	timeoutOffset = kingpin.Flag(
 		"timeout-offset",
 		"Offset to subtract from timeout in seconds.",
-	).Default("0.25").Float64()
+	).Default(strconv.FormatFloat(defaultTimeoutOffsetSeconds, 'f', -1, 64)).Float64()
 	configMycnf = kingpin.Flag(
 		"config.my-cnf",
 		"Path to .my.cnf file to read MySQL credentials from.",
@@ -84,51 +83,69 @@ var (
 		"exporter.max_open_connections",
 		"Maximum number of open connections to the database per scrape. Must be >= 1.",
 	).Default("2").Int()
+	collectHeartbeatDatabase = kingpin.Flag(
+		"collect.heartbeat.database",
+		"Database from where to collect heartbeat data",
+	).Default(config.DefaultHeartbeatDatabase).String()
+	collectHeartbeatTable = kingpin.Flag(
+		"collect.heartbeat.table",
+		"Table from where to collect heartbeat data",
+	).Default(config.DefaultHeartbeatTable).String()
+	collectHeartbeatUTC = kingpin.Flag(
+		"collect.heartbeat.utc",
+		"Use UTC for timestamps of the current server (`pt-heartbeat` is called with `--utc`)",
+	).Bool()
+	processlistMinTime = kingpin.Flag(
+		"collect.info_schema.processlist.min_time",
+		"Minimum time a thread must be in each state to be counted",
+	).Default(strconv.Itoa(config.DefaultInfoSchemaProcesslistMinTime)).Int()
+	processesByUserFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_user",
+		"Enable collecting the number of processes by user",
+	).Default(strconv.FormatBool(config.DefaultInfoSchemaProcesslistProcessesByUser)).Bool()
+	processesByHostFlag = kingpin.Flag(
+		"collect.info_schema.processlist.processes_by_host",
+		"Enable collecting the number of processes by host",
+	).Default(strconv.FormatBool(config.DefaultInfoSchemaProcesslistProcessesByHost)).Bool()
+	tableSchemaDatabases = kingpin.Flag(
+		"collect.info_schema.tables.databases",
+		"The list of databases to collect table stats for, or '*' for all",
+	).Default(config.DefaultInfoSchemaTablesDatabases).String()
+	perfEventsStatementsLimit = kingpin.Flag(
+		"collect.perf_schema.eventsstatements.limit",
+		"Limit the number of events statements digests by response time",
+	).Default(strconv.Itoa(config.DefaultPerfSchemaEventsStatementsLimit)).Int()
+	perfEventsStatementsTimeLimit = kingpin.Flag(
+		"collect.perf_schema.eventsstatements.timelimit",
+		"Limit how old the 'last_seen' events statements can be, in seconds",
+	).Default(strconv.Itoa(config.DefaultPerfSchemaEventsStatementsTimeLimit)).Int()
+	perfEventsStatementsDigestTextLimit = kingpin.Flag(
+		"collect.perf_schema.eventsstatements.digest_text_limit",
+		"Maximum length of the normalized statement text",
+	).Default(strconv.Itoa(config.DefaultPerfSchemaEventsStatementsDigestTextLimit)).Int()
+	perfEventsStatementsExcludeSchemas = kingpin.Flag(
+		"collect.perf_schema.eventsstatements.exclude_schemas",
+		"Additional schema name to exclude (always excludes mysql, performance_schema, information_schema). Repeatable",
+	).Strings()
+	performanceSchemaFileInstancesFilter = kingpin.Flag(
+		"collect.perf_schema.file_instances.filter",
+		"RegEx file_name filter for performance_schema.file_summary_by_instance",
+	).Default(config.DefaultPerfSchemaFileInstancesFilter).String()
+	performanceSchemaFileInstancesRemovePrefix = kingpin.Flag(
+		"collect.perf_schema.file_instances.remove_prefix",
+		"Remove path prefix in performance_schema.file_summary_by_instance",
+	).Default(config.DefaultPerfSchemaFileInstancesRemovePrefix).String()
+	performanceSchemaMemoryEventsRemovePrefix = kingpin.Flag(
+		"collect.perf_schema.memory_events.remove_prefix",
+		"Remove instrument prefix in performance_schema.memory_summary_global_by_event_name",
+	).Default(config.DefaultPerfSchemaMemoryEventsRemovePrefix).String()
+	userPrivilegesFlag = kingpin.Flag(
+		"collect.mysql.user.privileges",
+		"Enable collecting user privileges from mysql.user",
+	).Default(strconv.FormatBool(config.DefaultMysqlUserPrivileges)).Bool()
 	toolkitFlags = webflag.AddFlags(kingpin.CommandLine, ":9104")
-	c            = config.MySqlConfigHandler{
-		Config: &config.Config{},
-	}
+	c            *config.AuthConfigHandler
 )
-
-// scrapers lists all possible collection methods and if they should be enabled by default.
-var scrapers = map[collector.Scraper]bool{
-	collector.ScrapeGlobalStatus{}:                        true,
-	collector.ScrapeGlobalVariables{}:                     true,
-	collector.ScrapeSlaveStatus{}:                         true,
-	collector.ScrapeProcesslist{}:                         false,
-	collector.ScrapeUser{}:                                false,
-	collector.ScrapeTableSchema{}:                         false,
-	collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
-	collector.ScrapeInnodbMetrics{}:                       false,
-	collector.ScrapeAutoIncrementColumns{}:                false,
-	collector.ScrapeBinlogSize{}:                          false,
-	collector.ScrapePerfTableIOWaits{}:                    false,
-	collector.ScrapePerfIndexIOWaits{}:                    false,
-	collector.ScrapePerfTableLockWaits{}:                  false,
-	collector.ScrapePerfEventsStatements{}:                false,
-	collector.ScrapePerfEventsStatementsSum{}:             false,
-	collector.ScrapePerfEventsWaits{}:                     false,
-	collector.ScrapePerfFileEvents{}:                      false,
-	collector.ScrapePerfFileInstances{}:                   false,
-	collector.ScrapePerfMemoryEvents{}:                    false,
-	collector.ScrapePerfReplicationGroupMembers{}:         false,
-	collector.ScrapePerfReplicationGroupMemberStats{}:     false,
-	collector.ScrapePerfReplicationApplierStatsByWorker{}: false,
-	collector.ScrapeSysUserSummary{}:                      false,
-	collector.ScrapeUserStat{}:                            false,
-	collector.ScrapeClientStat{}:                          false,
-	collector.ScrapeTableStat{}:                           false,
-	collector.ScrapeSchemaStat{}:                          false,
-	collector.ScrapeInnodbCmp{}:                           true,
-	collector.ScrapeInnodbCmpMem{}:                        true,
-	collector.ScrapeQueryResponseTime{}:                   true,
-	collector.ScrapeEngineTokudbStatus{}:                  false,
-	collector.ScrapeEngineInnodbStatus{}:                  false,
-	collector.ScrapeHeartbeat{}:                           false,
-	collector.ScrapeSlaveHosts{}:                          false,
-	collector.ScrapeReplicaHost{}:                         false,
-	collector.ScrapeRocksDBPerfContext{}:                  false,
-}
 
 func filterScrapers(scrapers []collector.Scraper, collectParams []string) []collector.Scraper {
 	var filteredScrapers []collector.Scraper
@@ -152,7 +169,7 @@ func filterScrapers(scrapers []collector.Scraper, collectParams []string) []coll
 	return filteredScrapers
 }
 
-func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
+func getScrapeTimeoutSeconds(r *http.Request, offsetSeconds float64) (float64, error) {
 	var timeoutSeconds float64
 	if v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds"); v != "" {
 		var err error
@@ -168,21 +185,80 @@ func getScrapeTimeoutSeconds(r *http.Request, offset float64) (float64, error) {
 		return 0, fmt.Errorf("timeout value from Prometheus header is invalid: %f", timeoutSeconds)
 	}
 
-	if offset >= timeoutSeconds {
+	if offsetSeconds >= timeoutSeconds {
 		// Ignore timeout offset if it doesn't leave time to scrape.
-		return 0, fmt.Errorf("timeout offset (%f) should be lower than prometheus scrape timeout (%f)", offset, timeoutSeconds)
+		return 0, fmt.Errorf("timeout offset (%f) should be lower than prometheus scrape timeout (%f)", offsetSeconds, timeoutSeconds)
 	} else {
 		// Subtract timeout offset from timeout.
-		timeoutSeconds -= offset
+		timeoutSeconds -= offsetSeconds
 	}
 	return timeoutSeconds, nil
+}
+
+func configForCollectParams(cfg config.Config, collectParams []string) config.Config {
+	enabledScrapers := collector.EnabledScrapers(cfg)
+	filteredScrapers := filterScrapers(enabledScrapers, collectParams)
+	if len(collectParams) == 0 || len(filteredScrapers) == len(enabledScrapers) {
+		return cfg
+	}
+
+	cfg.Collectors = make(map[string]bool, len(cfg.Collectors))
+	for name := range config.DefaultCollectorConfig() {
+		cfg.Collectors[name] = false
+	}
+	for _, scraper := range filteredScrapers {
+		cfg.Collectors[scraper.Name()] = true
+	}
+	return cfg
+}
+
+func configFromFlags(collectorFlags map[string]*bool) config.Config {
+	cfg := config.NewConfigWithDefaults()
+	for name, enabled := range collectorFlags {
+		cfg.Collectors[name] = *enabled
+	}
+	cfg.EnableExporterLockWaitTimeout = *enableExporterLockTimeout
+	cfg.ExporterLockWaitTimeoutSeconds = *exporterLockTimeout
+	cfg.SlowLogFilter = *slowLogFilter
+	cfg.ExporterQueryTimeout = time.Duration(*exporterQueryTimeout) * time.Second
+	cfg.ExporterMaxOpenConns = *exporterMaxOpenConns
+	cfg.Heartbeat = config.HeartbeatConfig{
+		Database: *collectHeartbeatDatabase,
+		Table:    *collectHeartbeatTable,
+		UTC:      *collectHeartbeatUTC,
+	}
+	cfg.InfoSchemaProcesslist = config.InfoSchemaProcesslistConfig{
+		MinTime:         *processlistMinTime,
+		ProcessesByUser: *processesByUserFlag,
+		ProcessesByHost: *processesByHostFlag,
+	}
+	cfg.InfoSchemaTables = config.InfoSchemaTablesConfig{
+		Databases: *tableSchemaDatabases,
+	}
+	cfg.PerfSchemaEventsStatements = config.PerfSchemaEventsStatementsConfig{
+		Limit:           *perfEventsStatementsLimit,
+		TimeLimit:       *perfEventsStatementsTimeLimit,
+		DigestTextLimit: *perfEventsStatementsDigestTextLimit,
+		ExcludeSchemas:  *perfEventsStatementsExcludeSchemas,
+	}
+	cfg.PerfSchemaFileInstances = config.PerfSchemaFileInstancesConfig{
+		Filter:       *performanceSchemaFileInstancesFilter,
+		RemovePrefix: *performanceSchemaFileInstancesRemovePrefix,
+	}
+	cfg.PerfSchemaMemoryEvents = config.PerfSchemaMemoryEventsConfig{
+		RemovePrefix: *performanceSchemaMemoryEventsRemovePrefix,
+	}
+	cfg.MysqlUser = config.MysqlUserConfig{
+		Privileges: *userPrivilegesFlag,
+	}
+	return cfg
 }
 
 func init() {
 	prometheus.MustRegister(versioncollector.NewCollector("mysqld_exporter"))
 }
 
-func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerFunc {
+func newHandler(baseConfig config.Config, timeoutOffsetSeconds float64, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const authModule string = "client"
 		var dsn string
@@ -193,8 +269,8 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 			target = q.Get("target")
 		}
 
-		cfg := c.GetConfig()
-		cfgsection, ok := cfg.Sections[authModule]
+		authConfig := c.GetConfig()
+		cfgsection, ok := authConfig.Sections[authModule]
 		if !ok {
 			logger.Error(fmt.Sprintf("Failed to parse section [%s] from config file", authModule), "err", err)
 		}
@@ -207,7 +283,7 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 		// Use request context for cancellation when connection gets closed.
 		ctx := r.Context()
 		// If a timeout is configured via the Prometheus header, add it to the context.
-		timeoutSeconds, err := getScrapeTimeoutSeconds(r, *timeoutOffset)
+		timeoutSeconds, err := getScrapeTimeoutSeconds(r, timeoutOffsetSeconds)
 		if err != nil {
 			logger.Error("Error getting timeout from Prometheus header", "err", err)
 		}
@@ -220,17 +296,23 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 			r = r.WithContext(ctx)
 		}
 
-		filteredScrapers := filterScrapers(scrapers, collect)
+		cfg := configForCollectParams(baseConfig, collect)
+		cfg.DataSourceName = dsn
 
 		registry := prometheus.NewRegistry()
+		runtime, err := collector.NewRuntimeWithContext(ctx, cfg, logger)
+		if err != nil {
+			logger.Error("Error creating runtime", "err", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer func() {
+			_ = runtime.Shutdown(context.Background())
+		}()
 
-		registry.MustRegister(collector.New(ctx, dsn, filteredScrapers, logger,
-			collector.EnableLockWaitTimeout(*enableExporterLockTimeout),
-			collector.SetLockWaitTimeout(*exporterLockTimeout),
-			collector.SetSlowLogFilter(*slowLogFilter),
-			collector.SetQueryTimeout(time.Duration(*exporterQueryTimeout)*time.Second),
-			collector.SetMaxOpenConns(*exporterMaxOpenConns),
-		))
+		for _, c := range runtime.Collectors() {
+			registry.MustRegister(c)
+		}
 
 		gatherers := prometheus.Gatherers{
 			prometheus.DefaultGatherer,
@@ -242,27 +324,27 @@ func newHandler(scrapers []collector.Scraper, logger *slog.Logger) http.HandlerF
 	}
 }
 
-func validateExporterFlags(maxOpenConns, queryTimeout int) error {
+func validateExporterFlags(maxOpenConns, queryTimeout int, timeoutOffsetSeconds float64) error {
 	if maxOpenConns < 1 {
 		return fmt.Errorf("invalid value for --exporter.max_open_connections, must be >= 1: %d", maxOpenConns)
 	}
 	if queryTimeout < 0 {
 		return fmt.Errorf("invalid value for --exporter.query_timeout, must be >= 0: %d", queryTimeout)
 	}
+	if timeoutOffsetSeconds < 0 {
+		return fmt.Errorf("invalid value for --timeout-offset, must be >= 0: %f", timeoutOffsetSeconds)
+	}
 	return nil
 }
 
 func main() {
-	// Sort scrapers by name so that flag registration and processing happen
-	// in a deterministic order, as map iteration order is undefined.
-	sortedScrapers := slices.SortedFunc(maps.Keys(scrapers), func(a, b collector.Scraper) int {
-		return strings.Compare(a.Name(), b.Name())
-	})
 	// Generate ON/OFF flags for all scrapers.
-	scraperFlags := map[collector.Scraper]*bool{}
-	for _, scraper := range sortedScrapers {
+	defaultConfig := config.NewConfigWithDefaults()
+	scraperFlags := map[string]*bool{}
+	for _, scraper := range collector.AllScrapers(defaultConfig) {
+		enabledByDefault := defaultConfig.Collectors[scraper.Name()]
 		defaultOn := "false"
-		if scrapers[scraper] {
+		if enabledByDefault {
 			defaultOn = "true"
 		}
 
@@ -271,7 +353,7 @@ func main() {
 			scraper.Help(),
 		).Default(defaultOn).Bool()
 
-		scraperFlags[scraper] = f
+		scraperFlags[scraper.Name()] = f
 	}
 
 	// Parse flags.
@@ -285,26 +367,33 @@ func main() {
 	logger.Info("Starting mysqld_exporter", "version", version.Info())
 	logger.Info("Build context", "build_context", version.BuildContext())
 
-	if err := validateExporterFlags(*exporterMaxOpenConns, *exporterQueryTimeout); err != nil {
+	if err := validateExporterFlags(*exporterMaxOpenConns, *exporterQueryTimeout, *timeoutOffset); err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
 
 	var err error
+	c, err = config.NewAuthConfigHandler(prometheus.DefaultRegisterer)
+	if err != nil {
+		logger.Error("Error creating config handler", "err", err)
+		os.Exit(1)
+	}
 	if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 		logger.Info("Error parsing host config", "file", *configMycnf, "err", err)
 		os.Exit(1)
 	}
 
 	// Register only scrapers enabled by flag.
-	enabledScrapers := []collector.Scraper{}
-	for _, scraper := range sortedScrapers {
-		if *scraperFlags[scraper] {
-			logger.Info("Scraper enabled", "scraper", scraper.Name())
-			enabledScrapers = append(enabledScrapers, scraper)
+	cfg := configFromFlags(scraperFlags)
+	for _, scraper := range collector.EnabledScrapers(cfg) {
+		logger.Info("Scraper enabled", "scraper", scraper.Name())
+	}
+	for scraperName, enabled := range scraperFlags {
+		if *enabled {
+			cfg.Collectors[scraperName] = true
 		}
 	}
-	handlerFunc := newHandler(enabledScrapers, logger)
+	handlerFunc := newHandler(cfg, *timeoutOffset, logger)
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, handlerFunc))
 	if *metricsPath != "/" && *metricsPath != "" {
 		landingConfig := web.LandingConfig{
@@ -325,7 +414,7 @@ func main() {
 		}
 		http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/probe", handleProbe(enabledScrapers, logger))
+	http.HandleFunc("/probe", handleProbe(cfg, *timeoutOffset, logger))
 	http.HandleFunc("/-/reload", func(w http.ResponseWriter, r *http.Request) {
 		if err = c.ReloadConfig(*configMycnf, *mysqldAddress, *mysqldUser, *tlsInsecureSkipVerify, logger); err != nil {
 			logger.Warn("Error reloading host config", "file", *configMycnf, "error", err)

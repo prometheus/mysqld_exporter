@@ -45,10 +45,13 @@ jobs:
           - mysql:5.7.33
           - mysql:8.0
           - mysql:8.4
+          - mysql:9.7
           - mariadb:10.5
           - mariadb:10.6
           - mariadb:10.11
           - mariadb:11.4
+          - mariadb:11.8
+          - mariadb:12.3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

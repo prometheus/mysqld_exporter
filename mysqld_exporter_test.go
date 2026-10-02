@@ -298,6 +298,16 @@ func getBody(urlToGet string) ([]byte, error) {
 	return body, nil
 }
 
+func TestInnodbTrxCollectorRegistration(t *testing.T) {
+	scraper := collector.ScrapeInnodbTrx{}
+	if got := scraper.Name(); got != "info_schema.innodb_trx" {
+		t.Fatalf("collector name = %q", got)
+	}
+	if enabled, exists := scrapers[scraper]; !exists || enabled {
+		t.Fatal("InnoDB transaction collector must be registered and disabled by default")
+	}
+}
+
 func Test_filterScrapers(t *testing.T) {
 	type args struct {
 		scrapers      []collector.Scraper

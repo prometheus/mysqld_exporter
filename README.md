@@ -126,6 +126,7 @@ collect.heartbeat.utc                                        | 5.1           | U
 collect.info_schema.clientstats                              | 5.5           | If running with userstat=1, set to true to collect client statistics.
 collect.info_schema.innodb_metrics                           | 5.6           | Collect metrics from information_schema.innodb_metrics.
 collect.info_schema.innodb_tablespaces                       | 5.7           | Collect metrics from information_schema.innodb_sys_tablespaces.
+collect.info_schema.innodb_trx                               | 5.5           | Collect active InnoDB transaction counts and oldest transaction age by state (disabled by default).
 collect.info_schema.innodb_cmp                               | 5.5           | Collect InnoDB compressed tables metrics from information_schema.innodb_cmp.
 collect.info_schema.innodb_cmpmem                            | 5.5           | Collect InnoDB buffer pool compression metrics from information_schema.innodb_cmpmem.
 collect.info_schema.processlist                              | 5.1           | Collect thread state counts from information_schema.processlist.
@@ -249,6 +250,33 @@ reference heartbeat implementation supported.
 
 [pth]:https://www.percona.com/doc/percona-toolkit/2.2/pt-heartbeat.html
 
+
+## InnoDB transactions
+
+Enable `--collect.info_schema.innodb_trx` to collect from
+`information_schema.innodb_trx`. This collector supports MySQL >= 5.6,
+Percona Server for MySQL >= 5.6, and MariaDB >= 10.3. It requires the `PROCESS`
+privilege, included in the [required grants](#required-grants).
+The `5.5` entry in the collector flags table reflects availability of
+`INNODB_TRX` in [MySQL 5.5](https://downloads.mysql.com/docs/refman-5.5-en.a4.pdf);
+the exporter's supported MySQL minimum remains 5.6.
+See the [MySQL](https://dev.mysql.com/doc/refman/8.4/en/information-schema-innodb-trx-table.html)
+and [MariaDB](https://mariadb.com/docs/server/reference/system-tables/information-schema/information-schema-tables/information-schema-innodb-tables/information-schema-innodb_trx-table)
+table documentation.
+
+Metric | Type | Description
+-------|------|------------
+`mysql_info_schema_innodb_trx_transactions` | Gauge | Number of active transactions in each state.
+`mysql_info_schema_innodb_trx_oldest_transaction_age_seconds` | Gauge | Age in seconds of the oldest active transaction in each state.
+
+Both metrics have a `state` label using the database's values: `RUNNING`,
+`LOCK WAIT`, `ROLLING BACK`, or `COMMITTING`. Only states present in the table
+are emitted; an empty table produces no transaction metrics. The collector
+includes transactions of all ages. Choose alert thresholds in PromQL, for example:
+
+```promql
+max by (instance) (mysql_info_schema_innodb_trx_oldest_transaction_age_seconds) > 300
+```
 
 ## Filtering enabled collectors
 

@@ -39,8 +39,8 @@ var (
 		"Number of active InnoDB transactions by state.",
 		[]string{"state"}, nil,
 	)
-	innodbTrxOldestTransactionDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, informationSchema, "innodb_trx_oldest_transaction_seconds"),
+	innodbTrxOldestTransactionAgeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, informationSchema, "innodb_trx_oldest_transaction_age_seconds"),
 		"Age in seconds of the oldest active InnoDB transaction by state.",
 		[]string{"state"}, nil,
 	)
@@ -77,7 +77,7 @@ func (ScrapeInnodbTrx) Scrape(ctx context.Context, instance *instance, ch chan<-
 			return fmt.Errorf("scan InnoDB transactions: %w", err)
 		}
 		ch <- prometheus.MustNewConstMetric(innodbTrxTransactionsDesc, prometheus.GaugeValue, count, state)
-		ch <- prometheus.MustNewConstMetric(innodbTrxOldestTransactionDesc, prometheus.GaugeValue, oldestAge, state)
+		ch <- prometheus.MustNewConstMetric(innodbTrxOldestTransactionAgeDesc, prometheus.GaugeValue, oldestAge, state)
 	}
 	return rows.Err()
 }

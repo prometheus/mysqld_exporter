@@ -267,7 +267,7 @@ table documentation.
 Metric | Type | Description
 -------|------|------------
 `mysql_info_schema_innodb_trx_transactions` | Gauge | Number of active transactions in each state.
-`mysql_info_schema_innodb_trx_oldest_transaction_seconds` | Gauge | Age in seconds of the oldest active transaction in each state.
+`mysql_info_schema_innodb_trx_oldest_transaction_age_seconds` | Gauge | Age in seconds of the oldest active transaction in each state.
 
 Both metrics have a `state` label using the database's values: `RUNNING`,
 `LOCK WAIT`, `ROLLING BACK`, or `COMMITTING`. Only states present in the table
@@ -275,7 +275,7 @@ are emitted; an empty table produces no transaction metrics. The collector
 includes transactions of all ages. Choose alert thresholds in PromQL, for example:
 
 ```promql
-max by (instance) (mysql_info_schema_innodb_trx_oldest_transaction_seconds) > 300
+max by (instance) (mysql_info_schema_innodb_trx_oldest_transaction_age_seconds) > 300
 ```
 
 ## Filtering enabled collectors

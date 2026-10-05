@@ -52,7 +52,7 @@ func assertInnodbTrxMetric(t *testing.T, metric prometheus.Metric, age bool, sta
 
 	desc := innodbTrxTransactionsDesc.String()
 	if age {
-		desc = innodbTrxOldestTransactionDesc.String()
+		desc = innodbTrxOldestTransactionAgeDesc.String()
 	}
 	if got := metric.Desc().String(); got != desc {
 		t.Errorf("descriptor = %s, want %s", got, desc)
@@ -313,7 +313,7 @@ func TestScrapeInnodbTrxIntegration(t *testing.T) {
 				switch metric.Desc() {
 				case innodbTrxTransactionsDesc:
 					values.count = result.value
-				case innodbTrxOldestTransactionDesc:
+				case innodbTrxOldestTransactionAgeDesc:
 					values.age = result.value
 				default:
 					t.Fatalf("unexpected metric: %s", metric.Desc())

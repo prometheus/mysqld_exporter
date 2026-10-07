@@ -308,6 +308,16 @@ func TestInnodbTrxCollectorRegistration(t *testing.T) {
 	}
 }
 
+func TestSchemaSizeCollectorRegistration(t *testing.T) {
+	scraper := collector.ScrapeSchemaSize{}
+	if got := scraper.Name(); got != "info_schema.schema_size" {
+		t.Fatalf("collector name = %q", got)
+	}
+	if enabled, exists := scrapers[scraper]; !exists || enabled {
+		t.Fatal("schema size collector must be registered and disabled by default")
+	}
+}
+
 func Test_filterScrapers(t *testing.T) {
 	type args struct {
 		scrapers      []collector.Scraper

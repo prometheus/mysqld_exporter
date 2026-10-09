@@ -37,7 +37,8 @@ const (
 		    ifnull(DATA_LENGTH, '0') as DATA_LENGTH,
 		    ifnull(INDEX_LENGTH, '0') as INDEX_LENGTH,
 		    ifnull(DATA_FREE, '0') as DATA_FREE,
-		    ifnull(CREATE_OPTIONS, 'NONE') as CREATE_OPTIONS
+		    ifnull(CREATE_OPTIONS, 'NONE') as CREATE_OPTIONS,
+		    ifnull(TABLE_COLLATION, '') as TABLE_COLLATION
 		  FROM information_schema.tables
 		  WHERE TABLE_SCHEMA = ?
 		`
@@ -62,7 +63,7 @@ var (
 	infoSchemaTablesVersionDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "table_version"),
 		"The version number of the table's .frm file",
-		[]string{"schema", "table", "type", "engine", "row_format", "create_options"}, nil,
+		[]string{"schema", "table", "type", "engine", "row_format", "create_options", "collation"}, nil,
 	)
 	infoSchemaTablesRowsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, informationSchema, "table_rows"),
@@ -138,6 +139,7 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan
 			indexLength   uint64
 			dataFree      uint64
 			createOptions string
+			collation     string
 		)
 
 		for tableSchemaRows.Next() {
@@ -153,13 +155,14 @@ func (ScrapeTableSchema) Scrape(ctx context.Context, instance *instance, ch chan
 				&indexLength,
 				&dataFree,
 				&createOptions,
+				&collation,
 			)
 			if err != nil {
 				return err
 			}
 			ch <- prometheus.MustNewConstMetric(
 				infoSchemaTablesVersionDesc, prometheus.GaugeValue, float64(version),
-				tableSchema, tableName, tableType, engine, rowFormat, createOptions,
+				tableSchema, tableName, tableType, engine, rowFormat, createOptions, collation,
 			)
 			ch <- prometheus.MustNewConstMetric(
 				infoSchemaTablesRowsDesc, prometheus.GaugeValue, float64(tableRows),

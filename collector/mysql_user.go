@@ -101,7 +101,7 @@ var (
 		labelNames, nil)
 )
 
-// ScrapeUser collects from `information_schema.processlist`.
+// ScrapeUser collects from `information_schema.processlist` or `performance_schema.processlist`.
 type ScrapeUser struct{}
 
 // Name of the Scraper. Should be unique.

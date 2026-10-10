@@ -134,6 +134,7 @@ collect.info_schema.processlist.min_time                     | 5.1           | M
 collect.info_schema.query_response_time                      | 5.5           | Collect query response time distribution if query_response_time_stats is ON.
 collect.info_schema.replica_host                             | 5.6           | Collect metrics from information_schema.replica_host_status.
 collect.info_schema.rocksdb_perf_context                     | 5.6           | Collect RocksDB metrics from information_schema.ROCKSDB_PERF_CONTEXT.
+collect.info_schema.schema_size                              | 5.6           | Collect the size of each schema from information_schema.tables (disabled by default).
 collect.info_schema.tables                                   | 5.1           | Collect metrics from information_schema.tables.
 collect.info_schema.tables.databases                         | 5.1           | The list of databases to collect table stats for, or '`*`' for all.
 collect.info_schema.tablestats                               | 5.1           | If running with userstat=1, set to true to collect table statistics.
@@ -277,6 +278,30 @@ includes transactions of all ages. Choose alert thresholds in PromQL, for exampl
 ```promql
 max by (instance) (mysql_info_schema_innodb_trx_oldest_transaction_age_seconds) > 300
 ```
+
+## Schema size
+
+Enable `--collect.info_schema.schema_size` to collect the size of each schema
+(database) from `information_schema.tables`. This collector supports MySQL >= 5.6,
+Percona Server for MySQL >= 5.6, and MariaDB >= 10.3. See the
+[MySQL](https://dev.mysql.com/doc/refman/8.4/en/information-schema-tables-table.html)
+and [MariaDB](https://mariadb.com/docs/server/reference/system-tables/information-schema/information-schema-tables/information-schema-tables-table)
+table documentation. Unlike `--collect.info_schema.tables`, which exposes
+series for every table, this collector exposes one series per schema, so its
+cardinality does not grow with the number of tables. It needs no privileges beyond the
+[required grants](#required-grants); schemas without tables, or whose tables are
+not visible to the exporter user, are not reported.
+
+Metric | Type | Description
+-------|------|------------
+`mysql_info_schema_schema_size_bytes` | Gauge | Sum of data and index lengths of the tables in each schema.
+
+The metric has a `schema` label. As with `--collect.info_schema.tables`, the
+`mysql`, `performance_schema`, `information_schema` and `sys` schemas are not
+reported. On MySQL >= 8.0, table sizes in
+`information_schema.tables` are cached according to
+[`information_schema_stats_expiry`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_information_schema_stats_expiry)
+(24 hours by default), so the metric may lag behind the actual size.
 
 ## Filtering enabled collectors
 

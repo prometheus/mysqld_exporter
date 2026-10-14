@@ -98,6 +98,7 @@ var scrapers = map[collector.Scraper]bool{
 	collector.ScrapeProcesslist{}:                         false,
 	collector.ScrapeUser{}:                                false,
 	collector.ScrapeTableSchema{}:                         false,
+	collector.ScrapeSchemaSize{}:                          false,
 	collector.ScrapeInfoSchemaInnodbTablespaces{}:         false,
 	collector.ScrapeInnodbMetrics{}:                       false,
 	collector.ScrapeInnodbTrx{}:                           false,

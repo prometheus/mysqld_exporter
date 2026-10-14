@@ -73,8 +73,8 @@ Sample config file for multiple configurations
         user = baz
         password = MY_$$ECRET
 
-If your password contains a dollar sign (<span>$</span>) and you don't want it to be interpreted as an environment variable,
-escape it by doubling it (<span>$</span><span>$</span>). In the example above, the password for `client.servers2` is `MY_$ECRET`.
+If your password contains a dollar sign (`$`) and you don't want it to be interpreted as an environment variable,
+escape it by doubling it (`$$`). In the example above, the password for `client.servers2` is `MY_$ECRET`.
 
 On the prometheus side you can set a scrape config as follows
 

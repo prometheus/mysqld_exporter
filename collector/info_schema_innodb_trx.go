@@ -22,6 +22,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const innodbTrxQuery = `
@@ -47,7 +48,7 @@ var (
 )
 
 // ScrapeInnodbTrx collects from information_schema.innodb_trx.
-type ScrapeInnodbTrx struct{}
+type ScrapeInnodbTrx config.EmptyConfig
 
 func (ScrapeInnodbTrx) Name() string {
 	return informationSchema + ".innodb_trx"

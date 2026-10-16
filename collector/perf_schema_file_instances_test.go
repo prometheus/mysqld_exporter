@@ -19,19 +19,14 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/mysqld_exporter/config"
 	"github.com/smartystreets/goconvey/convey"
 )
 
 func TestScrapePerfFileInstances(t *testing.T) {
-	_, err := kingpin.CommandLine.Parse([]string{"--collect.perf_schema.file_instances.filter", ""})
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error opening a stub database connection: %s", err)
@@ -49,7 +44,11 @@ func TestScrapePerfFileInstances(t *testing.T) {
 
 	ch := make(chan prometheus.Metric)
 	go func() {
-		if err = (ScrapePerfFileInstances{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+		scraper := ScrapePerfFileInstances{
+			Filter:       config.DefaultPerfSchemaFileInstancesFilter,
+			RemovePrefix: config.DefaultPerfSchemaFileInstancesRemovePrefix,
+		}
+		if err = scraper.Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
 			panic(fmt.Sprintf("error calling function on test: %s", err))
 		}
 		close(ch)

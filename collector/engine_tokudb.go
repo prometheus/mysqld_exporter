@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 )
 
 // ScrapeEngineTokudbStatus scrapes from `SHOW ENGINE TOKUDB STATUS`.
-type ScrapeEngineTokudbStatus struct{}
+type ScrapeEngineTokudbStatus config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeEngineTokudbStatus) Name() string {

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const (
@@ -123,7 +124,7 @@ var (
 )
 
 // ScrapeGlobalVariables collects from `SHOW GLOBAL VARIABLES`.
-type ScrapeGlobalVariables struct{}
+type ScrapeGlobalVariables config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeGlobalVariables) Name() string {

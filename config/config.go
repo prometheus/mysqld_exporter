@@ -189,6 +189,7 @@ func DefaultCollectorConfig() map[string]bool {
 		"info_schema.tables":                               false,
 		"info_schema.innodb_tablespaces":                   false,
 		"info_schema.innodb_metrics":                       false,
+		"info_schema.innodb_trx":                           false,
 		"auto_increment.columns":                           false,
 		"binlog_size":                                      false,
 		"perf_schema.tableiowaits":                         false,

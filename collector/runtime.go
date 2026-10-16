@@ -97,6 +97,7 @@ func AllScrapers(cfg config.Config) []Scraper {
 		ScrapeTableSchema(cfg.InfoSchemaTables),
 		ScrapeInfoSchemaInnodbTablespaces(emptyConfig),
 		ScrapeInnodbMetrics(emptyConfig),
+		ScrapeInnodbTrx(emptyConfig),
 		ScrapeAutoIncrementColumns(emptyConfig),
 		ScrapeBinlogSize(emptyConfig),
 		ScrapePerfTableIOWaits(emptyConfig),

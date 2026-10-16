@@ -149,3 +149,26 @@ func TestEnabledScrapersUsesConfig(t *testing.T) {
 		t.Fatalf("unexpected scraper: got %s, want heartbeat", scrapers[0].Name())
 	}
 }
+
+func TestAllScrapersMatchCollectorConfig(t *testing.T) {
+	cfg := config.NewConfigWithDefaults()
+	configured := cfg.Collectors
+	registered := make(map[string]bool, len(configured))
+
+	for _, scraper := range AllScrapers(cfg) {
+		name := scraper.Name()
+		if registered[name] {
+			t.Errorf("scraper %q is registered more than once", name)
+		}
+		registered[name] = true
+		if _, ok := configured[name]; !ok {
+			t.Errorf("scraper %q has no collector configuration", name)
+		}
+	}
+
+	for name := range configured {
+		if !registered[name] {
+			t.Errorf("configured collector %q has no registered scraper", name)
+		}
+	}
+}

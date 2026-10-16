@@ -31,6 +31,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/mysqld_exporter/collector"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 // bin stores information about path of executable and attached port
@@ -305,7 +306,8 @@ func TestInnodbTrxCollectorRegistration(t *testing.T) {
 	if got := scraper.Name(); got != "info_schema.innodb_trx" {
 		t.Fatalf("collector name = %q", got)
 	}
-	if enabled, exists := scrapers[scraper]; !exists || enabled {
+	cfg := config.NewConfigWithDefaults()
+	if enabled, exists := cfg.Collectors[scraper.Name()]; !exists || enabled {
 		t.Fatal("InnoDB transaction collector must be registered and disabled by default")
 	}
 }

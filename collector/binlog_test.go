@@ -67,3 +67,45 @@ func TestScrapeBinlogSize(t *testing.T) {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
 }
+
+func TestScrapeBinlogSizeDottedBasename(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+
+	inst := &instance{db: db}
+
+	mock.ExpectQuery(logbinQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
+
+	columns := []string{"Log_name", "File_size"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("db1.example-bin.000001", "100").
+		AddRow("db1.example-bin.000042", "200")
+	mock.ExpectQuery(sanitizeQuery(binlogQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeBinlogSize{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	counterExpected := []MetricResult{
+		{labels: labelMap{}, value: 300, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 2, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 42, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Metrics comparison", t, func() {
+		for _, expect := range counterExpected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}

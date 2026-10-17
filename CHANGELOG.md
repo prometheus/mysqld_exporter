@@ -6,7 +6,7 @@ Changes:
 
 * [CHANGE]
 * [FEATURE]
-* [ENHANCEMENT]
+* [ENHANCEMENT] Add collation label to mysql_info_schema_table_version #161
 * [BUGFIX]
 
 ## 0.20.0 / 2026-08-12

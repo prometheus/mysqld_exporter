@@ -65,3 +65,42 @@ func TestScrapeSlaveStatus(t *testing.T) {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
 }
+
+func TestScrapeReplicaStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+	inst := &instance{db: db}
+
+	columns := []string{"Source_Host", "Replica_IO_Running", "Replica_SQL_Running", "Seconds_Behind_Source"}
+	rows := sqlmock.NewRows(columns).
+		AddRow("127.0.0.1", "Connecting", "Yes", "2")
+	mock.ExpectQuery(sanitizeQuery("SHOW REPLICA STATUS")).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	labels := labelMap{"channel_name": "", "connection_name": "", "master_host": "127.0.0.1", "master_uuid": ""}
+	expected := []MetricResult{
+		{labels: labels, value: 0, metricType: dto.MetricType_GAUGE},
+		{labels: labels, value: 1, metricType: dto.MetricType_GAUGE},
+		{labels: labels, value: 2, metricType: dto.MetricType_GAUGE},
+	}
+	convey.Convey("Replica metrics comparison", t, func() {
+		for _, expect := range expected {
+			got := readMetric(<-ch)
+			convey.So(got, convey.ShouldResemble, expect)
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}

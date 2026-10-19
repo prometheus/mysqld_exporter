@@ -104,7 +104,7 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{}, value: 15, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{}, value: 16, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{}, value: 17, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 11, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{}, value: 11, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
 		{labels: labelMap{"wsrep_local_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_cluster_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_provider_version": "3.16(r5c765eb)"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{}, value: 0.000227664, metricType: dto.MetricType_GAUGE},

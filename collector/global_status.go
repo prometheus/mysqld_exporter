@@ -46,6 +46,7 @@ var globalStatusMetricTypes = map[string]prometheus.ValueType{
 	"threads_connected":       prometheus.GaugeValue,
 	"threads_running":         prometheus.GaugeValue,
 	"uptime":                  prometheus.GaugeValue,
+	"validate_password_dictionary_file_words_count": prometheus.GaugeValue,
 }
 
 // Metric descriptors.
@@ -134,19 +135,15 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 		}
 		if floatVal, ok := parseStatus(val); ok { // Unparsable values are silently skipped.
 			key = validPrometheusName(key)
-			if metricType, ok := globalStatusMetricTypes[key]; ok {
-				ch <- prometheus.MustNewConstMetric(
-					newDesc(globalStatus, key, "Metric from SHOW GLOBAL STATUS."),
-					metricType,
-					floatVal,
-				)
-				continue
-			}
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
+				metricType := prometheus.UntypedValue
+				if typed, ok := globalStatusMetricTypes[key]; ok {
+					metricType = typed
+				}
 				ch <- prometheus.MustNewConstMetric(
 					newDesc(globalStatus, key, "Generic metric from SHOW GLOBAL STATUS."),
-					prometheus.UntypedValue,
+					metricType,
 					floatVal,
 				)
 				continue

@@ -22,6 +22,7 @@ import (
 	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 const schemaSizeQuery = `
@@ -43,7 +44,7 @@ var (
 )
 
 // ScrapeSchemaSize collects from `information_schema.tables` aggregated by schema.
-type ScrapeSchemaSize struct{}
+type ScrapeSchemaSize config.EmptyConfig
 
 // Name of the Scraper. Should be unique.
 func (ScrapeSchemaSize) Name() string {

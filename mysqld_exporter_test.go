@@ -317,7 +317,8 @@ func TestSchemaSizeCollectorRegistration(t *testing.T) {
 	if got := scraper.Name(); got != "info_schema.schema_size" {
 		t.Fatalf("collector name = %q", got)
 	}
-	if enabled, exists := scrapers[scraper]; !exists || enabled {
+	cfg := config.NewConfigWithDefaults()
+	if enabled, exists := cfg.Collectors[scraper.Name()]; !exists || enabled {
 		t.Fatal("schema size collector must be registered and disabled by default")
 	}
 }

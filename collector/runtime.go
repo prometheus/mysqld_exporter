@@ -95,6 +95,7 @@ func AllScrapers(cfg config.Config) []Scraper {
 		ScrapeProcesslist(cfg.InfoSchemaProcesslist),
 		ScrapeUser(cfg.MysqlUser),
 		ScrapeTableSchema(cfg.InfoSchemaTables),
+		ScrapeSchemaSize(emptyConfig),
 		ScrapeInfoSchemaInnodbTablespaces(emptyConfig),
 		ScrapeInnodbMetrics(emptyConfig),
 		ScrapeInnodbTrx(emptyConfig),

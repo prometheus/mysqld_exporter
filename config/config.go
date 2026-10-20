@@ -187,6 +187,7 @@ func DefaultCollectorConfig() map[string]bool {
 		"info_schema.processlist":                          false,
 		"mysql.user":                                       false,
 		"info_schema.tables":                               false,
+		"info_schema.schema_size":                          false,
 		"info_schema.innodb_tablespaces":                   false,
 		"info_schema.innodb_metrics":                       false,
 		"info_schema.innodb_trx":                           false,

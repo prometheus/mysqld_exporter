@@ -37,6 +37,20 @@ const (
 // Regexp to match various groups of status vars.
 var globalStatusRE = regexp.MustCompile(`^(com|handler|connection_errors|innodb_buffer_pool_pages|innodb_rows|performance_schema)_(.*)$`)
 
+var globalStatusMetricTypes = map[string]prometheus.ValueType{
+	"queries":                 prometheus.CounterValue,
+	"questions":               prometheus.CounterValue,
+	"slow_queries":            prometheus.CounterValue,
+	"slave_running":           prometheus.GaugeValue,
+	"table_open_cache_hits":   prometheus.CounterValue,
+	"table_open_cache_misses": prometheus.CounterValue,
+	"threads_connected":       prometheus.GaugeValue,
+	"threads_running":         prometheus.GaugeValue,
+	"uptime":                  prometheus.GaugeValue,
+	"validate_password_dictionary_file_words_count": prometheus.GaugeValue,
+	"wsrep_cluster_status":                          prometheus.GaugeValue,
+}
+
 // Metric descriptors.
 var (
 	globalCommandsDesc = prometheus.NewDesc(
@@ -125,9 +139,13 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 			key = validPrometheusName(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
+				metricType := prometheus.UntypedValue
+				if typed, ok := globalStatusMetricTypes[key]; ok {
+					metricType = typed
+				}
 				ch <- prometheus.MustNewConstMetric(
 					newDesc(globalStatus, key, "Generic metric from SHOW GLOBAL STATUS."),
-					prometheus.UntypedValue,
+					metricType,
 					floatVal,
 				)
 				continue

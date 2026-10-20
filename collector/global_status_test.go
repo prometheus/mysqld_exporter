@@ -54,6 +54,13 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		AddRow("Slave_running", "OFF").
 		AddRow("Ssl_version", "").
 		AddRow("Uptime", "10").
+		AddRow("Threads_connected", "11").
+		AddRow("Threads_running", "12").
+		AddRow("Slow_queries", "13").
+		AddRow("Queries", "14").
+		AddRow("Questions", "15").
+		AddRow("Table_open_cache_hits", "16").
+		AddRow("Table_open_cache_misses", "17").
 		AddRow("validate_password.dictionary_file_words_count", "11").
 		AddRow("wsrep_cluster_status", "Primary").
 		AddRow("wsrep_local_state_uuid", "6c06e583-686f-11e6-b9e3-8336ad58138c").
@@ -88,10 +95,17 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		{labels: labelMap{"operation": "made_young"}, value: 15, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"operation": "read"}, value: 8, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"instrumentation": "users_lost"}, value: 9, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{}, value: 0, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 10, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 11, metricType: dto.MetricType_UNTYPED},
-		{labels: labelMap{}, value: 1, metricType: dto.MetricType_UNTYPED},
+		{labels: labelMap{}, value: 0, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 10, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 11, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 12, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 13, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 14, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 15, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 16, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 17, metricType: dto.MetricType_COUNTER},
+		{labels: labelMap{}, value: 11, metricType: dto.MetricType_GAUGE},
+		{labels: labelMap{}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{"wsrep_local_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_cluster_state_uuid": "6c06e583-686f-11e6-b9e3-8336ad58138c", "wsrep_provider_version": "3.16(r5c765eb)"}, value: 1, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{}, value: 0.000227664, metricType: dto.MetricType_GAUGE},
 		{labels: labelMap{}, value: 0.00034135, metricType: dto.MetricType_GAUGE},

@@ -35,6 +35,15 @@ const (
 var slaveStatusQueries = [3]string{"SHOW ALL SLAVES STATUS", "SHOW SLAVE STATUS", "SHOW REPLICA STATUS"}
 var slaveStatusQuerySuffixes = [3]string{" NONBLOCKING", " NOLOCK", ""}
 
+var slaveStatusMetricTypes = map[string]prometheus.ValueType{
+	"replica_io_running":    prometheus.GaugeValue,
+	"replica_sql_running":   prometheus.GaugeValue,
+	"seconds_behind_master": prometheus.GaugeValue,
+	"seconds_behind_source": prometheus.GaugeValue,
+	"slave_io_running":      prometheus.GaugeValue,
+	"slave_sql_running":     prometheus.GaugeValue,
+}
+
 func columnIndex(slaveCols []string, colName string) int {
 	for idx := range slaveCols {
 		if slaveCols[idx] == colName {
@@ -128,6 +137,10 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 
 		for i, col := range slaveCols {
 			if value, ok := parseStatus(*scanArgs[i].(*sql.RawBytes)); ok { // Silently skip unparsable values.
+				metricType := prometheus.UntypedValue
+				if typed, ok := slaveStatusMetricTypes[strings.ToLower(col)]; ok {
+					metricType = typed
+				}
 				ch <- prometheus.MustNewConstMetric(
 					prometheus.NewDesc(
 						prometheus.BuildFQName(namespace, slaveStatus, strings.ToLower(col)),
@@ -135,7 +148,7 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 						[]string{"master_host", "master_uuid", "channel_name", "connection_name"},
 						nil,
 					),
-					prometheus.UntypedValue,
+					metricType,
 					value,
 					masterHost, masterUUID, channelName, connectionName,
 				)

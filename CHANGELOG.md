@@ -9,6 +9,23 @@ Changes:
 * [ENHANCEMENT]
 * [BUGFIX]
 
+## 0.21.0 / 2026-10-22
+
+BREAKING CHANGES:
+
+* Selected `mysql_global_status_*` and `mysql_slave_status_*` metrics now expose Counter or Gauge types instead of Untyped.
+This includes query and table-cache totals, thread and uptime values, and replica running and lag values.
+Consumers that inspect metric family types should review these series. #1099
+
+Changes:
+
+* [FEATURE] Add the optional `info_schema.innodb_trx` collector for active transaction counts and oldest transaction age by state. #1087
+* [FEATURE] Add the optional `info_schema.schema_size` collector, exporting data and index size per schema. #1091
+* [ENHANCEMENT] Type selected global and replica status metrics as counters or gauges. #1099
+* [BUGFIX] Allow literal dollar signs in configuration-file passwords by escaping them as `$$`. #1005
+* [BUGFIX] Preserve HTTP/2 negotiation across web TLS configuration reloads through the exporter-toolkit update. #1089
+* [BUGFIX] Parse the binary log file number after the final dot when the basename contains dots. #1095
+
 ## 0.20.0 / 2026-08-12
 
 Changes:

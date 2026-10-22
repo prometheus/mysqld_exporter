@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
@@ -450,4 +451,32 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 			convey.So(dsn, convey.ShouldEqual, "usr:pwd@tcp(server3:3306)/?tls=client_tls_with_server_name")
 		})
 	})
+}
+func TestReloadConfigReportsFailure(t *testing.T) {
+	ch, err := NewAuthConfigHandler(prometheus.NewRegistry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reloadSuccess := func() float64 {
+		m := &dto.Metric{}
+		if err := ch.configReloadSuccess.Write(m); err != nil {
+			t.Fatal(err)
+		}
+		return m.GetGauge().GetValue()
+	}
+
+	t.Setenv("MYSQLD_EXPORTER_PASSWORD", "secret")
+	if err := ch.ReloadConfig("", "localhost:3306", "user", true, promslog.NewNopLogger()); err != nil {
+		t.Fatalf("valid reload failed: %v", err)
+	}
+	if got := reloadSuccess(); got != 1 {
+		t.Fatalf("after a successful reload: got %v, want 1", got)
+	}
+
+	if err := ch.ReloadConfig("", "invalid-address", "user", true, promslog.NewNopLogger()); err == nil {
+		t.Fatal("expected an error for an address without a port")
+	}
+	if got := reloadSuccess(); got != 0 {
+		t.Fatalf("after a failed reload: got %v, want 0", got)
+	}
 }

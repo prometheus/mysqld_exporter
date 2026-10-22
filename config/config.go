@@ -334,7 +334,7 @@ func (ch *AuthConfigHandler) GetConfig() *AuthConfig {
 	return ch.Config
 }
 
-func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) error {
+func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) (err error) {
 	var host, port string
 	defer func() {
 		ch.observeReload(err)

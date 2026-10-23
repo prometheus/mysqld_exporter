@@ -226,6 +226,12 @@ In some environments the MySQL server's TLS certificate SN or SAN may not includ
 tls-server-name=mysql.example
 ```
 
+Servers that still use the old, insecure pre-4.1 password hashing require the driver to be told explicitly that it may use it. This can be enabled per section of the cnf file:
+
+```
+allow-old-passwords=true
+```
+
 ## Using Docker
 
 You can deploy this exporter using the [prom/mysqld-exporter](https://hub.docker.com/r/prom/mysqld-exporter/) Docker image.

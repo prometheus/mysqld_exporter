@@ -279,6 +279,7 @@ type MySqlConfig struct {
 	Port                  int    `ini:"port"`
 	Socket                string `ini:"socket"`
 	EnableCleartextPlugin bool   `ini:"enable-cleartext-plugin"`
+	AllowOldPasswords     bool   `ini:"allow-old-passwords"`
 	SslCa                 string `ini:"ssl-ca"`
 	SslCert               string `ini:"ssl-cert"`
 	SslKey                string `ini:"ssl-key"`
@@ -502,6 +503,10 @@ func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, e
 
 	if m.EnableCleartextPlugin {
 		config.AllowCleartextPasswords = true
+	}
+
+	if m.AllowOldPasswords {
+		config.AllowOldPasswords = true
 	}
 
 	return config.FormatDSN(), nil

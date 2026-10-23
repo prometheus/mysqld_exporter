@@ -353,6 +353,15 @@ func TestFormDSN(t *testing.T) {
 			}
 			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server2:3306)/?allowCleartextPasswords=true")
 		})
+		convey.Convey("With old passwords allowed", func() {
+			cfg := c.GetConfig()
+			section := cfg.Sections["client.oldPasswords"]
+			convey.So(section.AllowOldPasswords, convey.ShouldBeTrue)
+			if dsn, err = section.FormDSN("", "client.oldPasswords"); err != nil {
+				t.Error(err)
+			}
+			convey.So(dsn, convey.ShouldEqual, "test:foo@tcp(server2:3306)/?allowOldPasswords=true")
+		})
 	})
 }
 

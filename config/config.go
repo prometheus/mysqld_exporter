@@ -201,6 +201,7 @@ func DefaultCollectorConfig() map[string]bool {
 		"perf_schema.eventswaits":                          false,
 		"perf_schema.file_events":                          false,
 		"perf_schema.file_instances":                       false,
+		"perf_schema.host_cache":                           false,
 		"perf_schema.memory_events":                        false,
 		"perf_schema.replication_group_members":            false,
 		"perf_schema.replication_group_member_stats":       false,

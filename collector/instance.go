@@ -22,6 +22,8 @@ import (
 	"strings"
 
 	"github.com/blang/semver/v4"
+
+	"github.com/prometheus/mysqld_exporter/internal/auth"
 )
 
 const (
@@ -36,12 +38,13 @@ type instance struct {
 	versionMajorMinor float64
 }
 
-func newInstance(ctx context.Context, dsn string, maxOpenConns int) (*instance, error) {
+func newInstance(ctx context.Context, dsn string, maxOpenConns int, provider auth.Provider) (*instance, error) {
 	i := &instance{}
-	db, err := sql.Open("mysql", dsn)
+	connector, err := auth.OpenConnector(dsn, provider)
 	if err != nil {
 		return nil, err
 	}
+	db := sql.OpenDB(connector)
 	db.SetMaxOpenConns(maxOpenConns)
 	db.SetMaxIdleConns(1)
 	i.db = db

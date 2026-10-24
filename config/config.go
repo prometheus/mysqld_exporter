@@ -30,8 +30,9 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
-
 	"gopkg.in/ini.v1"
+
+	"github.com/prometheus/mysqld_exporter/internal/auth"
 )
 
 var (
@@ -87,6 +88,7 @@ const (
 
 type Config struct {
 	DataSourceName                 string
+	AuthProvider                   auth.Provider
 	Collectors                     map[string]bool
 	EnableExporterLockWaitTimeout  bool
 	ExporterLockWaitTimeoutSeconds int
@@ -269,10 +271,30 @@ func (c Config) Validate() error {
 }
 
 type AuthConfig struct {
-	Sections map[string]MySqlConfig
+	Sections  map[string]MySqlConfig
+	Providers map[string]auth.Provider
+}
+
+// AuthProvider returns the provider retained for a section in this config
+// snapshot. Reloading the configuration creates new providers.
+func (c *AuthConfig) AuthProvider(section string) (auth.Provider, error) {
+	if provider, ok := c.Providers[section]; ok {
+		return provider, nil
+	}
+
+	// Configs constructed directly do not have providers initialized by reload.
+	cfg, ok := c.Sections[section]
+	if !ok {
+		return nil, fmt.Errorf("no config section %s", section)
+	}
+
+	return cfg.AuthProvider()
 }
 
 type MySqlConfig struct {
+	Auth                  string `ini:"auth"`
+	AWSIAMRegion          string `ini:"aws-iam-region"`
+	AWSIAMRoleARN         string `ini:"aws-iam-role-arn"`
 	User                  string `ini:"user"`
 	Password              string `ini:"password"`
 	Host                  string `ini:"host"`
@@ -381,8 +403,10 @@ func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string,
 			return os.Getenv(name)
 		})
 	}
-	config := &AuthConfig{}
-	m := make(map[string]MySqlConfig)
+	config := &AuthConfig{
+		Sections:  make(map[string]MySqlConfig),
+		Providers: make(map[string]auth.Provider),
+	}
 	for _, sec := range cfg.Sections() {
 		sectionName := sec.Name()
 
@@ -403,10 +427,15 @@ func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string,
 			logger.Error("failed to validate config", "section", sectionName, "err", err)
 			continue
 		}
+		provider, err := mysqlcfg.AuthProvider()
+		if err != nil {
+			logger.Error("failed to select authentication", "section", sectionName, "err", err)
+			continue
+		}
 
-		m[sectionName] = *mysqlcfg
+		config.Sections[sectionName] = *mysqlcfg
+		config.Providers[sectionName] = provider
 	}
-	config.Sections = m
 	if len(config.Sections) == 0 {
 		return fmt.Errorf("no configuration found")
 	}
@@ -449,6 +478,21 @@ func (m MySqlConfig) validateConfig() error {
 	}
 
 	return nil
+}
+
+// AuthProvider creates a provider from configuration-file settings.
+// A nil provider uses the MySQL driver's native authentication.
+func (m MySqlConfig) AuthProvider() (auth.Provider, error) {
+	switch auth.ProviderType(m.Auth) {
+	case "":
+		return nil, nil
+
+	case auth.AWSIAM:
+		return auth.NewAWSIAMAuth(m.AWSIAMRegion, m.AWSIAMRoleARN), nil
+
+	default:
+		return nil, fmt.Errorf("unsupported auth type %s", m.Auth)
+	}
 }
 
 func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, error) {

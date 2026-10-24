@@ -38,6 +38,41 @@ setup; do not duplicate those documents here.
 - Never log credentials, DSNs containing secrets, or configuration-file
   contents.
 
+## Adding an Authentication Provider
+
+- Implement `auth.Provider` in `internal/auth/<provider>.go`: `Name` returns a
+  stable `ProviderType`, `Configure` applies connection policy, and
+  `Authenticate` supplies credentials before each physical connection.
+- Keep provider options in its constructor. Add a provider-specific name to
+  `auth.ProviderType` constants and select it in
+  `config.MySqlConfig.AuthProvider`. Add INI fields only as needed; keep
+  provider-specific branches out of runtimes and collectors.
+- `Configure` receives a parsed, normalized `mysql.Config`. Validate user,
+  password, transport, and TLS requirements here without retrieving credentials
+  or making network calls. `auth.OpenConnector` owns `mysql.BeforeConnect`
+  registration; providers must not install another hook. The MySQL driver owns
+  the wire authentication handshake.
+- `Authenticate` receives the driver's private configuration copy for every
+  new connection, including later pool connections. Respect cancellation and
+  pass its context to credential requests. Do not retain or share that copy.
+- Support concurrent calls and keep provider options immutable. Avoid global
+  registries and authentication state. Omitted or empty `auth` selects a nil
+  provider and native MySQL authentication without provider hooks; no password
+  provider is needed.
+- Loaded config snapshots retain one provider per section across scrapes. Keep
+  snapshots immutable after publication; reloads create fresh providers while
+  in-flight requests retain their snapshot. Constructors must not retrieve
+  credentials or make network calls. Runtimes borrow providers without closing
+  them; define cleanup ownership before adding workers or managed dialers.
+- Retain successfully loaded SDK configuration for the provider's lifetime and
+  let the SDK cache and refresh credentials. Keep failed initialization retryable
+  and let callers cancel while waiting for concurrent initialization. Do not
+  cache a request context or a database authentication token.
+- Document settings, credential discovery, database grants, supported services,
+  and transport requirements in `README.md`. Verify behavior against official
+  provider documentation and cover validation, cancellation, credential refresh,
+  and concurrent connections with focused tests.
+
 ## Tests and Validation
 
 - For new behavior, write or update a focused test before implementation when

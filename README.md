@@ -190,6 +190,36 @@ MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting 
 
 If you have configured cli with both `mysqld` flags and a valid configuration file, the options in the configuration file will override the flags for `client` section.
 
+### Database authentication
+
+Omit `auth` or leave it empty in a `.my.cnf` section to use native MySQL authentication with the configured credentials, authentication plugins, Unix sockets, and TLS options.
+
+#### AWS IAM authentication
+
+Set `auth=aws-iam` to use IAM tokens with RDS or Aurora MySQL. Credentials come from the [AWS SDK's default chain](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-gosdk.html): environment credentials, shared AWS profiles (including IAM Identity Center), or workload IAM roles. Set `AWS_PROFILE` to select a named profile.
+
+[IAM database authentication](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html) must be enabled for the database and configured for its user. The user needs the usual [exporter grants](#required-grants), and the signing identity needs [`rds-db:connect`](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.IAMPolicy.html) permission for that database user's ARN.
+
+```ini
+[client]
+auth = aws-iam
+user = exporter
+password =
+host = <rds-or-aurora-endpoint>
+aws-iam-region = us-east-1
+ssl-ca = /path/to/rds-ca-bundle.pem
+# Optional: assume another IAM role.
+# aws-iam-role-arn = arn:aws:iam::<account-id>:role/<role-name>
+```
+
+- `aws-iam-region` overrides the Region; omit it to use the environment, shared AWS configuration, or EC2 metadata.
+- `aws-iam-role-arn` assumes the specified role using the discovered credentials. The caller must be allowed to call `sts:AssumeRole` and trusted by that role; the `rds-db:connect` permission belongs to the assumed role.
+- IAM mode requires a TCP endpoint and TLS without plaintext fallback. `ssl-ca` can supply the [RDS CA bundle](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html).
+- `tls=false` and `tls=preferred` are rejected; `tls=skip-verify` disables certificate verification.
+- Static passwords are rejected; `password=` clears any password inherited from another section or `MYSQLD_EXPORTER_PASSWORD`. Tokens are generated automatically for each new physical connection.
+
+For `/probe`, select the section with `auth_module`; tokens use the effective target endpoint and configured database user.
+
 ## TLS and basic authentication
 
 The MySQLd Exporter supports TLS and basic authentication.

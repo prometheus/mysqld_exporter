@@ -23,6 +23,8 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/prometheus/mysqld_exporter/internal/auth"
 )
 
 // Metric name parts.
@@ -68,6 +70,7 @@ type Exporter struct {
 	ctx      context.Context
 	logger   *slog.Logger
 	dsn      string
+	provider auth.Provider
 	scrapers []Scraper
 	instance *instance
 
@@ -79,6 +82,14 @@ type Exporter struct {
 }
 
 type ExporterOpt func(*Exporter)
+
+// SetAuthProvider selects authentication independently of the target DSN.
+// A nil provider uses the MySQL driver's native authentication.
+func SetAuthProvider(provider auth.Provider) ExporterOpt {
+	return func(e *Exporter) {
+		e.provider = provider
+	}
+}
 
 func EnableLockWaitTimeout(b bool) ExporterOpt {
 	return func(e *Exporter) {
@@ -180,7 +191,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	var err error
 	scrapeTime := time.Now()
 	versionCtx, versionCancel := e.withQueryTimeoutContext(ctx)
-	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns)
+	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns, e.provider)
 	versionCancel()
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)

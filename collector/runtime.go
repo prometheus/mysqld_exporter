@@ -113,6 +113,7 @@ func AllScrapers(cfg config.Config) []Scraper {
 		ScrapePerfReplicationGroupMembers(emptyConfig),
 		ScrapePerfReplicationGroupMemberStats(emptyConfig),
 		ScrapePerfReplicationApplierStatsByWorker(emptyConfig),
+		ScrapePerfHostCache(emptyConfig),
 		ScrapeSysUserSummary(emptyConfig),
 		ScrapeUserStat(emptyConfig),
 		ScrapeClientStat(emptyConfig),

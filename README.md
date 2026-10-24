@@ -150,6 +150,7 @@ collect.perf_schema.eventswaits                              | 5.5           | C
 collect.perf_schema.file_events                              | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
 collect.perf_schema.file_instances                           | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
 collect.perf_schema.file_instances.remove_prefix             | 5.5           | Remove path prefix in performance_schema.file_summary_by_instance.
+collect.perf_schema.host_cache                               | 5.6           | Collect aggregated metrics from performance_schema.host_cache. All values are 0 when the host cache is not used (host_cache_size=0 or skip_name_resolve=ON). On MariaDB, performance_schema=ON is required; without it the values are always 0, even though hosts can still be blocked.
 collect.perf_schema.indexiowaits                             | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.memory_events                            | 5.7           | Collect metrics from performance_schema.memory_summary_global_by_event_name.
 collect.perf_schema.memory_events.remove_prefix              | 5.7           | Remove instrument prefix in performance_schema.memory_summary_global_by_event_name.

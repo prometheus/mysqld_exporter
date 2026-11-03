@@ -39,6 +39,19 @@ CREATE USER 'exporter'@'localhost' IDENTIFIED BY 'XXXXXXXX' WITH MAX_USER_CONNEC
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 ```
 
+For MariaDB 10.5.9 and later, also grant `SLAVE MONITOR` (an alias for
+`REPLICA MONITOR`) when using the enabled-by-default `slave_status` collector.
+`REPLICATION CLIENT` alone does not permit
+[`SHOW REPLICA STATUS`](https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/show/show-replica-status)
+on these versions:
+
+```sql
+GRANT SLAVE MONITOR ON *.* TO 'exporter'@'127.0.0.1';
+```
+
+Use the same account host as in the grants above (`localhost` for a Unix
+socket connection).
+
 NOTE: It is recommended to set a max connection limit for the user to avoid overloading the server with monitoring scrapes under heavy load. This is not supported on all MySQL/MariaDB versions; for example, MariaDB 10.1 (provided with Ubuntu 18.04) [does _not_ support this feature](https://mariadb.com/kb/en/library/create-user/#resource-limit-options).
 
 ### Build

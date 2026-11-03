@@ -9,3 +9,7 @@ password = foo
 user = test
 password = foo
 enable-cleartext-plugin = true
+[client.oldPasswords]
+user = test
+password = foo
+allow-old-passwords = true

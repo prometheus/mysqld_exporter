@@ -57,6 +57,7 @@ func NewRuntimeWithContext(ctx context.Context, cfg config.Config, logger *slog.
 			SetSlowLogFilter(cfg.SlowLogFilter),
 			SetQueryTimeout(cfg.ExporterQueryTimeout),
 			SetMaxOpenConns(cfg.ExporterMaxOpenConns),
+			SetAuthProvider(cfg.AuthProvider),
 		),
 	}, nil
 }

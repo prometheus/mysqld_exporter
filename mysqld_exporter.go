@@ -274,6 +274,10 @@ func newHandler(baseConfig config.Config, timeoutOffsetSeconds float64, logger *
 		if !ok {
 			logger.Error(fmt.Sprintf("Failed to parse section [%s] from config file", authModule), "err", err)
 		}
+		provider, err := authConfig.AuthProvider(authModule)
+		if err != nil {
+			logger.Error("Failed to select authentication", "section", authModule, "err", err)
+		}
 		if dsn, err = cfgsection.FormDSN(target, authModule); err != nil {
 			logger.Error(fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
 		}
@@ -298,6 +302,7 @@ func newHandler(baseConfig config.Config, timeoutOffsetSeconds float64, logger *
 
 		cfg := configForCollectParams(baseConfig, collect)
 		cfg.DataSourceName = dsn
+		cfg.AuthProvider = provider
 
 		registry := prometheus.NewRegistry()
 		runtime, err := collector.NewRuntimeWithContext(ctx, cfg, logger)

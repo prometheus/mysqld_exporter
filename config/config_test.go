@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -479,4 +480,47 @@ func TestReloadConfigReportsFailure(t *testing.T) {
 	if got := reloadSuccess(); got != 0 {
 		t.Fatalf("after a failed reload: got %v, want 0", got)
 	}
+}
+
+func TestReloadConfigPasswordFile(t *testing.T) {
+	passwordFile := filepath.Join(t.TempDir(), "password")
+	if err := os.WriteFile(passwordFile, []byte("filesecret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reload := func() (string, error) {
+		c := AuthConfigHandler{Config: &AuthConfig{}}
+		if err := c.ReloadConfig("", "localhost:3306", "user", true, promslog.NewNopLogger()); err != nil {
+			return "", err
+		}
+		return c.GetConfig().Sections["client"].Password, nil
+	}
+
+	t.Run("reads the password from the file", func(t *testing.T) {
+		t.Setenv(passwordEnv, "")
+		t.Setenv(passwordFileEnv, passwordFile)
+		password, err := reload()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if password != "filesecret" {
+			t.Fatalf("got password %q, want %q", password, "filesecret")
+		}
+	})
+
+	t.Run("rejects both the variable and the file", func(t *testing.T) {
+		t.Setenv(passwordEnv, "envsecret")
+		t.Setenv(passwordFileEnv, passwordFile)
+		if _, err := reload(); err == nil {
+			t.Fatal("expected an error when both are set")
+		}
+	})
+
+	t.Run("fails when the file can't be read", func(t *testing.T) {
+		t.Setenv(passwordEnv, "")
+		t.Setenv(passwordFileEnv, filepath.Join(t.TempDir(), "missing"))
+		if _, err := reload(); err == nil {
+			t.Fatal("expected an error for a missing file")
+		}
+	})
 }

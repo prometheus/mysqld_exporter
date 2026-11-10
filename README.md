@@ -198,6 +198,7 @@ version                                    | Print the version information.
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
 MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting to MySQL Server
+MYSQLD_EXPORTER_PASSWORD_FILE              | File to read the password from instead, e.g. a Docker secret. It is read again on every config reload. Can't be combined with `MYSQLD_EXPORTER_PASSWORD`
 
 ### Configuration precedence
 

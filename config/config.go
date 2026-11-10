@@ -334,11 +334,40 @@ func (ch *AuthConfigHandler) GetConfig() *AuthConfig {
 	return ch.Config
 }
 
+const (
+	passwordEnv     = "MYSQLD_EXPORTER_PASSWORD"
+	passwordFileEnv = "MYSQLD_EXPORTER_PASSWORD_FILE"
+)
+
+// defaultPassword returns the password from MYSQLD_EXPORTER_PASSWORD, or the contents of the file that
+// MYSQLD_EXPORTER_PASSWORD_FILE points to, e.g. a Docker secret. The file is read on every reload, so a
+// rotated secret is picked up, and a trailing newline is ignored.
+func defaultPassword() (string, error) {
+	password := os.Getenv(passwordEnv)
+	file := os.Getenv(passwordFileEnv)
+	if file == "" {
+		return password, nil
+	}
+	if password != "" {
+		return "", fmt.Errorf("only one of %s and %s can be set", passwordEnv, passwordFileEnv)
+	}
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to read %s: %w", passwordFileEnv, err)
+	}
+	return strings.TrimRight(string(content), "\r\n"), nil
+}
+
 func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string, mysqldUser string, tlsInsecureSkipVerify bool, logger *slog.Logger) (err error) {
 	var host, port string
 	defer func() {
 		ch.observeReload(err)
 	}()
+
+	password, err := defaultPassword()
+	if err != nil {
+		return err
+	}
 
 	cfg, err := ini.LoadSources(
 		opts,
@@ -377,6 +406,9 @@ func (ch *AuthConfigHandler) ReloadConfig(filename string, mysqldAddress string,
 		return os.Expand(val, func(name string) string {
 			if name == "$" {
 				return "$"
+			}
+			if name == passwordEnv {
+				return password
 			}
 			return os.Getenv(name)
 		})

@@ -351,10 +351,13 @@ reported. On MySQL >= 8.0, table sizes in
 ## Host cache
 
 Enable `--collect.perf_schema.host_cache` to collect from
-`performance_schema.host_cache`. The server uses this table to count failed
-connection attempts per client host, and blocks a host once its count reaches
+`performance_schema.host_cache`. This table shows the server's host cache,
+which counts connection errors per client host. Failed logins, such as a
+wrong password, are not counted. The server blocks a host once its count
+reaches
 [`max_connect_errors`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_max_connect_errors).
 See the [MySQL](https://dev.mysql.com/doc/refman/8.4/en/performance-schema-host-cache-table.html)
+and [MariaDB](https://mariadb.com/docs/server/reference/system-tables/performance-schema/performance-schema-tables/performance-schema-host_cache-table)
 table documentation.
 
 Metric | Type | Description
@@ -365,15 +368,24 @@ Metric | Type | Description
 `mysql_perf_schema_host_cache_hosts` | Gauge | Number of hosts in the host cache.
 
 To alert as soon as a host is blocked, compare the highest error count with
-the limit exposed by the `global_variables` collector:
+the limit from the `global_variables` collector, which is enabled by default:
 
 ```promql
 mysql_perf_schema_host_cache_connect_errors_max >= mysql_global_variables_max_connect_errors
 ```
 
-`mysql_perf_schema_host_cache_host_blocked_errors` only increases when a
-blocked host tries to connect again, so an alert on it can fire late or not
-at all.
+An alert on refused connections is also possible:
+
+```promql
+mysql_perf_schema_host_cache_host_blocked_errors > 0
+```
+
+This one only fires after a blocked host tries to connect again, and it stays
+firing until the host is removed from the cache.
+
+Both alerts need the host cache to be in use. When it is not, or on MariaDB
+with `performance_schema=OFF`, all values are 0 and the alerts never fire. See
+the `collect.perf_schema.host_cache` entry in [Collector Flags](#collector-flags).
 
 If the exporter's own host is blocked, the scrape fails with `Error 1129` and
 these metrics are not reported. Alert on `mysql_up == 0` to catch that case.

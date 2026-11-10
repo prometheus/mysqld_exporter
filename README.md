@@ -348,6 +348,36 @@ reported. On MySQL >= 8.0, table sizes in
 [`information_schema_stats_expiry`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_information_schema_stats_expiry)
 (24 hours by default), so the metric may lag behind the actual size.
 
+## Host cache
+
+Enable `--collect.perf_schema.host_cache` to collect from
+`performance_schema.host_cache`. The server uses this table to count failed
+connection attempts per client host, and blocks a host once its count reaches
+[`max_connect_errors`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_max_connect_errors).
+See the [MySQL](https://dev.mysql.com/doc/refman/8.4/en/performance-schema-host-cache-table.html)
+table documentation.
+
+Metric | Type | Description
+-------|------|------------
+`mysql_perf_schema_host_cache_connect_errors` | Gauge | Sum of connection errors that count toward `max_connect_errors`, for all hosts in the cache.
+`mysql_perf_schema_host_cache_connect_errors_max` | Gauge | Highest number of connection errors of a single host.
+`mysql_perf_schema_host_cache_host_blocked_errors` | Gauge | Sum of connection attempts refused because the host was blocked.
+`mysql_perf_schema_host_cache_hosts` | Gauge | Number of hosts in the host cache.
+
+To alert as soon as a host is blocked, compare the highest error count with
+the limit exposed by the `global_variables` collector:
+
+```promql
+mysql_perf_schema_host_cache_connect_errors_max >= mysql_global_variables_max_connect_errors
+```
+
+`mysql_perf_schema_host_cache_host_blocked_errors` only increases when a
+blocked host tries to connect again, so an alert on it can fire late or not
+at all.
+
+If the exporter's own host is blocked, the scrape fails with `Error 1129` and
+these metrics are not reported. Alert on `mysql_up == 0` to catch that case.
+
 ## Filtering enabled collectors
 
 The `mysqld_exporter` will expose all metrics from enabled collectors by default. This is the recommended way to collect metrics to avoid errors when comparing metrics of different families.

@@ -153,6 +153,8 @@ collect.info_schema.tables.databases                         | 5.1           | T
 collect.info_schema.tablestats                               | 5.1           | If running with userstat=1, set to true to collect table statistics.
 collect.info_schema.schemastats                              | 5.1           | If running with userstat=1, set to true to collect schema statistics
 collect.info_schema.userstats                                | 5.1           | If running with userstat=1, set to true to collect user statistics.
+collect.mysql.innodb_index_stats                             | 5.6           | Collect per index size and cardinality estimates from mysql.innodb_index_stats (disabled by default).
+collect.mysql.innodb_index_stats.databases                   | 5.6           | The list of databases to collect InnoDB index stats for, or '`*`' for all except the system schemas.
 collect.mysql.user                                           | 5.5             | Collect data from mysql.user table
 collect.perf_schema.eventsstatements                         | 5.6           | Collect metrics from performance_schema.events_statements_summary_by_digest.
 collect.perf_schema.eventsstatements.digest_text_limit       | 5.6           | Maximum length of the normalized statement text. (default: 120)
@@ -315,6 +317,35 @@ reported. On MySQL >= 8.0, table sizes in
 `information_schema.tables` are cached according to
 [`information_schema_stats_expiry`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_information_schema_stats_expiry)
 (24 hours by default), so the metric may lag behind the actual size.
+
+## InnoDB index stats
+
+Enable `--collect.mysql.innodb_index_stats` to collect per index estimates from
+InnoDB's [persistent statistics](https://dev.mysql.com/doc/refman/8.4/en/innodb-persistent-stats.html)
+in `mysql.innodb_index_stats`. This answers questions `information_schema.tables`
+can't, like which index of a table takes the space. The table is available in
+MySQL and Percona Server >= 5.6 and MariaDB >= 10.0, and is readable with the
+`SELECT` grant from the [required grants](#required-grants).
+
+Metric | Type | Description
+-------|------|------------
+`mysql_innodb_index_stats_size_bytes` | Gauge | Estimated size of the index.
+`mysql_innodb_index_stats_leaf_size_bytes` | Gauge | Estimated size of the leaf pages of the index.
+`mysql_innodb_index_stats_distinct_values` | Gauge | Estimated number of distinct values of the leading index columns in the `columns` label.
+`mysql_innodb_index_stats_last_update_timestamp_seconds` | Gauge | When InnoDB last recalculated the statistics of the index.
+
+All metrics have `schema`, `table` and `index` labels. Sizes are page counts
+multiplied by `innodb_page_size`. `distinct_values` has one series per index
+prefix, so an index on `(a, b)` reports both `columns="a"` and `columns="a,b"`
+(secondary indexes also list the primary key columns InnoDB appends).
+
+Series grow with the number of indexes, so on servers with many tables use
+`--collect.mysql.innodb_index_stats.databases` to list the databases to collect.
+The default `*` collects every database except `mysql`, `performance_schema`,
+`information_schema` and `sys`. The values are only as fresh as the statistics:
+InnoDB recalculates them when about 10% of a table's rows change (with
+`innodb_stats_auto_recalc`) or on `ANALYZE TABLE`, and tables created with
+`STATS_PERSISTENT=0` aren't included.
 
 ## Filtering enabled collectors
 

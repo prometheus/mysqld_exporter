@@ -111,6 +111,10 @@ var (
 		"collect.info_schema.tables.databases",
 		"The list of databases to collect table stats for, or '*' for all",
 	).Default(config.DefaultInfoSchemaTablesDatabases).String()
+	innodbIndexStatsDatabases = kingpin.Flag(
+		"collect.mysql.innodb_index_stats.databases",
+		"The list of databases to collect InnoDB index stats for, or '*' for all except the system schemas",
+	).Default(config.DefaultInnodbIndexStatsDatabases).String()
 	perfEventsStatementsLimit = kingpin.Flag(
 		"collect.perf_schema.eventsstatements.limit",
 		"Limit the number of events statements digests by response time",
@@ -234,6 +238,9 @@ func configFromFlags(collectorFlags map[string]*bool) config.Config {
 	}
 	cfg.InfoSchemaTables = config.InfoSchemaTablesConfig{
 		Databases: *tableSchemaDatabases,
+	}
+	cfg.InnodbIndexStats = config.InnodbIndexStatsConfig{
+		Databases: *innodbIndexStatsDatabases,
 	}
 	cfg.PerfSchemaEventsStatements = config.PerfSchemaEventsStatementsConfig{
 		Limit:           *perfEventsStatementsLimit,

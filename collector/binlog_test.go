@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -107,5 +108,59 @@ func TestScrapeBinlogSizeDottedBasename(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestScrapeBinlogSizeErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		rows func() *sqlmock.Rows
+	}{
+		{
+			name: "scan error",
+			rows: func() *sqlmock.Rows {
+				return sqlmock.NewRows([]string{"Log_name", "File_size"}).
+					AddRow("mysql-bin.000001", "100").
+					AddRow("mysql-bin.000002", "not-a-number")
+			},
+		},
+		{
+			name: "iteration error",
+			rows: func() *sqlmock.Rows {
+				return sqlmock.NewRows([]string{"Log_name", "File_size"}).
+					AddRow("mysql-bin.000001", "100").
+					AddRow("mysql-bin.000002", "200").
+					RowError(1, errors.New("connection lost"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("error opening a stub database connection: %s", err)
+			}
+			defer db.Close()
+
+			inst := &instance{db: db}
+
+			mock.ExpectQuery(logbinQuery).WillReturnRows(sqlmock.NewRows([]string{""}).AddRow(1))
+			mock.ExpectQuery(sanitizeQuery(binlogQuery)).WillReturnRows(tt.rows())
+
+			ch := make(chan prometheus.Metric, 3)
+			err = (ScrapeBinlogSize{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger())
+			close(ch)
+			if err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if n := len(ch); n != 0 {
+				t.Errorf("expected no metrics on error, got %d", n)
+			}
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled exceptions: %s", err)
+			}
+		})
 	}
 }

@@ -111,11 +111,11 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, instance *instance, ch chan<
 		switch columnCount {
 		case 2:
 			if err := masterLogRows.Scan(&filename, &filesize); err != nil {
-				return nil
+				return err
 			}
 		case 3:
 			if err := masterLogRows.Scan(&filename, &filesize, &encrypted); err != nil {
-				return nil
+				return err
 			}
 		default:
 			return fmt.Errorf("invalid number of columns: %d", columnCount)
@@ -123,6 +123,9 @@ func (ScrapeBinlogSize) Scrape(ctx context.Context, instance *instance, ch chan<
 
 		size += filesize
 		count++
+	}
+	if err := masterLogRows.Err(); err != nil {
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(

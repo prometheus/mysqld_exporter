@@ -224,7 +224,7 @@ func TestScrapeSchemaSizeIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	t.Cleanup(cancel)
 
-	inst, err := newInstance(ctx, connDSN, 1)
+	inst, err := newInstance(ctx, connDSN, 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

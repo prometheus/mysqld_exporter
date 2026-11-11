@@ -213,7 +213,7 @@ func TestNewInstanceMaxOpenConnections(t *testing.T) {
 	}
 
 	const want = 5
-	inst, err := newInstance(context.Background(), connDSN, want)
+	inst, err := newInstance(context.Background(), connDSN, want, nil)
 	if err != nil {
 		t.Fatalf("newInstance: %v", err)
 	}

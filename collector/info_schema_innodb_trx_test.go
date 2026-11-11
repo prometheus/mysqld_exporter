@@ -242,7 +242,7 @@ func TestScrapeInnodbTrxIntegration(t *testing.T) {
 	t.Cleanup(cancel)
 
 	// Allow three open transactions plus a separate connection for scraping.
-	inst, err := newInstance(ctx, connDSN, 4)
+	inst, err := newInstance(ctx, connDSN, 4, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

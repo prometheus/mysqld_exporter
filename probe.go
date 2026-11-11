@@ -49,6 +49,12 @@ func handleProbe(baseConfig config.Config, timeoutOffsetSeconds float64, logger 
 			http.Error(w, fmt.Sprintf("Could not find config section [%s]", authModule), http.StatusBadRequest)
 			return
 		}
+		provider, err := cfg.AuthProvider(authModule)
+		if err != nil {
+			logger.Error("Failed to select authentication", "section", authModule, "err", err)
+			http.Error(w, fmt.Sprintf("Error selecting authentication from config section [%s]", authModule), http.StatusBadRequest)
+			return
+		}
 		dsn, err := cfgsection.FormDSN(target, authModule)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Failed to form dsn from section [%s]", authModule), "err", err)
@@ -72,6 +78,7 @@ func handleProbe(baseConfig config.Config, timeoutOffsetSeconds float64, logger 
 
 		runtimeConfig := configForCollectParams(baseConfig, collectParams)
 		runtimeConfig.DataSourceName = dsn
+		runtimeConfig.AuthProvider = provider
 
 		registry := prometheus.NewRegistry()
 		runtime, err := collector.NewRuntimeWithContext(ctx, runtimeConfig, logger.With("target", target))

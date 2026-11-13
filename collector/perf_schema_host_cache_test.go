@@ -16,7 +16,9 @@ package collector
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/prometheus/client_golang/prometheus"
@@ -88,5 +90,62 @@ func TestScrapePerfHostCacheQueryError(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestScrapePerfHostCacheIntegration(t *testing.T) {
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	t.Cleanup(cancel)
+
+	inst, err := newInstance(ctx, connDSN, 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = inst.Close() })
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err := (ScrapePerfHostCache{}).Scrape(ctx, inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	got := make(map[*prometheus.Desc]float64)
+	for metric := range ch {
+		result := readMetric(metric)
+		if result.metricType != dto.MetricType_GAUGE {
+			t.Errorf("expected metric %s to be gauge, got %v", metric.Desc(), result.metricType)
+		}
+		got[metric.Desc()] = result.value
+	}
+
+	for _, desc := range []*prometheus.Desc{
+		performanceSchemaHostCacheConnectErrorsDesc,
+		performanceSchemaHostCacheConnectErrorsMaxDesc,
+		performanceSchemaHostCacheHostBlockedErrorsDesc,
+		performanceSchemaHostCacheHostsDesc,
+	} {
+		val, ok := got[desc]
+		if !ok {
+			t.Errorf("missing expected metric: %s", desc)
+			continue
+		}
+		if val < 0 {
+			t.Errorf("expected metric %s >= 0, got %v", desc, val)
+		}
+	}
+
+	if got[performanceSchemaHostCacheConnectErrorsMaxDesc] > got[performanceSchemaHostCacheConnectErrorsDesc] {
+		t.Errorf(
+			"connect_errors_max (%v) must not exceed connect_errors (%v)",
+			got[performanceSchemaHostCacheConnectErrorsMaxDesc],
+			got[performanceSchemaHostCacheConnectErrorsDesc],
+		)
 	}
 }

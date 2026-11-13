@@ -163,6 +163,7 @@ collect.perf_schema.eventswaits                              | 5.5           | C
 collect.perf_schema.file_events                              | 5.6           | Collect metrics from performance_schema.file_summary_by_event_name.
 collect.perf_schema.file_instances                           | 5.5           | Collect metrics from performance_schema.file_summary_by_instance.
 collect.perf_schema.file_instances.remove_prefix             | 5.5           | Remove path prefix in performance_schema.file_summary_by_instance.
+collect.perf_schema.host_cache                               | 5.6           | Collect aggregated metrics from performance_schema.host_cache. All values are 0 when the host cache is not used (host_cache_size=0 or skip_name_resolve=ON). On MariaDB, performance_schema=ON is required; without it the values are always 0, even though hosts can still be blocked.
 collect.perf_schema.indexiowaits                             | 5.6           | Collect metrics from performance_schema.table_io_waits_summary_by_index_usage.
 collect.perf_schema.memory_events                            | 5.7           | Collect metrics from performance_schema.memory_summary_global_by_event_name.
 collect.perf_schema.memory_events.remove_prefix              | 5.7           | Remove instrument prefix in performance_schema.memory_summary_global_by_event_name.
@@ -346,6 +347,48 @@ reported. On MySQL >= 8.0, table sizes in
 `information_schema.tables` are cached according to
 [`information_schema_stats_expiry`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_information_schema_stats_expiry)
 (24 hours by default), so the metric may lag behind the actual size.
+
+## Host cache
+
+Enable `--collect.perf_schema.host_cache` to collect from
+`performance_schema.host_cache`. This table shows the server's host cache,
+which counts connection errors per client host. Failed logins, such as a
+wrong password, are not counted. The server blocks a host once its count
+reaches
+[`max_connect_errors`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_max_connect_errors).
+See the [MySQL](https://dev.mysql.com/doc/refman/8.4/en/performance-schema-host-cache-table.html)
+and [MariaDB](https://mariadb.com/docs/server/reference/system-tables/performance-schema/performance-schema-tables/performance-schema-host_cache-table)
+table documentation.
+
+Metric | Type | Description
+-------|------|------------
+`mysql_perf_schema_host_cache_connect_errors` | Gauge | Sum of connection errors that count toward `max_connect_errors`, for all hosts in the cache.
+`mysql_perf_schema_host_cache_connect_errors_max` | Gauge | Highest number of connection errors of a single host.
+`mysql_perf_schema_host_cache_host_blocked_errors` | Gauge | Sum of connection attempts refused because the host was blocked.
+`mysql_perf_schema_host_cache_hosts` | Gauge | Number of hosts in the host cache.
+
+To alert as soon as a host is blocked, compare the highest error count with
+the limit from the `global_variables` collector, which is enabled by default:
+
+```promql
+mysql_perf_schema_host_cache_connect_errors_max >= mysql_global_variables_max_connect_errors
+```
+
+An alert on refused connections is also possible:
+
+```promql
+mysql_perf_schema_host_cache_host_blocked_errors > 0
+```
+
+This one only fires after a blocked host tries to connect again, and it stays
+firing until the host is removed from the cache.
+
+Both alerts need the host cache to be in use. When it is not, or on MariaDB
+with `performance_schema=OFF`, all values are 0 and the alerts never fire. See
+the `collect.perf_schema.host_cache` entry in [Collector Flags](#collector-flags).
+
+If the exporter's own host is blocked, the scrape fails with `Error 1129` and
+these metrics are not reported. Alert on `mysql_up == 0` to catch that case.
 
 ## Filtering enabled collectors
 

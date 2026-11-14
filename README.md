@@ -188,6 +188,8 @@ exporter.enable_lock_wait_timeout          | Enable the lock_wait_timeout connec
 exporter.log_slow_filter                   | Add a log_slow_filter to avoid slow query logging of scrapes.  NOTE: Not supported by Oracle MySQL.
 exporter.query_timeout                     | Per-scraper query timeout (in seconds). 0 disables the timeout. (default: 0, disabled)
 exporter.max_open_connections              | Maximum number of open connections to the database per scrape. Must be >= 1. The pool is per scrape request, so in multi-target mode total connections scale with concurrent targets; keep the value within the exporter user's `MAX_USER_CONNECTIONS` grant. (default: 2)
+exporter.max_idle_connections              | Maximum number of idle connections retained during a scrape, capped by `exporter.max_open_connections`. Must be >= 0; 0 disables idle connections. (default: 1)
+exporter.conn_max_lifetime                 | Maximum amount of time a connection may be reused during a scrape, as a duration such as `60s` or `5m`. Must be >= 0; 0 disables the lifetime limit. (default: 0s, disabled)
 tls.insecure-skip-verify                   | Ignore tls verification errors.
 web.config.file                            | Path to a [web configuration file](#tls-and-basic-authentication)
 web.listen-address                         | Address to listen on for web interface and telemetry.

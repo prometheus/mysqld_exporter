@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"os"
@@ -83,6 +84,8 @@ func TestExporterWithOpts(t *testing.T) {
 				promslog.NewNopLogger(),
 			)
 			convey.So(exporter.dsn, convey.ShouldEqual, "root@/mysql?")
+			convey.So(exporter.maxIdleConns, convey.ShouldEqual, 1)
+			convey.So(exporter.connMaxLifetime, convey.ShouldEqual, 0)
 		})
 
 		convey.Convey("SetSlowLogFilter enabled", func() {
@@ -206,21 +209,63 @@ func TestScrapeContextTimeout(t *testing.T) {
 	}
 }
 
-func TestNewInstanceMaxOpenConnections(t *testing.T) {
+func TestNewInstanceConnectionPool(t *testing.T) {
 	connDSN := os.Getenv("TEST_MYSQL_DSN")
 	if connDSN == "" {
 		t.Skip("TEST_MYSQL_DSN is not set")
 	}
 
-	const want = 5
-	inst, err := newInstance(context.Background(), connDSN, want, nil)
-	if err != nil {
-		t.Fatalf("newInstance: %v", err)
-	}
-	defer inst.Close()
+	for _, tt := range []struct {
+		name                       string
+		maxOpen, maxIdle, wantIdle int
+		lifetime                   time.Duration
+		wantLifetimeClosed         bool
+	}{
+		{name: "one idle", maxOpen: 2, maxIdle: 1, wantIdle: 1},
+		{name: "configured idle", maxOpen: 4, maxIdle: 3, wantIdle: 3},
+		{name: "disabled idle", maxOpen: 2, maxIdle: 0, wantIdle: 0},
+		{name: "idle clamped to open limit", maxOpen: 2, maxIdle: 3, wantIdle: 2},
+		{name: "expired lifetime", maxOpen: 2, maxIdle: 1, lifetime: time.Nanosecond, wantLifetimeClosed: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			inst, err := newInstance(ctx, connDSN, tt.maxOpen, tt.maxIdle, tt.lifetime, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer inst.Close()
 
-	if got := inst.getDB().Stats().MaxOpenConnections; got != want {
-		t.Errorf("MaxOpenConnections = %d, want %d", got, want)
+			// Reserve the whole pool before returning connections to it.
+			var conns []*sql.Conn
+			for range tt.maxOpen {
+				conn, err := inst.db.Conn(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = conn.Close() })
+				conns = append(conns, conn)
+			}
+			if tt.wantLifetimeClosed {
+				time.Sleep(time.Millisecond)
+			}
+			for _, conn := range conns {
+				if err := conn.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			stats := inst.db.Stats()
+			if stats.MaxOpenConnections != tt.maxOpen {
+				t.Errorf("max open connections = %d, want %d", stats.MaxOpenConnections, tt.maxOpen)
+			}
+			if stats.Idle != tt.wantIdle {
+				t.Errorf("idle connections = %d, want %d", stats.Idle, tt.wantIdle)
+			}
+			if got := stats.MaxLifetimeClosed > 0; got != tt.wantLifetimeClosed {
+				t.Errorf("connections expired = %t, want %t", got, tt.wantLifetimeClosed)
+			}
+		})
 	}
 }
 

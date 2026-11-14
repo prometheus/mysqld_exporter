@@ -52,6 +52,8 @@ func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	cfg.SlowLogFilter = true
 	cfg.ExporterQueryTimeout = 5 * time.Second
 	cfg.ExporterMaxOpenConns = 7
+	cfg.ExporterMaxIdleConns = 3
+	cfg.ExporterConnMaxLifetime = 15 * time.Second
 
 	runtime, err := NewRuntime(cfg, promslog.NewNopLogger())
 	if err != nil {
@@ -74,6 +76,12 @@ func TestNewRuntimeConfiguresExporter(t *testing.T) {
 	}
 	if got := runtime.exporter.maxOpenConns; got != cfg.ExporterMaxOpenConns {
 		t.Errorf("max open connections = %d, want %d", got, cfg.ExporterMaxOpenConns)
+	}
+	if got := runtime.exporter.maxIdleConns; got != cfg.ExporterMaxIdleConns {
+		t.Errorf("max idle connections = %d, want %d", got, cfg.ExporterMaxIdleConns)
+	}
+	if got := runtime.exporter.connMaxLifetime; got != cfg.ExporterConnMaxLifetime {
+		t.Errorf("connection max lifetime = %v, want %v", got, cfg.ExporterConnMaxLifetime)
 	}
 }
 

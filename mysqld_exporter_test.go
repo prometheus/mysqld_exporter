@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/mysqld_exporter/collector"
 	"github.com/prometheus/mysqld_exporter/config"
@@ -108,6 +109,8 @@ func TestValidateExporterFlags(t *testing.T) {
 	tests := []struct {
 		name                 string
 		maxOpenConns         int
+		maxIdleConns         int
+		connMaxLifetime      time.Duration
 		queryTimeout         int
 		timeoutOffsetSeconds float64
 		wantErr              bool
@@ -117,15 +120,49 @@ func TestValidateExporterFlags(t *testing.T) {
 		{name: "positive query timeout", maxOpenConns: 2, queryTimeout: 1},
 		{name: "zero max open connections", maxOpenConns: 0, wantErr: true},
 		{name: "negative max open connections", maxOpenConns: -1, wantErr: true},
+		{name: "positive idle limit", maxOpenConns: 2, maxIdleConns: 1},
+		{name: "negative idle limit", maxOpenConns: 2, maxIdleConns: -1, wantErr: true},
+		{name: "positive connection lifetime", maxOpenConns: 2, connMaxLifetime: time.Minute},
+		{name: "negative connection lifetime", maxOpenConns: 2, connMaxLifetime: -time.Second, wantErr: true},
 		{name: "negative query timeout", maxOpenConns: 2, queryTimeout: -1, wantErr: true},
 		{name: "negative timeout offset", maxOpenConns: 2, timeoutOffsetSeconds: -1, wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExporterFlags(tt.maxOpenConns, tt.queryTimeout, tt.timeoutOffsetSeconds)
+			err := validateExporterFlags(tt.maxOpenConns, tt.maxIdleConns, tt.queryTimeout, tt.connMaxLifetime, tt.timeoutOffsetSeconds)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("validateExporterFlags() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestConnectionPoolFlags(t *testing.T) {
+	// Parsing again restores all flag defaults for other tests.
+	t.Cleanup(func() {
+		if _, err := kingpin.CommandLine.Parse(nil); err != nil {
+			t.Error(err)
+		}
+	})
+	for _, tt := range []struct {
+		name        string
+		args        []string
+		wantMaxOpen int
+		wantMaxIdle int
+		wantLife    time.Duration
+	}{
+		{name: "defaults", wantMaxOpen: 2, wantMaxIdle: 1},
+		{name: "overrides", args: []string{"--exporter.max_open_connections=4", "--exporter.max_idle_connections=3", "--exporter.conn_max_lifetime=1m30s"}, wantMaxOpen: 4, wantMaxIdle: 3, wantLife: 90 * time.Second},
+		{name: "disabled", args: []string{"--exporter.max_idle_connections=0", "--exporter.conn_max_lifetime=0s"}, wantMaxOpen: 2},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := kingpin.CommandLine.Parse(tt.args); err != nil {
+				t.Fatal(err)
+			}
+			cfg := configFromFlags(nil)
+			if cfg.ExporterMaxOpenConns != tt.wantMaxOpen || cfg.ExporterMaxIdleConns != tt.wantMaxIdle || cfg.ExporterConnMaxLifetime != tt.wantLife {
+				t.Errorf("pool config: max open=%d, max idle=%d, lifetime=%v; want %d, %d, %v", cfg.ExporterMaxOpenConns, cfg.ExporterMaxIdleConns, cfg.ExporterConnMaxLifetime, tt.wantMaxOpen, tt.wantMaxIdle, tt.wantLife)
 			}
 		})
 	}

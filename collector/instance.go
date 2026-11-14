@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/blang/semver/v4"
 
@@ -38,7 +39,7 @@ type instance struct {
 	versionMajorMinor float64
 }
 
-func newInstance(ctx context.Context, dsn string, maxOpenConns int, provider auth.Provider) (*instance, error) {
+func newInstance(ctx context.Context, dsn string, maxOpenConns, maxIdleConns int, connMaxLifetime time.Duration, provider auth.Provider) (*instance, error) {
 	i := &instance{}
 	connector, err := auth.OpenConnector(dsn, provider)
 	if err != nil {
@@ -46,7 +47,8 @@ func newInstance(ctx context.Context, dsn string, maxOpenConns int, provider aut
 	}
 	db := sql.OpenDB(connector)
 	db.SetMaxOpenConns(maxOpenConns)
-	db.SetMaxIdleConns(1)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(connMaxLifetime)
 	i.db = db
 
 	version, versionString, err := queryVersion(ctx, db)

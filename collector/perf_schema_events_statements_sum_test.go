@@ -15,8 +15,11 @@ package collector
 
 import (
 	"context"
+	"database/sql"
+	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/prometheus/client_golang/prometheus"
@@ -115,5 +118,63 @@ func TestScrapePerfEventsStatementsSum(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestScrapePerfEventsStatementsSumEmptyIntegration(t *testing.T) {
+	connDSN := os.Getenv("TEST_MYSQL_DSN")
+	if connDSN == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	inst, err := newInstance(ctx, connDSN, 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = inst.Close() })
+
+	if inst.versionMajorMinor < (ScrapePerfEventsStatementsSum{}).Version() {
+		t.Skip("statement summary collector requires MySQL 5.7 or newer")
+	}
+
+	// An empty digest table produces NULL aggregates.
+	// MariaDB has this state with its default disabled Performance Schema.
+	// MySQL can use --performance-schema-digests-size=0 to reproduce it.
+	var count int
+	var sum sql.NullFloat64
+	if err := inst.getDB().QueryRowContext(ctx, `
+		SELECT COUNT(*), SUM(COUNT_STAR)
+		FROM performance_schema.events_statements_summary_by_digest
+	`).Scan(&count, &sum); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Skip("statement digest table is not empty")
+	}
+	if sum.Valid {
+		t.Fatalf("sum = %v, want NULL for an empty digest table", sum)
+	}
+
+	// Scrape the same empty table through the production collector.
+	// Drain metrics and require successful completion without the NULL scan error.
+	ch := make(chan prometheus.Metric)
+	result := make(chan error, 1)
+	go func() {
+		result <- (ScrapePerfEventsStatementsSum{}).Scrape(ctx, inst, ch, promslog.NewNopLogger())
+		close(ch)
+	}()
+	collected := false
+	for range ch {
+		collected = true
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("scraping empty statement summaries: %v", err)
+	}
+
+	if !collected {
+		t.Fatal("no statement summary metrics collected")
 	}
 }

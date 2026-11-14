@@ -331,13 +331,15 @@ Metric | Type | Description
 -------|------|------------
 `mysql_innodb_index_stats_size_bytes` | Gauge | Estimated size of the index.
 `mysql_innodb_index_stats_leaf_size_bytes` | Gauge | Estimated size of the leaf pages of the index.
-`mysql_innodb_index_stats_distinct_values` | Gauge | Estimated number of distinct values of the leading index columns in the `columns` label.
+`mysql_innodb_index_stats_distinct_values` | Gauge | Estimated number of distinct values of the first `prefix` index columns, listed in the `columns` label.
 `mysql_innodb_index_stats_last_update_timestamp_seconds` | Gauge | When InnoDB last recalculated the statistics of the index.
 
 All metrics have `schema`, `table` and `index` labels. Sizes are page counts
-multiplied by `innodb_page_size`. `distinct_values` has one series per index
-prefix, so an index on `(a, b)` reports both `columns="a"` and `columns="a,b"`
-(secondary indexes also list the primary key columns InnoDB appends).
+multiplied by the page size, which is `innodb_page_size`, or `KEY_BLOCK_SIZE`
+for compressed tables. `distinct_values` has one series per index prefix, with
+the number of columns in the `prefix` label, so an index on `(a, b)` reports both
+`prefix="1",columns="a"` and `prefix="2",columns="a,b"` (secondary indexes also
+list the primary key columns InnoDB appends, and MySQL cuts long column lists short).
 
 Series grow with the number of indexes, so on servers with many tables use
 `--collect.mysql.innodb_index_stats.databases` to list the databases to collect.

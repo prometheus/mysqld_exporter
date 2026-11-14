@@ -179,7 +179,7 @@ collect.sys.user_summary                                     | 5.7           | C
 ### General Flags
 Name                                       | Description
 -------------------------------------------|--------------------------------------------------------------------------------------------------
-mysqld.address                             | Hostname and port used for connecting to MySQL server, format: `host:port`. (default: `localhost:3306`)
+mysqld.address                             | Default hostname and port for connecting to MySQL server, format: `host:port`. Configuration file values take precedence, see [Configuration precedence](#configuration-precedence). (default: `localhost:3306`)
 mysqld.username                            | Username to be used for connecting to MySQL Server
 config.my-cnf                              | Path to .my.cnf file to read MySQL credentials from. (default: `~/.my.cnf`)
 log.level                                  | Logging verbosity (default: info)
@@ -201,7 +201,17 @@ MYSQLD_EXPORTER_PASSWORD                   | Password to be used for connecting 
 
 ### Configuration precedence
 
-If you have configured cli with both `mysqld` flags and a valid configuration file, the options in the configuration file will override the flags for `client` section.
+For the `[client]` section, non-empty `host`, `port`, and `user` values in the file selected by `--config.my-cnf` take precedence over `--mysqld.address` and `--mysqld.username`.
+These flags only fill missing or empty fields, the host and port are resolved independently.
+
+For example, with `port=3306` and no `host` in `[client]`, passing `--mysqld.address=10.0.0.0:10000` connects to `10.0.0.0:3306`.
+
+To use the command-line address, use an exporter-specific configuration file containing credentials without `host`, `port`, or `socket` settings.
+
+To keep the existing configuration file unchanged, scrape `/probe?target=10.0.0.0:10000&auth_module=client`.
+The explicit `target` overrides the configured `host`, `port`, and `socket` while retaining the credentials and TLS settings from the selected section.
+
+See [Multi-target support](#multi-target-support) for the Prometheus scrape configuration.
 
 ### Database authentication
 

@@ -1,4 +1,4 @@
-// Copyright 2026 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,7 +17,10 @@ package collector
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -47,6 +50,14 @@ const (
 	innodbIndexStatsSystemSchemasFilter = `database_name NOT IN ('mysql', 'performance_schema', 'information_schema', 'sys')`
 )
 
+// innodbCompressedTablesQueries list the compressed tables with the size of
+// their pages. MySQL 8.0 renamed INNODB_SYS_TABLES to INNODB_TABLES, MariaDB
+// and older MySQL versions only have INNODB_SYS_TABLES.
+var innodbCompressedTablesQueries = []string{
+	`SELECT NAME, ZIP_PAGE_SIZE FROM information_schema.INNODB_TABLES WHERE ZIP_PAGE_SIZE > 0`,
+	`SELECT NAME, ZIP_PAGE_SIZE FROM information_schema.INNODB_SYS_TABLES WHERE ZIP_PAGE_SIZE > 0`,
+}
+
 // Metric descriptors.
 var (
 	innodbIndexStatsLabels = []string{"schema", "table", "index"}
@@ -63,8 +74,8 @@ var (
 	)
 	innodbIndexStatsDistinctValuesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, innodbIndexStatsSubsystem, "distinct_values"),
-		"Estimated number of distinct values of the leading index columns listed in the columns label, from InnoDB's persistent statistics.",
-		append(innodbIndexStatsLabels, "columns"), nil,
+		"Estimated number of distinct values of the first n index columns, where n is the prefix label and the columns label lists them, from InnoDB's persistent statistics.",
+		append(innodbIndexStatsLabels, "prefix", "columns"), nil,
 	)
 	innodbIndexStatsLastUpdateDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, innodbIndexStatsSubsystem, "last_update_timestamp_seconds"),
@@ -95,12 +106,17 @@ func (ScrapeInnodbIndexStats) Version() float64 {
 func (s ScrapeInnodbIndexStats) Scrape(ctx context.Context, instance *instance, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	db := instance.getDB()
 
-	var pageSize float64
-	if err := db.QueryRowContext(ctx, innodbPageSizeQuery).Scan(&pageSize); err != nil {
+	filter, args, err := innodbIndexStatsFilter(s.Databases)
+	if err != nil {
 		return err
 	}
 
-	filter, args := innodbIndexStatsFilter(s.Databases)
+	var defaultPageSize float64
+	if err := db.QueryRowContext(ctx, innodbPageSizeQuery).Scan(&defaultPageSize); err != nil {
+		return err
+	}
+	compressedPageSizes := innodbCompressedPageSizes(ctx, db, logger)
+
 	rows, err := db.QueryContext(ctx, strings.Replace(innodbIndexStatsQuery, "%s", filter, 1), args...)
 	if err != nil {
 		return err
@@ -115,6 +131,13 @@ func (s ScrapeInnodbIndexStats) Scrape(ctx context.Context, instance *instance, 
 		)
 		if err := rows.Scan(&schema, &table, &index, &statName, &statValue, &description, &lastUpdate); err != nil {
 			return err
+		}
+
+		// Compressed tables store their pages at KEY_BLOCK_SIZE, not at
+		// innodb_page_size. InnoDB names tables "database/table".
+		pageSize := defaultPageSize
+		if size, ok := compressedPageSizes[schema+"/"+table]; ok {
+			pageSize = size
 		}
 
 		switch {
@@ -136,10 +159,16 @@ func (s ScrapeInnodbIndexStats) Scrape(ctx context.Context, instance *instance, 
 			)
 		case strings.HasPrefix(statName, "n_diff_pfx"):
 			// The description lists the leading columns the estimate covers,
-			// e.g. "customer_id,created_at".
+			// e.g. "customer_id,created_at". MySQL truncates long descriptions,
+			// so two prefixes can share one, and the prefix number keeps
+			// their series apart.
+			prefix := strings.TrimPrefix(statName, "n_diff_pfx")
+			if n, err := strconv.Atoi(prefix); err == nil {
+				prefix = strconv.Itoa(n)
+			}
 			ch <- prometheus.MustNewConstMetric(
 				innodbIndexStatsDistinctValuesDesc, prometheus.GaugeValue, float64(statValue),
-				schema, table, index, description,
+				schema, table, index, prefix, description,
 			)
 		}
 	}
@@ -147,12 +176,47 @@ func (s ScrapeInnodbIndexStats) Scrape(ctx context.Context, instance *instance, 
 	return rows.Err()
 }
 
+// innodbCompressedPageSizes returns the page size of each compressed table,
+// keyed by "database/table". If neither table can be read, every index is
+// sized with innodb_page_size.
+func innodbCompressedPageSizes(ctx context.Context, db *sql.DB, logger *slog.Logger) map[string]float64 {
+	for _, query := range innodbCompressedTablesQueries {
+		sizes, err := queryCompressedPageSizes(ctx, db, query)
+		if err == nil {
+			return sizes
+		}
+		logger.Debug("Could not read compressed page sizes", "query", query, "err", err)
+	}
+	return nil
+}
+
+func queryCompressedPageSizes(ctx context.Context, db *sql.DB, query string) (map[string]float64, error) {
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sizes := map[string]float64{}
+	for rows.Next() {
+		var (
+			name string
+			size float64
+		)
+		if err := rows.Scan(&name, &size); err != nil {
+			return nil, err
+		}
+		sizes[name] = size
+	}
+	return sizes, rows.Err()
+}
+
 // innodbIndexStatsFilter returns the WHERE clause and its arguments for the
 // configured databases: "*" means every database except the system schemas,
 // anything else is a comma separated list of database names.
-func innodbIndexStatsFilter(databases string) (string, []any) {
+func innodbIndexStatsFilter(databases string) (string, []any, error) {
 	if databases == "*" {
-		return innodbIndexStatsSystemSchemasFilter, nil
+		return innodbIndexStatsSystemSchemasFilter, nil, nil
 	}
 
 	var (
@@ -168,10 +232,10 @@ func innodbIndexStatsFilter(databases string) (string, []any) {
 		args = append(args, database)
 	}
 	if len(placeholders) == 0 {
-		return innodbIndexStatsSystemSchemasFilter, nil
+		return "", nil, errors.New(`collect.mysql.innodb_index_stats.databases lists no database, use "*" for all of them`)
 	}
 
-	return "database_name IN (" + strings.Join(placeholders, ", ") + ")", args
+	return "database_name IN (" + strings.Join(placeholders, ", ") + ")", args, nil
 }
 
 // check interface

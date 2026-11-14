@@ -1,4 +1,4 @@
-// Copyright 2026 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,6 +15,8 @@ package collector
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"regexp"
 	"strings"
@@ -45,6 +47,11 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 
 	mock.ExpectQuery(regexp.QuoteMeta(innodbPageSizeQuery)).
 		WillReturnRows(sqlmock.NewRows([]string{"@@innodb_page_size"}).AddRow(16384))
+	// Like MariaDB and MySQL before 8.0: no INNODB_TABLES, so INNODB_SYS_TABLES is used.
+	mock.ExpectQuery(regexp.QuoteMeta(innodbCompressedTablesQueries[0])).
+		WillReturnError(errors.New("Unknown table 'INNODB_TABLES' in information_schema"))
+	mock.ExpectQuery(regexp.QuoteMeta(innodbCompressedTablesQueries[1])).
+		WillReturnRows(sqlmock.NewRows([]string{"NAME", "ZIP_PAGE_SIZE"}).AddRow("shop/archive", 8192))
 
 	columns := []string{"database_name", "table_name", "index_name", "stat_name", "stat_value", "stat_description", "last_update"}
 	rows := sqlmock.NewRows(columns).
@@ -54,7 +61,11 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 		AddRow("shop", "orders", "idx_customer", "n_diff_pfx01", 50, "customer_id", 1700000100).
 		AddRow("shop", "orders", "idx_customer", "n_diff_pfx02", 1000, "customer_id,id", 1700000100).
 		AddRow("shop", "orders", "idx_customer", "n_leaf_pages", 2, "Number of leaf pages in the index", 1700000100).
-		AddRow("shop", "orders", "idx_customer", "size", 3, "Number of pages in the index", 1700000100)
+		AddRow("shop", "orders", "idx_customer", "size", 3, "Number of pages in the index", 1700000100).
+		// A compressed table, and two prefixes whose descriptions MySQL truncated to the same text
+		AddRow("shop", "archive", "PRIMARY", "n_diff_pfx16", 70, "c01,c02,c03", 1700000200).
+		AddRow("shop", "archive", "PRIMARY", "n_diff_pfx17", 80, "c01,c02,c03", 1700000200).
+		AddRow("shop", "archive", "PRIMARY", "size", 4, "Number of pages in the index", 1700000200)
 	mock.ExpectQuery(innodbIndexStatsQueryRegexp("database_name IN (?)")).
 		WithArgs("shop").
 		WillReturnRows(rows)
@@ -70,8 +81,9 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 
 	primary := labelMap{"schema": "shop", "table": "orders", "index": "PRIMARY"}
 	secondary := labelMap{"schema": "shop", "table": "orders", "index": "idx_customer"}
-	withColumns := func(labels labelMap, columns string) labelMap {
-		out := labelMap{"columns": columns}
+	archive := labelMap{"schema": "shop", "table": "archive", "index": "PRIMARY"}
+	withColumns := func(labels labelMap, prefix, columns string) labelMap {
+		out := labelMap{"prefix": prefix, "columns": columns}
 		for k, v := range labels {
 			out[k] = v
 		}
@@ -79,15 +91,19 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 	}
 
 	expected := []MetricResult{
-		{labels: withColumns(primary, "id"), value: 1000, metricType: dto.MetricType_GAUGE},
+		{labels: withColumns(primary, "1", "id"), value: 1000, metricType: dto.MetricType_GAUGE},
 		{labels: primary, value: 10 * 16384, metricType: dto.MetricType_GAUGE},
 		{labels: primary, value: 11 * 16384, metricType: dto.MetricType_GAUGE},
 		{labels: primary, value: 1700000000, metricType: dto.MetricType_GAUGE},
-		{labels: withColumns(secondary, "customer_id"), value: 50, metricType: dto.MetricType_GAUGE},
-		{labels: withColumns(secondary, "customer_id,id"), value: 1000, metricType: dto.MetricType_GAUGE},
+		{labels: withColumns(secondary, "1", "customer_id"), value: 50, metricType: dto.MetricType_GAUGE},
+		{labels: withColumns(secondary, "2", "customer_id,id"), value: 1000, metricType: dto.MetricType_GAUGE},
 		{labels: secondary, value: 2 * 16384, metricType: dto.MetricType_GAUGE},
 		{labels: secondary, value: 3 * 16384, metricType: dto.MetricType_GAUGE},
 		{labels: secondary, value: 1700000100, metricType: dto.MetricType_GAUGE},
+		{labels: withColumns(archive, "16", "c01,c02,c03"), value: 70, metricType: dto.MetricType_GAUGE},
+		{labels: withColumns(archive, "17", "c01,c02,c03"), value: 80, metricType: dto.MetricType_GAUGE},
+		{labels: archive, value: 4 * 8192, metricType: dto.MetricType_GAUGE},
+		{labels: archive, value: 1700000200, metricType: dto.MetricType_GAUGE},
 	}
 	expectedNames := []string{
 		"mysql_innodb_index_stats_distinct_values",
@@ -99,13 +115,25 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 		"mysql_innodb_index_stats_leaf_size_bytes",
 		"mysql_innodb_index_stats_size_bytes",
 		"mysql_innodb_index_stats_last_update_timestamp_seconds",
+		"mysql_innodb_index_stats_distinct_values",
+		"mysql_innodb_index_stats_distinct_values",
+		"mysql_innodb_index_stats_size_bytes",
+		"mysql_innodb_index_stats_last_update_timestamp_seconds",
 	}
 
 	var got []MetricResult
 	var gotNames []string
+	var metrics replayCollector
 	for m := range ch {
 		got = append(got, readMetric(m))
 		gotNames = append(gotNames, metricName(m))
+		metrics = append(metrics, m)
+	}
+	// A registry rejects duplicate series, which would fail the whole scrape.
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(metrics)
+	if _, err := registry.Gather(); err != nil {
+		t.Errorf("gathering the metrics failed: %s", err)
 	}
 	if diff := cmp.Diff(expected, got, cmp.AllowUnexported(MetricResult{})); diff != "" {
 		t.Errorf("unexpected metrics (-want +got):\n%s", diff)
@@ -119,18 +147,36 @@ func TestScrapeInnodbIndexStats(t *testing.T) {
 	}
 }
 
+// replayCollector sends metrics that were already collected, so they can be
+// checked through a registry.
+type replayCollector []prometheus.Metric
+
+func (replayCollector) Describe(chan<- *prometheus.Desc) {}
+
+func (c replayCollector) Collect(ch chan<- prometheus.Metric) {
+	for _, m := range c {
+		ch <- m
+	}
+}
+
 func TestInnodbIndexStatsFilter(t *testing.T) {
 	for _, tc := range []struct {
 		databases  string
 		wantFilter string
 		wantArgs   []any
+		wantErr    bool
 	}{
-		{"*", innodbIndexStatsSystemSchemasFilter, nil},
-		{"shop", "database_name IN (?)", []any{"shop"}},
-		{" shop, billing ,", "database_name IN (?, ?)", []any{"shop", "billing"}},
-		{",", innodbIndexStatsSystemSchemasFilter, nil},
+		{"*", innodbIndexStatsSystemSchemasFilter, nil, false},
+		{"shop", "database_name IN (?)", []any{"shop"}, false},
+		{" shop, billing ,", "database_name IN (?, ?)", []any{"shop", "billing"}, false},
+		// A list with no names must not turn into "every database"
+		{",", "", nil, true},
+		{"  ", "", nil, true},
 	} {
-		filter, args := innodbIndexStatsFilter(tc.databases)
+		filter, args, err := innodbIndexStatsFilter(tc.databases)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("databases %q: err = %v, want error %v", tc.databases, err, tc.wantErr)
+		}
 		if filter != tc.wantFilter {
 			t.Errorf("databases %q: filter = %q, want %q", tc.databases, filter, tc.wantFilter)
 		}
@@ -168,21 +214,24 @@ func TestScrapeInnodbIndexStatsLive(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// ANALYZE TABLE returns a result set, so read it with Query.
-	analyzeRows, err := db.QueryContext(ctx, "ANALYZE TABLE mysqld_exporter_test.innodb_index_stats")
-	if err != nil {
-		t.Fatal(err)
+	analyzeTable(ctx, t, db, "mysqld_exporter_test.innodb_index_stats")
+
+	// A compressed table, whose pages are KEY_BLOCK_SIZE and not innodb_page_size.
+	// Servers without Barracuda (MySQL 5.6 defaults) can't create it.
+	compressed := true
+	for _, query := range []string{
+		"DROP TABLE IF EXISTS mysqld_exporter_test.innodb_index_stats_zip",
+		"CREATE TABLE mysqld_exporter_test.innodb_index_stats_zip (id INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8",
+		"INSERT INTO mysqld_exporter_test.innodb_index_stats_zip VALUES (1), (2), (3)",
+	} {
+		if _, err := db.ExecContext(ctx, query); err != nil {
+			t.Logf("skipping the compressed table check: %s", err)
+			compressed = false
+			break
+		}
 	}
-	analyzed := 0
-	for analyzeRows.Next() {
-		analyzed++
-	}
-	if err := analyzeRows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	analyzeRows.Close()
-	if analyzed == 0 {
-		t.Fatal("ANALYZE TABLE returned no rows")
+	if compressed {
+		analyzeTable(ctx, t, db, "mysqld_exporter_test.innodb_index_stats_zip")
 	}
 
 	ch := make(chan prometheus.Metric)
@@ -194,9 +243,13 @@ func TestScrapeInnodbIndexStatsLive(t *testing.T) {
 	}()
 
 	sizes := map[string]float64{}
+	zipSizes := map[string]float64{}
 	distinct := map[string]bool{}
 	for m := range ch {
 		result := readMetric(m)
+		if result.labels["table"] == "innodb_index_stats_zip" && metricName(m) == "mysql_innodb_index_stats_size_bytes" {
+			zipSizes[result.labels["index"]] = result.value
+		}
 		if result.labels["table"] != "innodb_index_stats" {
 			continue
 		}
@@ -218,6 +271,44 @@ func TestScrapeInnodbIndexStatsLive(t *testing.T) {
 	}
 	if !distinct["idx_customer/customer_id"] {
 		t.Errorf("expected distinct values for idx_customer/customer_id, got %v", distinct)
+	}
+
+	if !compressed {
+		return
+	}
+	pageSize, ok := innodbCompressedPageSizes(ctx, db, promslog.NewNopLogger())["mysqld_exporter_test/innodb_index_stats_zip"]
+	if !ok {
+		t.Log("the server didn't compress the table, skipping the compressed size check")
+		return
+	}
+	var pages float64
+	if err := db.QueryRowContext(ctx, `SELECT stat_value FROM mysql.innodb_index_stats
+		WHERE database_name = 'mysqld_exporter_test' AND table_name = 'innodb_index_stats_zip'
+		AND index_name = 'PRIMARY' AND stat_name = 'size'`).Scan(&pages); err != nil {
+		t.Fatal(err)
+	}
+	if want := pages * pageSize; zipSizes["PRIMARY"] != want {
+		t.Errorf("compressed table size = %v, want %v pages of %v bytes", zipSizes["PRIMARY"], pages, pageSize)
+	}
+}
+
+// analyzeTable runs ANALYZE TABLE, which returns a result set, so it's read with Query.
+func analyzeTable(ctx context.Context, t *testing.T, db *sql.DB, table string) {
+	t.Helper()
+	rows, err := db.QueryContext(ctx, "ANALYZE TABLE "+table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	analyzed := 0
+	for rows.Next() {
+		analyzed++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if analyzed == 0 {
+		t.Fatalf("ANALYZE TABLE %s returned no rows", table)
 	}
 }
 

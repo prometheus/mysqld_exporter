@@ -539,23 +539,21 @@ func (m MySqlConfig) FormDSN(target string, configSectionName string) (string, e
 		config.Addr = target
 	}
 
-	if m.TlsInsecureSkipVerify {
-		config.TLSConfig = "skip-verify"
-	} else {
-		config.TLSConfig = m.Tls
+	config.TLSConfig = m.Tls
+	hasCustomTLS := m.SslCa != "" ||
+		m.SslCert != "" ||
+		m.SslKey != "" ||
+		m.TlsMinVersion != "" ||
+		m.TlsMaxVersion != "" ||
+		m.TlsServerName != ""
 
-		hasCustomTLS := m.SslCa != "" ||
-			m.TlsMinVersion != "" ||
-			m.TlsMaxVersion != "" ||
-			m.TlsServerName != ""
-
-		if hasCustomTLS {
-			if err := m.CustomizeTLS(configSectionName); err != nil {
-				err = fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
-				return "", err
-			}
-			config.TLSConfig = configSectionName
+	if hasCustomTLS {
+		if err := m.CustomizeTLS(configSectionName); err != nil {
+			return "", fmt.Errorf("failed to register a custom TLS configuration for mysql dsn: %w", err)
 		}
+		config.TLSConfig = configSectionName
+	} else if m.TlsInsecureSkipVerify {
+		config.TLSConfig = "skip-verify"
 	}
 
 	if m.EnableCleartextPlugin {
@@ -578,16 +576,14 @@ func (m MySqlConfig) CustomizeTLS(configSectionName string) error {
 		} else {
 			return fmt.Errorf("failed parse pem-encoded CA certificates from %s", m.SslCa)
 		}
-		if m.SslCert != "" && m.SslKey != "" {
-			certPairs := make([]tls.Certificate, 0, 1)
-			keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
-			if err != nil {
-				return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
-					m.SslCert, m.SslKey, err)
-			}
-			certPairs = append(certPairs, keypair)
-			tlsCfg.Certificates = certPairs
+	}
+	if m.SslCert != "" || m.SslKey != "" {
+		keypair, err := tls.LoadX509KeyPair(m.SslCert, m.SslKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse pem-encoded SSL cert %s or SSL key %s: %w",
+				m.SslCert, m.SslKey, err)
 		}
+		tlsCfg.Certificates = []tls.Certificate{keypair}
 	}
 	if m.TlsMinVersion != "" {
 		tlsCfg.MinVersion = tlsVersions[m.TlsMinVersion]
@@ -598,7 +594,6 @@ func (m MySqlConfig) CustomizeTLS(configSectionName string) error {
 	if m.TlsServerName != "" {
 		tlsCfg.ServerName = m.TlsServerName
 	}
-	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify
-	mysql.RegisterTLSConfig(configSectionName, &tlsCfg)
-	return nil
+	tlsCfg.InsecureSkipVerify = m.TlsInsecureSkipVerify || m.Tls == "skip-verify"
+	return mysql.RegisterTLSConfig(configSectionName, &tlsCfg)
 }

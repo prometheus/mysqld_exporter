@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -452,6 +453,112 @@ func TestFormDSNWithCustomTls(t *testing.T) {
 		})
 	})
 }
+
+func TestFormDSNWithClientCertificate(t *testing.T) {
+	// Test-only certificate and private key, generated with:
+	// openssl ecparam -name prime256v1 -param_enc named_curve -genkey -noout -out client-key.pem
+	// openssl req -new -x509 -key client-key.pem -out client-cert.pem -days 3650 -subj /CN=mysqld-exporter-test
+	const certPEM = `-----BEGIN CERTIFICATE-----
+MIIBLTCB1AIJAMDFherkB/X3MAoGCCqGSM49BAMCMB8xHTAbBgNVBAMMFG15c3Fs
+ZC1leHBvcnRlci10ZXN0MB4XDTI2MTExNDE2MjEzMloXDTM2MTExMTE2MjEzMlow
+HzEdMBsGA1UEAwwUbXlzcWxkLWV4cG9ydGVyLXRlc3QwWTATBgcqhkjOPQIBBggq
+hkjOPQMBBwNCAAT2fitrxeqXuWlnyUkTRCuElMO38pJ1VGAFACl0xqK4gb9weMx7
+urvm4nkLPKncwgaP4ChLhohn6/IS6pRu2JW5MAoGCCqGSM49BAMCA0gAMEUCIQC4
+ld3rxVE+bKM7+pEMrPr6jOuwJGIYVIGvugoM86JNCgIgO3Je0bTXZ88/UsNGZbPz
+fc5XSHwsp4SUixH9cpTt+nc=
+-----END CERTIFICATE-----
+`
+	const keyPEM = `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEINT02pTK1H717/3QsVRB0wLXxHKjUa9UfeO7nt79rlxjoAoGCCqGSM49
+AwEHoUQDQgAE9n4ra8Xql7lpZ8lJE0QrhJTDt/KSdVRgBQApdMaiuIG/cHjMe7q7
+5uJ5Czyp3MIGj+AoS4aIZ+vyEuqUbtiVuQ==
+-----END EC PRIVATE KEY-----
+`
+
+	certFile := filepath.Join(t.TempDir(), "client-cert.pem")
+	if err := os.WriteFile(certFile, []byte(certPEM), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	keyFile := filepath.Join(t.TempDir(), "client-key.pem")
+	if err := os.WriteFile(keyFile, []byte(keyPEM), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name       string
+		withCA     bool
+		skipVerify bool
+		tlsMode    string
+	}{
+		{name: "system roots"},
+		{name: "custom CA", withCA: true},
+		{name: "skip verification", skipVerify: true},
+		{name: "custom CA and skip verification", withCA: true, skipVerify: true},
+		{name: "TLS skip-verify mode", tlsMode: "skip-verify"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			sectionName := t.Name()
+
+			cfg := MySqlConfig{
+				User:                  "exporter",
+				SslCert:               certFile,
+				SslKey:                keyFile,
+				TlsInsecureSkipVerify: tt.skipVerify,
+				Tls:                   tt.tlsMode,
+			}
+			if tt.withCA {
+				cfg.SslCa = certFile
+			}
+
+			dsn, err := cfg.FormDSN("mysql.example:3306", sectionName)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { mysql.DeregisterTLSConfig(sectionName) })
+
+			parsed, err := mysql.ParseDSN(dsn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if parsed.TLS == nil || len(parsed.TLS.Certificates) != 1 {
+				t.Fatal("client certificate must enable TLS and be sent with or without ssl-ca")
+			}
+
+			wantSkipVerify := tt.skipVerify || tt.tlsMode == "skip-verify"
+			if parsed.TLS.InsecureSkipVerify != wantSkipVerify {
+				t.Fatal("TLS must respect certificate verification settings")
+			}
+		})
+	}
+}
+
+func TestFormDSNWithInvalidClientCertificate(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		cert string
+		key  string
+	}{
+		{name: "missing key", cert: "missing-cert.pem"},
+		{name: "missing certificate", key: "missing-key.pem"},
+		{name: "unreadable pair", cert: "missing-cert.pem", key: "missing-key.pem"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := MySqlConfig{SslCert: tt.cert, SslKey: tt.key}
+			if _, err := cfg.FormDSN("mysql.example:3306", t.Name()); err == nil {
+				t.Fatal("invalid client certificate configuration must return an error")
+			}
+		})
+	}
+}
+
+func TestFormDSNWithReservedTLSConfigName(t *testing.T) {
+	cfg := MySqlConfig{TlsServerName: "mysql.example"}
+	if _, err := cfg.FormDSN("mysql.example:3306", "true"); err == nil {
+		t.Fatal("reserved TLS configuration name must return its registration error")
+	}
+}
+
 func TestReloadConfigReportsFailure(t *testing.T) {
 	ch, err := NewAuthConfigHandler(prometheus.NewRegistry())
 	if err != nil {

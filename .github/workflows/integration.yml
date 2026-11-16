@@ -21,7 +21,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
+      - run: |
+          git clone --depth 1 https://github.com/monitoring-mixins/mixtool.git "$RUNNER_TEMP/mixtool"
+          cd "$RUNNER_TEMP/mixtool"
+          go install ./cmd/mixtool
       - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
       - run: make -C mysqld-mixin lint build
 

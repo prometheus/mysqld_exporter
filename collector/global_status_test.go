@@ -125,3 +125,45 @@ func TestScrapeGlobalStatus(t *testing.T) {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
 	}
 }
+
+func TestScrapeGlobalStatusDuplicateNames(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+	inst := &instance{db: db}
+
+	// The validate_password plugin and component expose the same counters
+	// as Validate_password_dictionary_file_words_count and
+	// validate_password.dictionary_file_words_count.
+	rows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+		AddRow("Threads_running", "2").
+		AddRow("validate_password.dictionary_file_words_count", "0").
+		AddRow("Validate_password_dictionary_file_words_count", "0")
+	mock.ExpectQuery(sanitizeQuery(globalStatusQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err := (ScrapeGlobalStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	seen := map[string]int{}
+	for m := range ch {
+		seen[m.Desc().String()]++
+	}
+	if len(seen) != 2 {
+		t.Errorf("expected 2 distinct metrics, got %d: %v", len(seen), seen)
+	}
+	for desc, n := range seen {
+		if n != 1 {
+			t.Errorf("metric emitted %d times: %s", n, desc)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}

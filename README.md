@@ -257,6 +257,8 @@ ssl-key=/path/to/ssl/client/key
 ssl-cert=/path/to/ssl/client/cert
 ```
 
+Configure `ssl-key` and `ssl-cert` together; `ssl-ca` is optional. The client keypair is preserved with `--tls.insecure-skip-verify` or `tls=skip-verify`. Invalid or incomplete keypairs return an error.
+
 It's possible to also restrict the TLS versions that can be used between the MySQL server and mysqld exporter by specifying versions in the mysql cnf file like this:
 
 ```

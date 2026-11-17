@@ -21,7 +21,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@latest
+      # Remove the pin once https://github.com/monitoring-mixins/mixtool/issues/261 is fixed upstream.
+      - run: go install github.com/monitoring-mixins/mixtool/cmd/mixtool@4e5c5015347639a73771cac72e74429847d2710e
       - run: go install github.com/google/go-jsonnet/cmd/jsonnetfmt@latest
       - run: make -C mysqld-mixin lint build
 

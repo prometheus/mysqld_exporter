@@ -64,6 +64,8 @@ const (
 	DefaultSlowLogFilter                  = false
 	DefaultExporterQueryTimeout           = 0
 	DefaultExporterMaxOpenConns           = 2
+	DefaultExporterMaxIdleConns           = 1
+	DefaultExporterConnMaxLifetime        = time.Duration(0)
 
 	DefaultHeartbeatDatabase = "heartbeat"
 	DefaultHeartbeatTable    = "heartbeat"
@@ -95,6 +97,8 @@ type Config struct {
 	SlowLogFilter                  bool
 	ExporterQueryTimeout           time.Duration
 	ExporterMaxOpenConns           int
+	ExporterMaxIdleConns           int
+	ExporterConnMaxLifetime        time.Duration
 	Heartbeat                      HeartbeatConfig
 	InfoSchemaProcesslist          InfoSchemaProcesslistConfig
 	InfoSchemaTables               InfoSchemaTablesConfig
@@ -150,6 +154,8 @@ func NewConfigWithDefaults() Config {
 		SlowLogFilter:                  DefaultSlowLogFilter,
 		ExporterQueryTimeout:           DefaultExporterQueryTimeout,
 		ExporterMaxOpenConns:           DefaultExporterMaxOpenConns,
+		ExporterMaxIdleConns:           DefaultExporterMaxIdleConns,
+		ExporterConnMaxLifetime:        DefaultExporterConnMaxLifetime,
 		Heartbeat: HeartbeatConfig{
 			Database: DefaultHeartbeatDatabase,
 			Table:    DefaultHeartbeatTable,
@@ -236,6 +242,12 @@ func (c Config) Validate() error {
 	}
 	if c.ExporterMaxOpenConns < 1 {
 		return fmt.Errorf("exporter max open connections must be at least 1")
+	}
+	if c.ExporterMaxIdleConns < 0 {
+		return fmt.Errorf("exporter max idle connections must not be negative")
+	}
+	if c.ExporterConnMaxLifetime < 0 {
+		return fmt.Errorf("exporter connection max lifetime must not be negative")
 	}
 	if c.Heartbeat.Database == "" {
 		return fmt.Errorf("heartbeat database must not be empty")

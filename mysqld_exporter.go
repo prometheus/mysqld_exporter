@@ -83,6 +83,14 @@ var (
 		"exporter.max_open_connections",
 		"Maximum number of open connections to the database per scrape. Must be >= 1.",
 	).Default("2").Int()
+	exporterMaxIdleConns = kingpin.Flag(
+		"exporter.max_idle_connections",
+		"Maximum number of idle connections retained per scrape, capped by exporter.max_open_connections. 0 disables idle connections.",
+	).Default(strconv.Itoa(config.DefaultExporterMaxIdleConns)).Int()
+	exporterConnMaxLifetime = kingpin.Flag(
+		"exporter.conn_max_lifetime",
+		"Maximum amount of time a connection may be reused during a scrape (e.g. 60s, 5m). 0 disables the lifetime limit.",
+	).Default(config.DefaultExporterConnMaxLifetime.String()).Duration()
 	collectHeartbeatDatabase = kingpin.Flag(
 		"collect.heartbeat.database",
 		"Database from where to collect heartbeat data",
@@ -222,6 +230,8 @@ func configFromFlags(collectorFlags map[string]*bool) config.Config {
 	cfg.SlowLogFilter = *slowLogFilter
 	cfg.ExporterQueryTimeout = time.Duration(*exporterQueryTimeout) * time.Second
 	cfg.ExporterMaxOpenConns = *exporterMaxOpenConns
+	cfg.ExporterMaxIdleConns = *exporterMaxIdleConns
+	cfg.ExporterConnMaxLifetime = *exporterConnMaxLifetime
 	cfg.Heartbeat = config.HeartbeatConfig{
 		Database: *collectHeartbeatDatabase,
 		Table:    *collectHeartbeatTable,
@@ -329,9 +339,15 @@ func newHandler(baseConfig config.Config, timeoutOffsetSeconds float64, logger *
 	}
 }
 
-func validateExporterFlags(maxOpenConns, queryTimeout int, timeoutOffsetSeconds float64) error {
+func validateExporterFlags(maxOpenConns, maxIdleConns, queryTimeout int, connMaxLifetime time.Duration, timeoutOffsetSeconds float64) error {
 	if maxOpenConns < 1 {
 		return fmt.Errorf("invalid value for --exporter.max_open_connections, must be >= 1: %d", maxOpenConns)
+	}
+	if maxIdleConns < 0 {
+		return fmt.Errorf("invalid value for --exporter.max_idle_connections, must be >= 0: %d", maxIdleConns)
+	}
+	if connMaxLifetime < 0 {
+		return fmt.Errorf("invalid value for --exporter.conn_max_lifetime, must be >= 0: %s", connMaxLifetime)
 	}
 	if queryTimeout < 0 {
 		return fmt.Errorf("invalid value for --exporter.query_timeout, must be >= 0: %d", queryTimeout)
@@ -372,7 +388,7 @@ func main() {
 	logger.Info("Starting mysqld_exporter", "version", version.Info())
 	logger.Info("Build context", "build_context", version.BuildContext())
 
-	if err := validateExporterFlags(*exporterMaxOpenConns, *exporterQueryTimeout, *timeoutOffset); err != nil {
+	if err := validateExporterFlags(*exporterMaxOpenConns, *exporterMaxIdleConns, *exporterQueryTimeout, *exporterConnMaxLifetime, *timeoutOffset); err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}

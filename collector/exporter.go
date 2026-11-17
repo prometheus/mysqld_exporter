@@ -25,6 +25,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/mysqld_exporter/auth"
+	"github.com/prometheus/mysqld_exporter/config"
 )
 
 // Metric name parts.
@@ -79,6 +80,8 @@ type Exporter struct {
 	slowLogFilter         bool
 	queryTimeout          time.Duration
 	maxOpenConns          int
+	maxIdleConns          int
+	connMaxLifetime       time.Duration
 }
 
 type ExporterOpt func(*Exporter)
@@ -126,6 +129,22 @@ func SetMaxOpenConns(n int) ExporterOpt {
 	}
 }
 
+// SetMaxIdleConns sets the maximum number of idle connections retained during
+// each scrape. Zero disables idle connections.
+func SetMaxIdleConns(n int) ExporterOpt {
+	return func(e *Exporter) {
+		e.maxIdleConns = n
+	}
+}
+
+// SetConnMaxLifetime sets how long a connection may be reused during each scrape.
+// Zero disables the lifetime limit.
+func SetConnMaxLifetime(lifetime time.Duration) ExporterOpt {
+	return func(e *Exporter) {
+		e.connMaxLifetime = lifetime
+	}
+}
+
 // withQueryTimeoutContext derives a context bounded by the configured query timeout.
 // When the timeout is disabled (0), it returns the parent context and a no-op
 // cancel so callers can unconditionally `defer cancel()`.
@@ -139,10 +158,12 @@ func (e *Exporter) withQueryTimeoutContext(ctx context.Context) (context.Context
 // New returns a new MySQL exporter for the provided DSN.
 func New(ctx context.Context, dsn string, scrapers []Scraper, logger *slog.Logger, opts ...ExporterOpt) *Exporter {
 	e := &Exporter{
-		ctx:          ctx,
-		logger:       logger,
-		scrapers:     scrapers,
-		maxOpenConns: 2,
+		ctx:             ctx,
+		logger:          logger,
+		scrapers:        scrapers,
+		maxOpenConns:    config.DefaultExporterMaxOpenConns,
+		maxIdleConns:    config.DefaultExporterMaxIdleConns,
+		connMaxLifetime: config.DefaultExporterConnMaxLifetime,
 	}
 
 	for _, opt := range opts {
@@ -191,7 +212,7 @@ func (e *Exporter) scrape(ctx context.Context, ch chan<- prometheus.Metric) floa
 	var err error
 	scrapeTime := time.Now()
 	versionCtx, versionCancel := e.withQueryTimeoutContext(ctx)
-	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns, e.provider)
+	instance, err := newInstance(versionCtx, e.dsn, e.maxOpenConns, e.maxIdleConns, e.connMaxLifetime, e.provider)
 	versionCancel()
 	if err != nil {
 		e.logger.Error("Error opening connection to database", "err", err)

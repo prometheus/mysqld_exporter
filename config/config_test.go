@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
@@ -34,6 +35,12 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 	if cfg.ExporterLockWaitTimeoutSeconds != DefaultExporterLockWaitTimeoutSeconds {
 		t.Fatalf("unexpected lock wait timeout: got %d, want %d", cfg.ExporterLockWaitTimeoutSeconds, DefaultExporterLockWaitTimeoutSeconds)
 	}
+	if cfg.ExporterMaxIdleConns != 1 {
+		t.Errorf("max idle connections = %d, want 1", cfg.ExporterMaxIdleConns)
+	}
+	if cfg.ExporterConnMaxLifetime != 0 {
+		t.Errorf("connection max lifetime = %v, want 0", cfg.ExporterConnMaxLifetime)
+	}
 	if cfg.Collectors["global_status"] != true {
 		t.Fatal("global_status should be enabled by default")
 	}
@@ -48,6 +55,36 @@ func TestConfigDefaultsAndValidation(t *testing.T) {
 	cfg.DataSourceName = "root@tcp(localhost:3306)/"
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("unexpected validation error: %v", err)
+	}
+}
+
+func TestConfigConnectionPoolValidation(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		maxIdle     int
+		maxLifetime time.Duration
+		wantErr     string
+	}{
+		{name: "disabled", maxIdle: 0, maxLifetime: 0},
+		{name: "configured", maxIdle: 1, maxLifetime: 30 * time.Second},
+		{name: "idle above open limit", maxIdle: 3, maxLifetime: time.Minute},
+		{name: "negative idle limit", maxIdle: -1, wantErr: "exporter max idle connections must not be negative"},
+		{name: "negative lifetime", maxIdle: 1, maxLifetime: -time.Second, wantErr: "exporter connection max lifetime must not be negative"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := NewConfigWithDefaults()
+			cfg.DataSourceName = "root@tcp(localhost:3306)/"
+			cfg.ExporterMaxIdleConns = tt.maxIdle
+			cfg.ExporterConnMaxLifetime = tt.maxLifetime
+			err := cfg.Validate()
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected validation error: %v", err)
+				}
+			} else if err == nil || err.Error() != tt.wantErr {
+				t.Fatalf("validation error = %v, want %q", err, tt.wantErr)
+			}
+		})
 	}
 }
 

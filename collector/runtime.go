@@ -128,5 +128,6 @@ func AllScrapers(cfg config.Config) []Scraper {
 		ScrapeSlaveHosts(emptyConfig),
 		ScrapeReplicaHost(emptyConfig),
 		ScrapeRocksDBPerfContext(emptyConfig),
+		ScrapeInnodbIndexStats(cfg.InnodbIndexStats),
 	}
 }

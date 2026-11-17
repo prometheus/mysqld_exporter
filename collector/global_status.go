@@ -131,6 +131,11 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 		"wsrep_evs_repl_latency":   "",
 	}
 
+	// Different status variables can normalize to the same name, for example
+	// Validate_password_dictionary_file_words_count (plugin) and
+	// validate_password.dictionary_file_words_count (component).
+	seen := map[string]struct{}{}
+
 	for globalStatusRows.Next() {
 		if err := globalStatusRows.Scan(&key, &val); err != nil {
 			return err
@@ -139,6 +144,11 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 			key = validPrometheusName(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
+				if _, dup := seen[key]; dup {
+					logger.Debug("Skipping global status with a duplicate metric name", "name", key)
+					continue
+				}
+				seen[key] = struct{}{}
 				metricType := prometheus.UntypedValue
 				if typed, ok := globalStatusMetricTypes[key]; ok {
 					metricType = typed

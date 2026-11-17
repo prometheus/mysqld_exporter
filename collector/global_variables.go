@@ -162,6 +162,10 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 		"transaction_isolation":  "",
 	}
 
+	// Different variables can normalize to the same name, for example
+	// validate_password_length (plugin) and validate_password.length (component).
+	seen := map[string]struct{}{}
+
 	for globalVariablesRows.Next() {
 		if err = globalVariablesRows.Scan(&key, &val); err != nil {
 			return err
@@ -169,6 +173,11 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 
 		key = validPrometheusName(key)
 		if floatVal, ok := parseStatus(val); ok {
+			if _, dup := seen[key]; dup {
+				logger.Debug("Skipping global variable with a duplicate metric name", "name", key)
+				continue
+			}
+			seen[key] = struct{}{}
 			help := globalVariablesHelp[key]
 			if help == "" {
 				help = "Generic gauge metric from SHOW GLOBAL VARIABLES."

@@ -97,3 +97,46 @@ func TestParseWsrepProviderOptions(t *testing.T) {
 		convey.So(parseWsrepProviderOptions(testB), convey.ShouldEqual, 131072)
 	})
 }
+
+func TestScrapeGlobalVariablesDuplicateNames(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+	inst := &instance{db: db}
+
+	// The validate_password plugin and component expose the same settings
+	// as validate_password_length and validate_password.length.
+	rows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+		AddRow("validate_password.length", "8").
+		AddRow("validate_password.policy", "MEDIUM").
+		AddRow("validate_password_length", "8").
+		AddRow("wait_timeout", "28800")
+	mock.ExpectQuery(globalVariablesQuery).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err := (ScrapeGlobalVariables{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	seen := map[string]int{}
+	for m := range ch {
+		seen[m.Desc().String()]++
+	}
+	// validate_password_length, wait_timeout and mysql_version_info.
+	if len(seen) != 3 {
+		t.Errorf("expected 3 distinct metrics, got %d: %v", len(seen), seen)
+	}
+	for desc, n := range seen {
+		if n != 1 {
+			t.Errorf("metric emitted %d times: %s", n, desc)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}

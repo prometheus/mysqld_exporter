@@ -49,7 +49,9 @@ func TestScrapeInnodbCmpMem(t *testing.T) {
 		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 30, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 40, metricType: dto.MetricType_COUNTER},
 		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 50, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 6, metricType: dto.MetricType_COUNTER},
+		// relocation_time is already reported in seconds by both MySQL and
+		// MariaDB, so it is exported unchanged.
+		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 6000, metricType: dto.MetricType_COUNTER},
 	}
 	convey.Convey("Metrics comparison", t, func() {
 		for _, expect := range expected {

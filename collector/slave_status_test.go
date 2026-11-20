@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -102,5 +103,26 @@ func TestScrapeReplicaStatus(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestScrapeSlaveStatusRowError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+	inst := &instance{db: db}
+
+	rows := sqlmock.NewRows([]string{"Master_Host", "Slave_IO_Running"}).
+		AddRow("127.0.0.1", "Yes").
+		AddRow("127.0.0.2", "Yes").
+		RowError(1, errors.New("connection lost"))
+	mock.ExpectQuery(sanitizeQuery("SHOW SLAVE STATUS")).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric, 10)
+	err = (ScrapeSlaveStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger())
+	if err == nil {
+		t.Fatal("expected the row iteration error to be returned")
 	}
 }

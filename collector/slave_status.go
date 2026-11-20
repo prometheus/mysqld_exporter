@@ -158,7 +158,7 @@ func (ScrapeSlaveStatus) Scrape(ctx context.Context, instance *instance, ch chan
 		parseMariaDBGtid(ch, "Gtid_IO_Pos", columnValue(scanArgs, slaveCols, "Gtid_IO_Pos"), masterHost, masterUUID, channelName, connectionName)
 		parseMariaDBGtid(ch, "Gtid_Slave_Pos", columnValue(scanArgs, slaveCols, "Gtid_Slave_Pos"), masterHost, masterUUID, channelName, connectionName)
 	}
-	return nil
+	return slaveStatusRows.Err()
 }
 
 func parseMariaDBGtid(ch chan<- prometheus.Metric, name string, value string, masterHost string, masterUUID string, channelName string, connectionName string) {

@@ -193,6 +193,9 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 			textItems[key] = string(val)
 		}
 	}
+	if err := globalStatusRows.Err(); err != nil {
+		return err
+	}
 
 	// mysql_galera_variables_info metric.
 	if textItems["wsrep_local_state_uuid"] != "" {

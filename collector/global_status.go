@@ -51,6 +51,14 @@ var globalStatusMetricTypes = map[string]prometheus.ValueType{
 	"wsrep_cluster_status":                          prometheus.GaugeValue,
 }
 
+var globalStatusMetricNames = map[string]string{
+	"queries":                 "queries_total",
+	"questions":               "questions_total",
+	"slow_queries":            "slow_queries_total",
+	"table_open_cache_hits":   "table_open_cache_hits_total",
+	"table_open_cache_misses": "table_open_cache_misses_total",
+}
+
 // Metric descriptors.
 var (
 	globalCommandsDesc = prometheus.NewDesc(
@@ -139,12 +147,16 @@ func (ScrapeGlobalStatus) Scrape(ctx context.Context, instance *instance, ch cha
 			key = validPrometheusName(key)
 			match := globalStatusRE.FindStringSubmatch(key)
 			if match == nil {
+				metricName := key
+				if renamed, ok := globalStatusMetricNames[key]; ok {
+					metricName = renamed
+				}
 				metricType := prometheus.UntypedValue
 				if typed, ok := globalStatusMetricTypes[key]; ok {
 					metricType = typed
 				}
 				ch <- prometheus.MustNewConstMetric(
-					newDesc(globalStatus, key, "Generic metric from SHOW GLOBAL STATUS."),
+					newDesc(globalStatus, metricName, "Generic metric from SHOW GLOBAL STATUS."),
 					metricType,
 					floatVal,
 				)

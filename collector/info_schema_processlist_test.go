@@ -15,8 +15,11 @@ package collector
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,6 +27,60 @@ import (
 	"github.com/prometheus/common/promslog"
 	"github.com/smartystreets/goconvey/convey"
 )
+
+func TestProcesslistQueryOnlyFullGroupBy(t *testing.T) {
+	dsn := os.Getenv("TEST_MYSQL_DSN")
+	if dsn == "" {
+		t.Skip("TEST_MYSQL_DSN is not set")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// Both sql_mode and SHOW WARNINGS are local to the session.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// #684: Enable strict grouping explicitly so the test catches the MariaDB even on servers where ONLY_FULL_GROUP_BY is disabled by default.
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY'"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf(infoSchemaProcesslistQuery, 0)); err != nil {
+		t.Fatalf("processlist query: %v", err)
+	}
+
+	// Ambiguous GROUP BY columns can produce warning 1052 even when the query succeeds.
+	// Read its warnings before another statement changes the session diagnostics.
+	warnings, err := conn.QueryContext(ctx, "SHOW WARNINGS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer warnings.Close()
+
+	for warnings.Next() {
+		var level, message string
+		var code int
+		if err := warnings.Scan(&level, &code, &message); err != nil {
+			t.Fatal(err)
+		}
+		if code == 1052 {
+			t.Errorf("processlist query: %s %d: %s", level, code, message)
+		}
+	}
+	if err := warnings.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestScrapeProcesslist(t *testing.T) {
 	db, mock, err := sqlmock.New()

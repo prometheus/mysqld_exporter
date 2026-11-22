@@ -185,7 +185,7 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 			textItems[key] = string(val)
 		}
 	}
-	if err = globalVariablesRows.Err(); err != nil {
+	if err := globalVariablesRows.Err(); err != nil {
 		return err
 	}
 

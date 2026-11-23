@@ -25,41 +25,57 @@ import (
 )
 
 func TestScrapeInnodbCmpMem(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error opening a stub database connection: %s", err)
+	// relocation_time is reported in microseconds by MySQL and in seconds by
+	// MariaDB, so the collector normalizes it to seconds per flavor.
+	cases := []struct {
+		name                  string
+		flavor                string
+		relocationTimeInput   float64
+		relocationTimeSeconds float64
+	}{
+		{name: "MySQL", flavor: FlavorMySQL, relocationTimeInput: 6000000, relocationTimeSeconds: 6},
+		{name: "MariaDB", flavor: FlavorMariaDB, relocationTimeInput: 6, relocationTimeSeconds: 6},
 	}
-	defer db.Close()
-	inst := &instance{db: db}
 
-	columns := []string{"page_size", "buffer_pool", "pages_used", "pages_free", "relocation_ops", "relocation_time"}
-	rows := sqlmock.NewRows(columns).
-		AddRow("1024", "0", 30, 40, 50, 6000)
-	mock.ExpectQuery(sanitizeQuery(innodbCmpMemQuery)).WillReturnRows(rows)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("error opening a stub database connection: %s", err)
+			}
+			defer db.Close()
+			inst := &instance{db: db, flavor: c.flavor}
 
-	ch := make(chan prometheus.Metric)
-	go func() {
-		if err = (ScrapeInnodbCmpMem{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
-			t.Errorf("error calling function on test: %s", err)
-		}
-		close(ch)
-	}()
+			columns := []string{"page_size", "buffer_pool", "pages_used", "pages_free", "relocation_ops", "relocation_time"}
+			rows := sqlmock.NewRows(columns).
+				AddRow("1024", "0", 30, 40, 50, c.relocationTimeInput)
+			mock.ExpectQuery(sanitizeQuery(innodbCmpMemQuery)).WillReturnRows(rows)
 
-	expected := []MetricResult{
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 30, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 40, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 50, metricType: dto.MetricType_COUNTER},
-		{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 6, metricType: dto.MetricType_COUNTER},
-	}
-	convey.Convey("Metrics comparison", t, func() {
-		for _, expect := range expected {
-			got := readMetric(<-ch)
-			convey.So(expect, convey.ShouldResemble, got)
-		}
-	})
+			ch := make(chan prometheus.Metric)
+			go func() {
+				if err = (ScrapeInnodbCmpMem{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+					t.Errorf("error calling function on test: %s", err)
+				}
+				close(ch)
+			}()
 
-	// Ensure all SQL queries were executed
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled exceptions: %s", err)
+			expected := []MetricResult{
+				{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 30, metricType: dto.MetricType_COUNTER},
+				{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 40, metricType: dto.MetricType_COUNTER},
+				{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: 50, metricType: dto.MetricType_COUNTER},
+				{labels: labelMap{"page_size": "1024", "buffer_pool": "0"}, value: c.relocationTimeSeconds, metricType: dto.MetricType_COUNTER},
+			}
+			convey.Convey("Metrics comparison", t, func() {
+				for _, expect := range expected {
+					got := readMetric(<-ch)
+					convey.So(expect, convey.ShouldResemble, got)
+				}
+			})
+
+			// Ensure all SQL queries were executed
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unfulfilled exceptions: %s", err)
+			}
+		})
 	}
 }

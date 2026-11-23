@@ -95,9 +95,13 @@ func (ScrapeInnodbCmpMem) Scrape(ctx context.Context, instance *instance, ch cha
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemPagesRead, prometheus.CounterValue, pages_used, page_size, buffer_pool)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemPagesFree, prometheus.CounterValue, pages_free, page_size, buffer_pool)
 		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemRelocationOps, prometheus.CounterValue, relocation_ops, page_size, buffer_pool)
-		// relocation_time is reported in seconds by both MySQL and MariaDB, so
-		// it needs no conversion here.
-		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemRelocationTime, prometheus.CounterValue, relocation_time, page_size, buffer_pool)
+		// MySQL reports SUM_RELOCATION_TIME in microseconds, while MariaDB
+		// reports it in seconds. Normalize to seconds for the _seconds_total metric.
+		relocationTimeSeconds := relocation_time
+		if instance.flavor == FlavorMySQL {
+			relocationTimeSeconds = relocation_time / 1000000
+		}
+		ch <- prometheus.MustNewConstMetric(infoSchemaInnodbCmpMemRelocationTime, prometheus.CounterValue, relocationTimeSeconds, page_size, buffer_pool)
 	}
 	return nil
 }

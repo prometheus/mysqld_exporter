@@ -77,6 +77,8 @@ const (
 
 	DefaultInfoSchemaTablesDatabases = "*"
 
+	DefaultInnodbIndexStatsDatabases = "*"
+
 	DefaultPerfSchemaEventsStatementsLimit           = 250
 	DefaultPerfSchemaEventsStatementsTimeLimit       = 86400
 	DefaultPerfSchemaEventsStatementsDigestTextLimit = 120
@@ -102,6 +104,7 @@ type Config struct {
 	Heartbeat                      HeartbeatConfig
 	InfoSchemaProcesslist          InfoSchemaProcesslistConfig
 	InfoSchemaTables               InfoSchemaTablesConfig
+	InnodbIndexStats               InnodbIndexStatsConfig
 	PerfSchemaEventsStatements     PerfSchemaEventsStatementsConfig
 	PerfSchemaFileInstances        PerfSchemaFileInstancesConfig
 	PerfSchemaMemoryEvents         PerfSchemaMemoryEventsConfig
@@ -123,6 +126,10 @@ type InfoSchemaProcesslistConfig struct {
 }
 
 type InfoSchemaTablesConfig struct {
+	Databases string
+}
+
+type InnodbIndexStatsConfig struct {
 	Databases string
 }
 
@@ -168,6 +175,9 @@ func NewConfigWithDefaults() Config {
 		},
 		InfoSchemaTables: InfoSchemaTablesConfig{
 			Databases: DefaultInfoSchemaTablesDatabases,
+		},
+		InnodbIndexStats: InnodbIndexStatsConfig{
+			Databases: DefaultInnodbIndexStatsDatabases,
 		},
 		PerfSchemaEventsStatements: PerfSchemaEventsStatementsConfig{
 			Limit:           DefaultPerfSchemaEventsStatementsLimit,
@@ -227,6 +237,7 @@ func DefaultCollectorConfig() map[string]bool {
 		"slave_hosts":                                      false,
 		"info_schema.replica_host":                         false,
 		"info_schema.rocksdb_perf_context":                 false,
+		"mysql.innodb_index_stats":                         false,
 	}
 }
 
@@ -260,6 +271,9 @@ func (c Config) Validate() error {
 	}
 	if c.InfoSchemaTables.Databases == "" {
 		return fmt.Errorf("info_schema tables databases must not be empty")
+	}
+	if c.InnodbIndexStats.Databases == "" {
+		return fmt.Errorf("innodb index stats databases must not be empty")
 	}
 	if c.PerfSchemaEventsStatements.Limit <= 0 {
 		return fmt.Errorf("perf_schema events statements limit must be greater than zero")

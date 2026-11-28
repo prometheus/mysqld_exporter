@@ -185,6 +185,9 @@ func (ScrapeGlobalVariables) Scrape(ctx context.Context, instance *instance, ch 
 			textItems[key] = string(val)
 		}
 	}
+	if err := globalVariablesRows.Err(); err != nil {
+		return err
+	}
 
 	// mysql_version_info metric.
 	ch <- prometheus.MustNewConstMetric(

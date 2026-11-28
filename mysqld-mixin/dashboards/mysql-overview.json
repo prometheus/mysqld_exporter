@@ -184,7 +184,7 @@
           "calculatedInterval": "10m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "rate(mysql_global_status_queries{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -684,7 +684,7 @@
           "calculatedInterval": "2m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "rate(mysql_global_status_questions{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_questions_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -1421,7 +1421,7 @@
           "calculatedInterval": "2m",
           "datasourceErrors": {},
           "errors": {},
-          "expr": "sum(rate(mysql_global_status_slow_queries{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(mysql_global_status_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -3312,7 +3312,7 @@
           "step": 20
         },
         {
-          "expr": "rate(mysql_global_status_table_open_cache_hits{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_table_open_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -3321,7 +3321,7 @@
           "step": 20
         },
         {
-          "expr": "rate(mysql_global_status_table_open_cache_misses{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "rate(mysql_global_status_table_open_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,
@@ -3339,7 +3339,7 @@
           "step": 20
         },
         {
-          "expr": "rate(mysql_global_status_table_open_cache_hits{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])/(rate(mysql_global_status_table_open_cache_hits{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])+rate(mysql_global_status_table_open_cache_misses{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "rate(mysql_global_status_table_open_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])/(rate(mysql_global_status_table_open_cache_hits_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])+rate(mysql_global_status_table_open_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "format": "time_series",
           "interval": "1m",
           "intervalFactor": 1,

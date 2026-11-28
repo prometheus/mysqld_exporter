@@ -15,6 +15,7 @@ package collector
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -123,5 +124,51 @@ func TestScrapeGlobalStatus(t *testing.T) {
 	// Ensure all SQL queries were executed
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled exceptions: %s", err)
+	}
+}
+
+func TestScrapeGlobalStatusCounterNames(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error opening a stub database connection: %s", err)
+	}
+	defer db.Close()
+	inst := &instance{db: db}
+
+	rows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+		AddRow("Queries", "1").
+		AddRow("Questions", "2").
+		AddRow("Slow_queries", "3").
+		AddRow("Table_open_cache_hits", "4").
+		AddRow("Table_open_cache_misses", "5")
+	mock.ExpectQuery(sanitizeQuery(globalStatusQuery)).WillReturnRows(rows)
+
+	ch := make(chan prometheus.Metric)
+	go func() {
+		if err = (ScrapeGlobalStatus{}).Scrape(context.Background(), inst, ch, promslog.NewNopLogger()); err != nil {
+			t.Errorf("error calling function on test: %s", err)
+		}
+		close(ch)
+	}()
+
+	expectedNames := []string{
+		"mysql_global_status_queries_total",
+		"mysql_global_status_questions_total",
+		"mysql_global_status_slow_queries_total",
+		"mysql_global_status_table_open_cache_hits_total",
+		"mysql_global_status_table_open_cache_misses_total",
+	}
+	for _, expectedName := range expectedNames {
+		metric := <-ch
+		if !strings.Contains(metric.Desc().String(), `fqName: "`+expectedName+`"`) {
+			t.Errorf("expected metric %q, got descriptor %s", expectedName, metric.Desc())
+		}
+		if got := readMetric(metric); got.metricType != dto.MetricType_COUNTER {
+			t.Errorf("expected metric %q to be a counter, got %s", expectedName, got.metricType)
+		}
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }

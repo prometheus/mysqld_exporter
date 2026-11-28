@@ -2,9 +2,11 @@
 
 BREAKING CHANGES:
 
+* Rename the `queries`, `questions`, `slow_queries`, `table_open_cache_hits`, and `table_open_cache_misses` global-status counters to include the Prometheus `_total` suffix. #1100
+
 Changes:
 
-* [CHANGE]
+* [CHANGE] Add the `_total` suffix to selected global-status counter names. #1100
 * [FEATURE]
 * [ENHANCEMENT]
 * [BUGFIX]
